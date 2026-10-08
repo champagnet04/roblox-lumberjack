@@ -488,3 +488,20 @@ Requires from the owner, in Studio (cannot be done from code): publish the place
 
 Tested: `stylua` formatting applied, `selene` reports 0 errors and 0 warnings, `rojo build` succeeds.
 Not tested: nothing has been run in Studio, and no data store call has been made. Whether loading and saving work against a real data store is unconfirmed.
+
+### 2026-10-07 — Mobile sprint button replaces jump
+
+Why: sprinting was keyboard only, so mobile players could not sprint. The owner asked for the jump button to become a sprint button.
+
+Changed:
+
+- `src/client/Input.client.luau` — on touch devices (touch screen, no keyboard):
+  - A round hold-to-sprint button appears in the bottom-right corner, where Roblox's jump button normally is, in the same sizes Roblox uses (70 pixels on phones, 120 on tablets). It lights up while held and stops the sprint when the finger lifts or slides away.
+  - Jumping is switched off, which makes Roblox hide its own jump button.
+
+Keyboard players are unaffected: Shift still sprints and Space still jumps.
+
+Consequence: mobile players cannot jump at all, so they cannot hop over fallen logs or rocks and must go around them.
+
+Tested: `stylua` formatting applied, `selene` passes, `rojo build` succeeds.
+Not tested: not run in Studio or on a phone. Unconfirmed: that the jump button disappears, the sprint button's position on real devices, and hold-to-chop on touch (written in step 3b, also never tried on a phone).

@@ -1,5 +1,5 @@
 -- Player input. Hold the mouse button (or a finger) on a tree to keep chopping it.
--- Hold Shift to sprint.
+-- Hold Shift to sprint; on touch devices, hold the on-screen sprint button.
 
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
@@ -158,3 +158,76 @@ RunService.Heartbeat:Connect(function()
 		startSwing(root, tree)
 	end
 end)
+
+-- Touch devices: a hold-to-sprint button sits where Roblox's jump button normally is,
+-- and jumping is switched off so the jump button disappears.
+local isTouchDevice = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+
+if isTouchDevice then
+	local function disableJump(character: Model)
+		local humanoid = character:WaitForChild("Humanoid") :: Humanoid
+		-- Roblox hides its jump button by itself when the character cannot jump.
+		humanoid.JumpPower = 0
+		humanoid.JumpHeight = 0
+		humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
+	end
+	player.CharacterAdded:Connect(disableJump)
+	if player.Character then
+		task.spawn(disableJump, player.Character)
+	end
+
+	local IDLE_COLOR = Color3.fromRGB(20, 16, 12)
+	local HELD_COLOR = Color3.fromRGB(255, 214, 120)
+
+	local touchGui = Instance.new("ScreenGui")
+	touchGui.Name = "TouchControls"
+	touchGui.ResetOnSpawn = false
+
+	-- Same sizes Roblox uses for its own jump button: smaller on phones, larger on tablets.
+	local camera = Workspace.CurrentCamera
+	local viewport = if camera then camera.ViewportSize else Vector2.new(800, 400)
+	local isPhone = math.min(viewport.X, viewport.Y) <= 500
+	local size = if isPhone then 70 else 120
+
+	local sprintButton = Instance.new("TextButton")
+	sprintButton.Name = "Sprint"
+	sprintButton.AnchorPoint = Vector2.new(1, 1)
+	sprintButton.Position = if isPhone then UDim2.new(1, -25, 1, -20) else UDim2.new(1, -50, 1, -90)
+	sprintButton.Size = UDim2.fromOffset(size, size)
+	sprintButton.BackgroundColor3 = IDLE_COLOR
+	sprintButton.BackgroundTransparency = 0.35
+	sprintButton.BorderSizePixel = 0
+	sprintButton.AutoButtonColor = false
+	sprintButton.Font = Enum.Font.GothamBlack
+	sprintButton.TextSize = if isPhone then 13 else 20
+	sprintButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	sprintButton.Text = "SPRINT"
+	sprintButton.Parent = touchGui
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(1, 0)
+	corner.Parent = sprintButton
+
+	touchGui.Parent = player:WaitForChild("PlayerGui")
+
+	-- The finger currently holding the button. Tracked so that sliding off still ends the sprint.
+	local sprintTouch: InputObject? = nil
+
+	sprintButton.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch and not sprintTouch then
+			sprintTouch = input
+			sprintButton.BackgroundColor3 = HELD_COLOR
+			sprintButton.TextColor3 = IDLE_COLOR
+			Remotes.SetSprinting:FireServer(true)
+		end
+	end)
+
+	UserInputService.InputEnded:Connect(function(input)
+		if input == sprintTouch then
+			sprintTouch = nil
+			sprintButton.BackgroundColor3 = IDLE_COLOR
+			sprintButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+			Remotes.SetSprinting:FireServer(false)
+		end
+	end)
+end
