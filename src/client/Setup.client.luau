@@ -1,4 +1,4 @@
--- Hides the default item bar so the torch cannot be put away.
+-- Hides the default item bar so the axe cannot be put away.
 
 local StarterGui = game:GetService("StarterGui")
 

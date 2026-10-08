@@ -21,12 +21,17 @@ Each entry says what changed, why, and whether it has been tested.
 | 2026-10-07 | The forest is dark. The campfire is the main light at camp and the player carries a torch to see in the forest. |
 | 2026-10-07 | Models may be generated in code to improve the look. No paid assets. |
 | 2026-10-07 | Trees are pines with a Christmas-tree shape.|
+| 2026-10-07 | Chopping is hold-to-chop: hold the button on a tree and the character swings until it falls. 5 swings per tree, one every 0.4 seconds (first tried at 0.6, which the owner found a little slow). |
 | 2026-10-07 | Not yet confirmed by the owner (Claude's defaults): every tree in the playable area is choppable; hills are kept shallow. |
 
 ## Ideas noted for later
 
 - The player wears a red flannel shirt and jeans.
 - A small map in the corner of the screen for navigating back to camp. Undecided; possibly a power-up.
+
+## Open design questions
+
+- **Incentive to go deeper into the forest** (raised by the owner on 2026-10-07, to discuss later). At present every tree gives the same 10–20 wood wherever it stands, and from step 6 the creature becomes more likely the farther from camp a tree is. So going deeper adds risk with no extra reward, and the best strategy is to chop near camp.
 
 ---
 
@@ -38,8 +43,9 @@ Each entry says what changed, why, and whether it has been tested.
 | 2 | Config, remotes, world generation (ground, camp, fire pit, safe-zone ring, trees) | Done; look rejected after play-test, replaced by 2b |
 | 2b | Dense night forest: terrain hills, tall trees, fog, campfire and lanterns, player torch | Done; play-tested, direction approved, trees "look a little funny" |
 | 2c | Pine trees, plus fog, fire pit and lantern adjustments | Done; play-tested, owner said it looks good for now |
-| 3 | Chopping, tree health, current haul, on-screen haul counter | Built; not yet play-tested in Studio |
-| 4 | Safe zone, banking, banked wood counter | Not started |
+| 3 | Chopping, tree health, current haul, on-screen haul counter | Done; play-tested, works, but click cadence felt glitchy |
+| 3b | Hold-to-chop with an axe swing; torch moved to the left hand | Built; not yet play-tested in Studio |
+| 4 | Safe zone, banking, banked wood counter | Done; play-tested, owner confirmed banking works |
 | 5 | Sprinting, stamina, carry slowdown, stamina bar | Not started |
 | 6 | Lorax trigger, warning, chase, capture, run-over screen | Not started |
 
@@ -142,3 +148,60 @@ Not in this step: no axe model or swing animation, swings cost no stamina, the h
 
 Tested: `stylua` formatting applied, `selene` reports 0 errors and 0 warnings, `rojo build` succeeds.
 Not tested: nothing has been run in Studio. Unconfirmed: that clicks register on trunks, how the shake and fall look, and the haul panel's position and size.
+
+### 2026-10-07 — Step 4: safe zone and banking
+
+Added:
+
+- `src/server/CampService.luau` — five times a second, checks whether each player is inside the stone ring (within 22 studs of the camp centre). Sets an `InCamp` attribute on the player, and if they are inside and carrying wood, banks it.
+
+Changed:
+
+- `src/server/PlayerState.luau` — adds banked wood (a `Banked` attribute, starting at 0 on join) and a bank action that moves the whole haul into banked wood and resets the haul to 0.
+- `src/client/Hud.client.luau` — adds a "BANKED WOOD" panel under the haul panel, and a "+N WOOD BANKED" message near the top of the screen that fades after about two seconds. The two panels now share one builder function.
+- `src/server/Main.server.luau` — starts the camp service.
+- This log — step 3 marked as play-tested; added the "Open design questions" section with the incentive-to-go-deeper note.
+
+Banked wood is not saved between play sessions in Version 0.
+
+Tested: `stylua` formatting applied, `selene` reports 0 errors and 0 warnings, `rojo build` succeeds.
+Not tested: nothing has been run in Studio. Unconfirmed: that banking triggers at the stone ring, and how the banked panel and message look.
+
+### 2026-10-07 — Step 3b: hold-to-chop and axe swing
+
+Why: the owner play-tested chopping and found it glitchy, with an annoying wait between clicks. Clicks made during the 0.6-second cooldown were silently ignored, and the tree's shake was played by the server, so it lagged the click. The owner chose hold-to-chop with an animated chopping motion, keeping 5 swings per tree and the 0.6-second pace.
+
+Added:
+
+- `src/client/ChopAnimation.luau` — plays the chopping visuals on the player's own screen:
+  - The axe swing: the right arm winds up over the shoulder and strikes forward, taking 0.45 seconds, with the axe landing 0.22 seconds in. It is done by turning the shoulder joint directly, because the project has no animation assets.
+  - Holds the left arm out in front so the torch stays raised.
+  - The tree's shake, now smoother and played the instant the axe lands.
+
+Changed:
+
+- `src/client/Input.client.luau` — rewritten for hold-to-chop. While the mouse button (or a finger) is held on a tree in range, a swing starts every 0.6 seconds. The character turns to face the tree if standing still. The chop request is sent when the axe lands. Swings are never started when out of range or pointing at nothing, so no input is wasted.
+- `src/server/PlayerSetup.luau` — the player now holds an axe in the right hand (a Roblox tool, built from two parts) and the torch is welded to the left hand.
+- `src/server/TreeService.luau` — the server no longer plays the shake. It publishes each tree's remaining health as a `Health` attribute, and accepts swings up to 20% early so network delay cannot reject a swing the player saw land.
+- `src/client/Setup.client.luau`, `src/shared/Config.luau` — comments only.
+
+Known limits:
+
+- The arm poses and tree shake are only visible to the player doing them. Other players would see the arms unposed. This matters only once multiplayer exists.
+- The arm poses work on R15 avatars (the Roblox default). On R6 avatars the arms are not posed, though chopping still works.
+- Touch input for hold-to-chop is written but has not been tried on a phone.
+
+Tested: `stylua` formatting applied, `selene` reports 0 errors and 0 warnings, `rojo build` succeeds.
+Not tested: nothing has been run in Studio. Unconfirmed: how the swing looks, the axe's orientation in the hand, the torch's position in the left hand, and the feel of the chopping rhythm.
+
+### 2026-10-07 — Chopping pace: 0.6 to 0.4 seconds per swing
+
+Why: the owner play-tested hold-to-chop and found 0.6 seconds per swing a little slow.
+
+Changed:
+
+- `src/shared/Config.luau` — `SwingCooldown` is now 0.4 (was 0.6). A tree takes about 2 seconds to fell instead of 3.
+- `src/client/ChopAnimation.luau` — the swing is shortened to fit inside the new pace: 0.36 seconds in total (was 0.45), with the axe landing at 0.18 seconds (was 0.22).
+
+Tested: `stylua` and `selene` pass, `rojo build` succeeds.
+Not tested: not run in Studio; the feel of the new pace is unconfirmed.

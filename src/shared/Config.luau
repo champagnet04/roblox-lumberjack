@@ -71,7 +71,7 @@ Config.Carry = {
 
 Config.Tree = {
 	SwingsToFell = 5,
-	SwingCooldown = 0.6,
+	SwingCooldown = 0.35, -- time between swings while the button is held
 	WoodMin = 10,
 	WoodMax = 20,
 	RespawnTime = 60,

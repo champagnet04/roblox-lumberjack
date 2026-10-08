@@ -1,4 +1,5 @@
 -- Tree health, chop validation, felling and regrowth. The server decides every outcome.
+-- Each tree's remaining health is published as a `Health` attribute for the client to read.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -18,6 +19,10 @@ type TreeState = {
 	TrunkRadius: number,
 }
 
+-- The client paces its own swings; the server accepts them slightly early so that
+-- network delay never throws away a swing the player saw land.
+local COOLDOWN_SLACK = 0.8
+
 local rng = Random.new()
 local treesFolder: Instance
 local states: { [Instance]: TreeState } = {}
@@ -34,19 +39,6 @@ local function tilt(tree: Model, state: TreeState, direction: Vector3, angle: nu
 	)
 end
 
-local function shake(tree: Model, state: TreeState, direction: Vector3)
-	for _, degrees in { 1.5, -1, 0.5 } do
-		if state.Felled then
-			return
-		end
-		tilt(tree, state, direction, math.rad(degrees))
-		task.wait(0.05)
-	end
-	if not state.Felled then
-		tree:PivotTo(state.Upright)
-	end
-end
-
 local function fell(tree: Model, state: TreeState, direction: Vector3)
 	state.Felled = true
 
@@ -60,6 +52,7 @@ local function fell(tree: Model, state: TreeState, direction: Vector3)
 	task.delay(Config.Tree.RespawnTime, function()
 		tree:PivotTo(state.Upright)
 		state.Health = Config.Tree.SwingsToFell
+		tree:SetAttribute("Health", state.Health)
 		state.Felled = false
 		tree.Parent = treesFolder
 	end)
@@ -86,18 +79,17 @@ local function onChopRequest(player: Player, tree: any)
 	end
 
 	local now = os.clock()
-	if now - (lastSwing[player] or 0) < Config.Tree.SwingCooldown then
+	if now - (lastSwing[player] or 0) < Config.Tree.SwingCooldown * COOLDOWN_SLACK then
 		return
 	end
 	lastSwing[player] = now
 
-	-- The tree leans away from whoever hit it.
+	-- The tree falls away from whoever felled it. (The shake on earlier hits is played by the client.)
 	local direction = if offset.Magnitude > 0.01 then offset.Unit else Vector3.xAxis
 
 	state.Health -= 1
-	if state.Health > 0 then
-		task.spawn(shake, tree, state, direction)
-	else
+	tree:SetAttribute("Health", state.Health)
+	if state.Health <= 0 then
 		PlayerState.addHaul(player, rng:NextInteger(Config.Tree.WoodMin, Config.Tree.WoodMax))
 		task.spawn(fell, tree, state, direction)
 	end
@@ -110,6 +102,7 @@ function TreeService.start()
 	for _, tree in treesFolder:GetChildren() do
 		if tree:IsA("Model") and tree.PrimaryPart then
 			local trunk = tree.PrimaryPart
+			tree:SetAttribute("Health", Config.Tree.SwingsToFell)
 			-- The trunk is a cylinder lying along its own X axis, so Size.X is its height.
 			states[tree] = {
 				Health = Config.Tree.SwingsToFell,

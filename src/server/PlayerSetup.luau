@@ -1,4 +1,5 @@
--- Per-player setup: a lit torch in hand and a camera that stays under the canopy.
+-- Per-player setup: an axe in the right hand, a lit torch in the left,
+-- and a camera that stays under the canopy.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -8,35 +9,72 @@ local Config = require(ReplicatedStorage.Shared.Config)
 
 local PlayerSetup = {}
 
-local function buildTorch(): Tool
-	local torch = Instance.new("Tool")
-	torch.Name = "Torch"
-	torch.CanBeDropped = false
-	torch.Grip = CFrame.new(0, -0.7, 0) -- hold it below the middle of the handle
+local GRIP_TURN = CFrame.Angles(math.rad(-90), 0, 0) -- how Roblox orients things held in a hand
 
-	local handle = Instance.new("Part")
-	handle.Name = "Handle"
-	handle.Size = Vector3.new(0.35, 2.8, 0.35)
-	handle.Material = Enum.Material.Wood
-	handle.Color = Color3.fromRGB(84, 60, 42)
-	handle.CanCollide = false
-	handle.Massless = true
-	handle.Parent = torch
+local function makeHeldPart(props: { [string]: any }, parent: Instance): Part
+	local part = Instance.new("Part")
+	part.CanCollide = false
+	part.CanQuery = false
+	part.Massless = true
+	for key, value in props do
+		(part :: any)[key] = value
+	end
+	part.Parent = parent
+	return part
+end
 
-	local head = Instance.new("Part")
-	head.Name = "Head"
-	head.Size = Vector3.new(0.6, 0.7, 0.6)
-	head.CFrame = handle.CFrame * CFrame.new(0, 1.5, 0)
-	head.Material = Enum.Material.Slate
-	head.Color = Color3.fromRGB(40, 32, 28)
-	head.CanCollide = false
-	head.Massless = true
-	head.Parent = torch
-
+local function weldTo(handle: BasePart, part: BasePart)
 	local weld = Instance.new("WeldConstraint")
 	weld.Part0 = handle
-	weld.Part1 = head
-	weld.Parent = head
+	weld.Part1 = part
+	weld.Parent = part
+end
+
+-- The axe is a Roblox tool, so the character holds its right arm out in front.
+local function buildAxe(): Tool
+	local axe = Instance.new("Tool")
+	axe.Name = "Axe"
+	axe.CanBeDropped = false
+	axe.Grip = CFrame.new(0, -1, 0) -- hold it near the bottom of the shaft
+
+	local handle = makeHeldPart({
+		Name = "Handle",
+		Size = Vector3.new(0.3, 3.2, 0.3),
+		Material = Enum.Material.Wood,
+		Color = Color3.fromRGB(120, 84, 54),
+	}, axe)
+
+	local head = makeHeldPart({
+		Name = "Head",
+		Size = Vector3.new(0.25, 1, 1.1),
+		CFrame = handle.CFrame * CFrame.new(0, 1.2, -0.5), -- blade faces forward
+		Material = Enum.Material.Metal,
+		Color = Color3.fromRGB(150, 154, 160),
+	}, axe)
+	weldTo(handle, head)
+
+	return axe
+end
+
+local function buildTorch(): (Model, Part)
+	local torch = Instance.new("Model")
+	torch.Name = "Torch"
+
+	local handle = makeHeldPart({
+		Name = "Handle",
+		Size = Vector3.new(0.35, 2.8, 0.35),
+		Material = Enum.Material.Wood,
+		Color = Color3.fromRGB(84, 60, 42),
+	}, torch)
+
+	local head = makeHeldPart({
+		Name = "Head",
+		Size = Vector3.new(0.6, 0.7, 0.6),
+		CFrame = handle.CFrame * CFrame.new(0, 1.5, 0),
+		Material = Enum.Material.Slate,
+		Color = Color3.fromRGB(40, 32, 28),
+	}, torch)
+	weldTo(handle, head)
 
 	local fire = Instance.new("Fire")
 	fire.Size = 3
@@ -50,7 +88,32 @@ local function buildTorch(): Tool
 	light.Shadows = true
 	light.Parent = head
 
-	return torch
+	torch.PrimaryPart = handle
+	return torch, handle
+end
+
+-- Tools only go in the right hand, so the torch is welded to the left hand directly.
+-- The client holds the left arm up (see ChopAnimation).
+local function attachTorch(character: Model)
+	local hand = character:WaitForChild("LeftHand", 5) or character:FindFirstChild("Left Arm")
+	if not hand or not hand:IsA("BasePart") then
+		return
+	end
+
+	local torch, handle = buildTorch()
+	local grip = hand:FindFirstChild("LeftGripAttachment")
+
+	local weld = Instance.new("Weld")
+	weld.Name = "TorchGrip"
+	weld.Part0 = hand
+	weld.Part1 = handle
+	weld.C0 = if grip and grip:IsA("Attachment")
+		then grip.CFrame
+		else CFrame.new(0, -hand.Size.Y / 2, 0) * GRIP_TURN
+	weld.C1 = CFrame.new(0, -0.7, 0) -- hold it below the middle of the handle
+	weld.Parent = handle
+
+	torch.Parent = character
 end
 
 local function onCharacterAdded(player: Player, character: Model)
@@ -59,9 +122,11 @@ local function onCharacterAdded(player: Player, character: Model)
 		character.AncestryChanged:Wait()
 	end
 
-	local torch = buildTorch()
-	torch.Parent = player:WaitForChild("Backpack")
-	humanoid:EquipTool(torch)
+	attachTorch(character)
+
+	local axe = buildAxe()
+	axe.Parent = player:WaitForChild("Backpack")
+	humanoid:EquipTool(axe)
 end
 
 local function onPlayerAdded(player: Player)
