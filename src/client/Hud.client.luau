@@ -1,7 +1,10 @@
 -- On-screen display. Reads the player's state attributes, which the server owns.
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+
+local Config = require(ReplicatedStorage.Shared.Config)
 
 local player = Players.LocalPlayer
 
@@ -73,6 +76,48 @@ toast.TextTransparency = 1
 toast.Text = ""
 toast.Parent = gui
 
+-- Stamina bar at the bottom of the screen.
+local STAMINA_COLOR = Color3.fromRGB(120, 200, 110)
+local STAMINA_LOW_COLOR = Color3.fromRGB(220, 110, 70)
+
+local staminaBar = Instance.new("Frame")
+staminaBar.Name = "Stamina"
+staminaBar.AnchorPoint = Vector2.new(0.5, 1)
+staminaBar.Position = UDim2.new(0.5, 0, 1, -28)
+staminaBar.Size = UDim2.fromOffset(320, 16)
+staminaBar.BackgroundColor3 = PANEL_COLOR
+staminaBar.BackgroundTransparency = 0.35
+staminaBar.BorderSizePixel = 0
+staminaBar.Parent = gui
+
+local staminaCorner = Instance.new("UICorner")
+staminaCorner.CornerRadius = UDim.new(1, 0)
+staminaCorner.Parent = staminaBar
+
+local staminaFill = Instance.new("Frame")
+staminaFill.Name = "Fill"
+staminaFill.Size = UDim2.fromScale(1, 1)
+staminaFill.BackgroundColor3 = STAMINA_COLOR
+staminaFill.BorderSizePixel = 0
+staminaFill.Parent = staminaBar
+
+local fillCorner = Instance.new("UICorner")
+fillCorner.CornerRadius = UDim.new(1, 0)
+fillCorner.Parent = staminaFill
+
+local staminaTitle = Instance.new("TextLabel")
+staminaTitle.Name = "Title"
+staminaTitle.AnchorPoint = Vector2.new(0.5, 1)
+staminaTitle.Position = UDim2.new(0.5, 0, 0, -4)
+staminaTitle.Size = UDim2.fromOffset(320, 16)
+staminaTitle.BackgroundTransparency = 1
+staminaTitle.Font = Enum.Font.GothamBold
+staminaTitle.TextSize = 13
+staminaTitle.TextColor3 = TITLE_COLOR
+staminaTitle.TextStrokeTransparency = 0.5
+staminaTitle.Text = "STAMINA"
+staminaTitle.Parent = staminaBar
+
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local toastTween: Tween?
@@ -120,7 +165,21 @@ local function refreshBanked()
 	shownBanked = banked
 end
 
+local function refreshStamina()
+	local stamina = player:GetAttribute("Stamina") or Config.Stamina.Max
+	local low = stamina < Config.Stamina.LowThreshold
+	staminaFill.BackgroundColor3 = if low then STAMINA_LOW_COLOR else STAMINA_COLOR
+	-- The server sends a new value ten times a second; glide between them.
+	TweenService:Create(
+		staminaFill,
+		TweenInfo.new(0.1, Enum.EasingStyle.Linear),
+		{ Size = UDim2.fromScale(math.clamp(stamina / Config.Stamina.Max, 0, 1), 1) }
+	):Play()
+end
+
+player:GetAttributeChangedSignal("Stamina"):Connect(refreshStamina)
 player:GetAttributeChangedSignal("Haul"):Connect(refreshHaul)
 player:GetAttributeChangedSignal("Banked"):Connect(refreshBanked)
 refreshHaul()
 refreshBanked()
+refreshStamina()

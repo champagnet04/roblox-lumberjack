@@ -7,6 +7,7 @@ local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local MovementService = require(script.Parent.MovementService)
 local PlayerState = require(script.Parent.PlayerState)
 
 local TreeService = {}
@@ -80,6 +81,9 @@ local function onChopRequest(player: Player, tree: any)
 
 	local now = os.clock()
 	if now - (lastSwing[player] or 0) < Config.Tree.SwingCooldown * COOLDOWN_SLACK then
+		return
+	end
+	if not MovementService.spendStamina(player, Config.Stamina.SwingCost) then
 		return
 	end
 	lastSwing[player] = now

@@ -55,6 +55,8 @@ Config.Stamina = {
 	SprintDrainPerSecond = 12,
 	SwingCost = 4,
 	RegenPerSecond = 6,
+	RegenDelay = 1.5, -- pause after a swing or sprint before stamina starts refilling
+	SprintMinToStart = 10, -- after running dry, stamina needed before sprinting again
 	LowThreshold = 30, -- below this, speed starts dropping
 	LowSpeedMultiplier = 0.75, -- speed multiplier at zero stamina
 }

@@ -1,4 +1,5 @@
 -- Player input. Hold the mouse button (or a finger) on a tree to keep chopping it.
+-- Hold Shift to sprint.
 
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
@@ -13,6 +14,11 @@ local ChopAnimation = require(script.Parent:WaitForChild("ChopAnimation"))
 
 local player = Players.LocalPlayer
 local treesFolder = Workspace:WaitForChild("World"):WaitForChild("Trees")
+
+local SPRINT_KEYS = {
+	[Enum.KeyCode.LeftShift] = true,
+	[Enum.KeyCode.RightShift] = true,
+}
 
 local heldInput: InputObject? = nil
 local lastSwing = 0
@@ -104,6 +110,10 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then
 		return
 	end
+	if SPRINT_KEYS[input.KeyCode] then
+		Remotes.SetSprinting:FireServer(true)
+		return
+	end
 	if
 		input.UserInputType == Enum.UserInputType.MouseButton1
 		or input.UserInputType == Enum.UserInputType.Touch
@@ -113,6 +123,10 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 end)
 
 UserInputService.InputEnded:Connect(function(input)
+	if SPRINT_KEYS[input.KeyCode] then
+		Remotes.SetSprinting:FireServer(false)
+		return
+	end
 	if not heldInput then
 		return
 	end
@@ -132,6 +146,9 @@ RunService.Heartbeat:Connect(function()
 	local now = os.clock()
 	if now - lastSwing < Config.Tree.SwingCooldown then
 		return
+	end
+	if (player:GetAttribute("Stamina") or 0) < Config.Stamina.SwingCost then
+		return -- too tired to swing
 	end
 
 	local root = rootPart()

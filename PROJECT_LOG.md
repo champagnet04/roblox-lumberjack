@@ -22,6 +22,8 @@ Each entry says what changed, why, and whether it has been tested.
 | 2026-10-07 | Models may be generated in code to improve the look. No paid assets. |
 | 2026-10-07 | Trees are pines with a Christmas-tree shape.|
 | 2026-10-07 | Chopping is hold-to-chop: hold the button on a tree and the character swings until it falls. 5 swings per tree, one every 0.4 seconds (first tried at 0.6, which the owner found a little slow). |
+| 2026-10-07 | Stamina stops refilling for 1.5 seconds after any swing or sprint, so steady chopping costs the full 4 per swing (20 per tree). |
+| 2026-10-07 | Carry slowdown keeps the spec's numbers for now; to be tuned after the creature exists (step 6). |
 | 2026-10-07 | Not yet confirmed by the owner (Claude's defaults): every tree in the playable area is choppable; hills are kept shallow. |
 
 ## Ideas noted for later
@@ -44,9 +46,9 @@ Each entry says what changed, why, and whether it has been tested.
 | 2b | Dense night forest: terrain hills, tall trees, fog, campfire and lanterns, player torch | Done; play-tested, direction approved, trees "look a little funny" |
 | 2c | Pine trees, plus fog, fire pit and lantern adjustments | Done; play-tested, owner said it looks good for now |
 | 3 | Chopping, tree health, current haul, on-screen haul counter | Done; play-tested, works, but click cadence felt glitchy |
-| 3b | Hold-to-chop with an axe swing; torch moved to the left hand | Built; not yet play-tested in Studio |
+| 3b | Hold-to-chop with an axe swing; torch moved to the left hand | Done; play-tested, pace changed to 0.4s at the owner's request |
 | 4 | Safe zone, banking, banked wood counter | Done; play-tested, owner confirmed banking works |
-| 5 | Sprinting, stamina, carry slowdown, stamina bar | Not started |
+| 5 | Sprinting, stamina, carry slowdown, stamina bar | Built; not yet play-tested in Studio |
 | 6 | Lorax trigger, warning, chase, capture, run-over screen | Not started |
 
 ---
@@ -205,3 +207,29 @@ Changed:
 
 Tested: `stylua` and `selene` pass, `rojo build` succeeds.
 Not tested: not run in Studio; the feel of the new pace is unconfirmed.
+
+### 2026-10-07 — Step 5: sprinting, stamina and carry slowdown
+
+Added:
+
+- `src/server/MovementService.luau` — tracks each player's stamina and sets their speed ten times a second.
+  - Stamina starts at 100 and is reset to full on respawn.
+  - Sprinting (Shift held while moving) uses speed 24 instead of 16 and drains 12 stamina per second.
+  - Stamina refills at 6 per second, but only after 1.5 seconds without a swing or sprint.
+  - Running stamina to 0 while sprinting stops the sprint until stamina is back to 10.
+  - Speed is multiplied by a tired slowdown (below 30 stamina, easing to 75% at 0) and a carry slowdown (from 50 wood, easing to 72% at 700). The two stack.
+  - Publishes stamina as a `Stamina` attribute on the player.
+
+Changed:
+
+- `src/server/TreeService.luau` — each swing costs 4 stamina; a swing without enough stamina is refused.
+- `src/client/Input.client.luau` — Shift (either side) sprints. No swing starts when stamina is below the swing cost.
+- `src/client/Hud.client.luau` — a stamina bar at the bottom centre of the screen, green, turning orange below 30.
+- `src/shared/Config.luau` — adds `RegenDelay` (1.5) and `SprintMinToStart` (10) to the stamina section.
+- `src/server/Main.server.luau` — starts the movement service.
+- `default.project.json` — turns off Roblox's Shift Lock option, which uses the same key as sprint. `rojo serve` must be restarted for this to apply.
+
+Not in this step: no on-screen sprint button for mobile, and no deliberate rest action (stamina refills whenever the player is not exerting).
+
+Tested: `stylua` formatting applied, `selene` reports 0 errors and 0 warnings, `rojo build` succeeds.
+Not tested: nothing has been run in Studio. Unconfirmed: the feel of sprint speed, drain and refill rates, and the stamina bar's look.
