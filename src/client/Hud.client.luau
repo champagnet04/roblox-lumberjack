@@ -127,6 +127,46 @@ local saveNotice = makeLabel({
 	Visible = false,
 }, gui)
 
+-- Next camp build, on the left: what it costs and how much of it the player has.
+local buildPanel = Instance.new("Frame")
+buildPanel.Name = "NextBuild"
+buildPanel.Position = UDim2.fromOffset(16, 70)
+buildPanel.Size = UDim2.fromOffset(240, 120)
+buildPanel.BackgroundColor3 = PANEL_COLOR
+buildPanel.BackgroundTransparency = 0.35
+buildPanel.BorderSizePixel = 0
+buildPanel.Parent = gui
+roundCorners(buildPanel, UDim.new(0, 10))
+
+makeLabel({
+	Name = "Title",
+	Position = UDim2.fromOffset(14, 8),
+	Size = UDim2.new(1, -28, 0, 18),
+	TextSize = 13,
+	TextColor3 = TITLE_COLOR,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	Text = "NEXT BUILD",
+}, buildPanel)
+
+local buildName = makeLabel({
+	Name = "BuildName",
+	Position = UDim2.fromOffset(14, 26),
+	Size = UDim2.new(1, -28, 0, 24),
+	Font = Enum.Font.GothamBlack,
+	TextSize = 18,
+	TextXAlignment = Enum.TextXAlignment.Left,
+}, buildPanel)
+
+local buildLines = makeLabel({
+	Name = "Requirements",
+	Position = UDim2.fromOffset(14, 54),
+	Size = UDim2.new(1, -28, 1, -62),
+	TextSize = 14,
+	RichText = true,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextYAlignment = Enum.TextYAlignment.Top,
+}, buildPanel)
+
 -- Shown for as long as the guardian is hunting the player.
 local chaseBanner = makeLabel({
 	Name = "ChaseBanner",
@@ -216,7 +256,7 @@ overlay.Parent = runOverGui
 local summary = Instance.new("Frame")
 summary.AnchorPoint = Vector2.new(0.5, 0.5)
 summary.Position = UDim2.fromScale(0.5, 0.5)
-summary.Size = UDim2.fromOffset(560, 560)
+summary.Size = UDim2.fromOffset(560, 600)
 summary.BackgroundTransparency = 1
 summary.Parent = overlay
 
@@ -259,13 +299,14 @@ local gameBankLabel = makeSummaryLine(3, 34, GOLD)
 local newBestLabel = makeSummaryLine(4, 20, GOLD)
 newBestLabel.Text = "NEW BEST GAME!"
 local woodLostLabel = makeSummaryLine(5, 24, DANGER)
-local bestGameLabel = makeSummaryLine(6, 20, WHITE)
-local bestHaulLabel = makeSummaryLine(7, 20, WHITE)
-local furthestLabel = makeSummaryLine(8, 20, WHITE)
-local overallLabel = makeSummaryLine(9, 20, WHITE)
+local materialLostLabel = makeSummaryLine(6, 20, DANGER)
+local bestGameLabel = makeSummaryLine(7, 20, WHITE)
+local bestHaulLabel = makeSummaryLine(8, 20, WHITE)
+local furthestLabel = makeSummaryLine(9, 20, WHITE)
+local overallLabel = makeSummaryLine(10, 20, WHITE)
 
 makeLabel({
-	LayoutOrder = 10,
+	LayoutOrder = 11,
 	Size = UDim2.new(1, 0, 0, 24),
 	TextSize = 16,
 	TextColor3 = TITLE_COLOR,
@@ -273,7 +314,7 @@ makeLabel({
 }, summary)
 
 local tryAgain = Instance.new("TextButton")
-tryAgain.LayoutOrder = 11
+tryAgain.LayoutOrder = 12
 tryAgain.Size = UDim2.fromOffset(240, 56)
 tryAgain.BackgroundColor3 = GOLD
 tryAgain.BorderSizePixel = 0
@@ -321,6 +362,8 @@ local lastEscapeAt = -math.huge
 local lastBankAt = -math.huge
 local lastBestHaulAt = -math.huge
 local lastFurthestAt = -math.huge
+local lastMaterialAt = -math.huge
+local lastMaterialName = ""
 local lastBankAmount = 0
 
 local function showArrivalToast()
@@ -334,6 +377,9 @@ local function showArrivalToast()
 	end
 	if now - lastFurthestAt < ARRIVAL_WINDOW then
 		table.insert(parts, "NEW FURTHEST TREE!")
+	end
+	if now - lastMaterialAt < ARRIVAL_WINDOW then
+		table.insert(parts, `{lastMaterialName} BANKED`)
 	end
 	if now - lastBankAt < ARRIVAL_WINDOW then
 		table.insert(parts, `+{lastBankAmount} WOOD BANKED`)
@@ -399,6 +445,64 @@ local function refreshStamina()
 	):Play()
 end
 
+local function materialName(materialType: string): string
+	local info = Config.Camp.Materials[materialType]
+	return string.upper(if info then info.Name else materialType)
+end
+
+local function requirementLine(label: string, have: number, need: number): string
+	local color = if have >= need then "#78C86E" else "#FFFFFF"
+	return `<font color="{color}">{label}  {have}/{need}</font>`
+end
+
+local shownMaterials: { [string]: number } = {}
+local shownCarried = ""
+
+local function refreshBuild()
+	-- Notice a material being banked or picked up, for the on-screen messages.
+	for _, materialType in Config.Camp.MaterialOrder do
+		local count = player:GetAttribute(`Mat_{materialType}`) or 0
+		local before = shownMaterials[materialType]
+		if before and count > before then
+			lastMaterialAt = os.clock()
+			lastMaterialName = materialName(materialType)
+		end
+		shownMaterials[materialType] = count
+	end
+
+	local carried = player:GetAttribute("CarriedMaterial") or ""
+	if carried ~= "" and carried ~= shownCarried then
+		showToast(`PICKED UP {materialName(carried)}`)
+	end
+	shownCarried = carried
+
+	local lines = {}
+	local build = Config.Camp.Builds[(player:GetAttribute("BuildsDone") or 0) + 1]
+	if build then
+		buildName.Text = string.upper(build.Name)
+		table.insert(
+			lines,
+			requirementLine("WOOD", player:GetAttribute("OverallBank") or 0, build.Wood)
+		)
+		for _, requirement in build.Materials do
+			local have = player:GetAttribute(`Mat_{requirement.Type}`) or 0
+			table.insert(
+				lines,
+				requirementLine(materialName(requirement.Type), have, requirement.Count)
+			)
+		end
+	else
+		buildName.Text = "CAMP COMPLETE"
+		table.insert(lines, "More builds coming soon.")
+	end
+	if carried ~= "" then
+		table.insert(lines, `<font color="#FFD678">CARRYING: {materialName(carried)}</font>`)
+	end
+
+	buildLines.Text = table.concat(lines, "\n")
+	buildPanel.Size = UDim2.fromOffset(240, 62 + #lines * 18)
+end
+
 local function refreshSaveStatus()
 	saveNotice.Visible = player:GetAttribute("SaveStatus") == "Unavailable"
 end
@@ -419,7 +523,13 @@ Remotes.Escaped.OnClientEvent:Connect(function()
 	showArrivalToast()
 end)
 
+Remotes.Notice.OnClientEvent:Connect(function(text)
+	showToast(text)
+end)
+
 Remotes.GameOver.OnClientEvent:Connect(function(result)
+	materialLostLabel.Visible = result.MaterialLost ~= ""
+	materialLostLabel.Text = `MATERIAL LOST: {materialName(result.MaterialLost)}`
 	gameBankLabel.Text = `THIS GAME: {result.GameBank} WOOD BANKED`
 	newBestLabel.Visible = result.IsBestGame
 	woodLostLabel.Text = `HAUL LOST: {result.WoodLost}`
@@ -442,5 +552,12 @@ refreshStats()
 refreshGameBank()
 refreshStamina()
 refreshChased()
+for _, name in { "BuildsDone", "OverallBank", "CarriedMaterial" } do
+	player:GetAttributeChangedSignal(name):Connect(refreshBuild)
+end
+for _, materialType in Config.Camp.MaterialOrder do
+	player:GetAttributeChangedSignal(`Mat_{materialType}`):Connect(refreshBuild)
+end
+refreshBuild()
 player:GetAttributeChangedSignal("SaveStatus"):Connect(refreshSaveStatus)
 refreshSaveStatus()

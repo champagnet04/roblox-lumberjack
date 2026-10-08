@@ -119,9 +119,10 @@ local function buildBoundary(parent: Instance)
 	end
 end
 
-local function buildFirePit(parent: Instance)
+-- The cold stone ring. The fire itself is the player's first camp build (see CampModels).
+local function buildFireRing(parent: Instance)
 	local pit = Instance.new("Model")
-	pit.Name = "FirePit"
+	pit.Name = "FireRing"
 
 	local stoneCount = 14
 	for i = 1, stoneCount do
@@ -134,42 +135,6 @@ local function buildFirePit(parent: Instance)
 			Color = STONE_COLOR,
 		}, pit)
 	end
-
-	-- Logs leaning together over the flames.
-	for i = 1, 4 do
-		local angle = (i / 4) * math.pi * 2 + 0.4
-		local size, cframe =
-			cylinderBetween(pointOnCircle(angle, 1.8, 0.3), pointOnCircle(angle, -0.3, 2.8), 0.8)
-		makePart({
-			Name = "Log",
-			Shape = Enum.PartType.Cylinder,
-			Size = size,
-			CFrame = cframe,
-			Material = Enum.Material.Wood,
-			Color = Color3.fromRGB(70, 48, 32),
-		}, pit)
-	end
-
-	local flame = makePart({
-		Name = "Flame",
-		Size = Vector3.new(1, 1, 1),
-		Position = Vector3.new(0, 1.6, 0),
-		Transparency = 1,
-		CanCollide = false,
-		CanQuery = false,
-	}, pit)
-
-	local fire = Instance.new("Fire")
-	fire.Size = 6
-	fire.Heat = 10
-	fire.Parent = flame
-
-	local light = Instance.new("PointLight")
-	light.Color = Config.Lighting.WarmLight
-	light.Brightness = Config.Lighting.CampfireBrightness
-	light.Range = Config.Lighting.CampfireRange
-	light.Shadows = true
-	light.Parent = flame
 
 	pit.Parent = parent
 end
@@ -230,23 +195,8 @@ local function buildCamp(parent: Instance)
 	local camp = Instance.new("Folder")
 	camp.Name = "Camp"
 
-	buildFirePit(camp)
+	buildFireRing(camp)
 	buildSafeZoneMarker(camp)
-
-	-- Log benches beside the fire.
-	for _, angle in { math.rad(120), math.rad(240) } do
-		local centre = pointOnCircle(angle, 9, 0.8)
-		local tangent = Vector3.new(-math.sin(angle), 0, math.cos(angle))
-		local size, cframe = cylinderBetween(centre - tangent * 4, centre + tangent * 4, 1.8)
-		makePart({
-			Name = "Bench",
-			Shape = Enum.PartType.Cylinder,
-			Size = size,
-			CFrame = cframe,
-			Material = Enum.Material.Wood,
-			Color = Color3.fromRGB(96, 66, 46),
-		}, camp)
-	end
 
 	local spawnLocation = Instance.new("SpawnLocation")
 	spawnLocation.Name = "CampSpawn"

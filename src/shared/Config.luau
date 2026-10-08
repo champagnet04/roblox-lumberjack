@@ -85,7 +85,9 @@ Config.Tree = {
 	WoodMin = 10, -- wood from a tree beside camp
 	WoodMax = 20,
 	DeepWoodMultiplier = 3, -- trees at the forest edge give this many times more
-	RespawnTime = 180, -- slow enough that the trees near camp run out and you must go deeper
+	-- Seconds before a felled tree regrows. 0 = it stays down until the game ends, so the
+	-- trees near camp run out and you must go deeper.
+	RespawnTime = 0,
 	DepthSizeWeight = 0.7, -- how much of a tree's size comes from depth (the rest is random)
 	ChopRange = 10,
 	-- Appearance: pines with a bare lower trunk and stacked tiers of needles
@@ -104,6 +106,74 @@ Config.Tree = {
 	BorderTrunkDiameterMax = 12,
 	BorderFoliageWidth = 46,
 	BorderTiers = 3,
+}
+
+-- Camp progression: builds are completed in this order. Each costs banked wood plus
+-- materials found in the forest, one material per trip.
+Config.Camp = {
+	Builds = {
+		{
+			Id = "FirePit",
+			Name = "Fire pit",
+			Wood = 100,
+			Materials = { { Type = "Sticks", Count = 1 }, { Type = "Flint", Count = 1 } },
+		},
+		{
+			Id = "LogSeat",
+			Name = "Log seat",
+			Wood = 300,
+			Materials = { { Type = "Branch", Count = 1 } },
+		},
+		{
+			Id = "Woodpile",
+			Name = "Woodpile",
+			Wood = 600,
+			Materials = { { Type = "Rope", Count = 2 } },
+		},
+		{
+			Id = "LeanToFrame",
+			Name = "Lean-to frame",
+			Wood = 1000,
+			Materials = { { Type = "Sticks", Count = 2 }, { Type = "Rope", Count = 1 } },
+		},
+		{
+			Id = "LeanToCover",
+			Name = "Lean-to cover",
+			Wood = 1600,
+			Materials = { { Type = "Cloth", Count = 2 } },
+		},
+		{
+			Id = "Bedroll",
+			Name = "Bedroll",
+			Wood = 2500,
+			Materials = { { Type = "Cloth", Count = 1 }, { Type = "Moss", Count = 2 } },
+		},
+	},
+
+	-- Every material type, in a fixed order (used for saving and the on-screen list).
+	MaterialOrder = { "Sticks", "Flint", "Branch", "Rope", "Cloth", "Moss" },
+	Materials = {
+		Sticks = { Name = "sticks" },
+		Flint = { Name = "flint" },
+		Branch = { Name = "fallen branch" },
+		Rope = { Name = "rope" },
+		Cloth = { Name = "cloth" },
+		Moss = { Name = "moss" },
+	},
+
+	-- Where a material appears: this far from camp for the first build...
+	MaterialMinDistance = 45,
+	MaterialMaxDistance = 110,
+	MaterialDistanceStepPerBuild = 20, -- ...and this much farther out for each build completed
+	MaterialRespawnDelay = 3, -- seconds after banking or losing one before the next appears
+	MaterialGlowRange = 22, -- how far its light reaches
+	MaterialScale = 3, -- materials are drawn this many times larger than life so they can be seen
+	MaterialHoverHeight = 3.5, -- they float this far above the ground, clear of the long grass
+	PickupRange = 5,
+
+	BuildRange = 12, -- how close to the outline you must stand to build
+	BuildHoldTime = 1, -- seconds the build prompt must be held
+	GhostTransparency = 0.6, -- how faint the glowing outline of the next build is (1 = invisible)
 }
 
 -- The creature that hunts the player. An original design; the name is a placeholder.

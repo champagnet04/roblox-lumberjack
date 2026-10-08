@@ -1,5 +1,6 @@
 -- Server entry point. Builds the world, then starts the gameplay services.
 
+local CampBuildService = require(script.Parent.CampBuildService)
 local CampService = require(script.Parent.CampService)
 local GuardianService = require(script.Parent.GuardianService)
 local LightingSetup = require(script.Parent.LightingSetup)
@@ -18,4 +19,5 @@ SaveService.start()
 MovementService.start()
 TreeService.start()
 CampService.start()
+CampBuildService.start()
 GuardianService.start()

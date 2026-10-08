@@ -8,16 +8,28 @@
 --   BestGame    the highest GameBank a game has finished with
 --   FurthestTree the greatest distance from camp (in studs) of a tree felled on a trip that
 --               made it home
+--   BuildsDone  how many camp builds are finished
+--   Mat_<Type>  banked materials of each type, waiting to be used in a build
+--   CarriedMaterial  the one material being carried this trip ("" for none); at risk like the haul
 --
 -- A game ends when the guardian captures the player.
--- OverallBank and the three records are saved between sessions by SaveService.
+-- OverallBank, the three records, BuildsDone and banked materials are saved between
+-- sessions by SaveService.
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage.Shared.Config)
 
 local PlayerState = {}
 
+-- Fires with the player when their game ends (the guardian caught them).
+local gameEnded = Instance.new("BindableEvent")
+PlayerState.GameEnded = gameEnded.Event
+
 export type GameSummary = {
 	WoodLost: number, -- the haul being carried when caught
+	MaterialLost: string, -- the material being carried when caught ("" for none)
 	GameBank: number, -- what this game banked in total
 	BestGame: number,
 	IsBestGame: boolean, -- this game set a new best
@@ -38,6 +50,43 @@ function PlayerState.getHaul(player: Player): number
 	return get(player, "Haul")
 end
 
+function PlayerState.getOverallBank(player: Player): number
+	return get(player, "OverallBank")
+end
+
+function PlayerState.getBuildsDone(player: Player): number
+	return get(player, "BuildsDone")
+end
+
+function PlayerState.getMaterial(player: Player, materialType: string): number
+	return get(player, `Mat_{materialType}`)
+end
+
+function PlayerState.getCarried(player: Player): string
+	return player:GetAttribute("CarriedMaterial") or ""
+end
+
+function PlayerState.setCarried(player: Player, materialType: string)
+	player:SetAttribute("CarriedMaterial", materialType)
+end
+
+-- Pays for a camp build from the overall bank and banked materials, and marks it done.
+-- The caller checks that the player can afford it.
+function PlayerState.completeBuild(
+	player: Player,
+	build: {
+		Wood: number,
+		Materials: { { Type: string, Count: number } },
+	}
+)
+	player:SetAttribute("OverallBank", get(player, "OverallBank") - build.Wood)
+	for _, requirement in build.Materials do
+		local name = `Mat_{requirement.Type}`
+		player:SetAttribute(name, math.max(get(player, name) - requirement.Count, 0))
+	end
+	player:SetAttribute("BuildsDone", get(player, "BuildsDone") + 1)
+end
+
 function PlayerState.addHaul(player: Player, amount: number)
 	player:SetAttribute("Haul", get(player, "Haul") + amount)
 end
@@ -48,6 +97,7 @@ function PlayerState.recordTreeDistance(player: Player, distance: number)
 end
 
 -- Moves the whole haul into the game bank and the overall bank. Returns how much was banked.
+-- A carried material is banked with it; without wood, nothing banks.
 function PlayerState.bankHaul(player: Player): number
 	local haul = get(player, "Haul")
 	if haul > 0 then
@@ -59,6 +109,12 @@ function PlayerState.bankHaul(player: Player): number
 			player:SetAttribute("FurthestTree", furthest)
 		end
 		tripFurthest[player] = nil
+		local carried = PlayerState.getCarried(player)
+		if carried ~= "" then
+			local name = `Mat_{carried}`
+			player:SetAttribute(name, get(player, name) + 1)
+			player:SetAttribute("CarriedMaterial", "")
+		end
 		player:SetAttribute("OverallBank", get(player, "OverallBank") + haul)
 		player:SetAttribute("GameBank", get(player, "GameBank") + haul)
 		player:SetAttribute("Haul", 0)
@@ -66,10 +122,11 @@ function PlayerState.bankHaul(player: Player): number
 	return haul
 end
 
--- Throws away the whole haul. Returns how much was lost.
+-- Throws away the whole haul and any carried material. Returns how much wood was lost.
 function PlayerState.loseHaul(player: Player): number
 	local haul = get(player, "Haul")
 	player:SetAttribute("Haul", 0)
+	player:SetAttribute("CarriedMaterial", "")
 	tripFurthest[player] = nil -- a trip that did not make it home sets no distance record
 	return haul
 end
@@ -77,6 +134,7 @@ end
 -- Ends the current game: the haul is lost, the game bank is scored and reset.
 -- The overall bank is untouched, because banked wood was already added to it.
 function PlayerState.endGame(player: Player): GameSummary
+	local materialLost = PlayerState.getCarried(player)
 	local lost = PlayerState.loseHaul(player)
 	local gameBank = get(player, "GameBank")
 	local isBest = gameBank > get(player, "BestGame")
@@ -84,9 +142,11 @@ function PlayerState.endGame(player: Player): GameSummary
 		player:SetAttribute("BestGame", gameBank)
 	end
 	player:SetAttribute("GameBank", 0)
+	gameEnded:Fire(player)
 
 	return {
 		WoodLost = lost,
+		MaterialLost = materialLost,
 		GameBank = gameBank,
 		BestGame = get(player, "BestGame"),
 		IsBestGame = isBest,
@@ -97,7 +157,10 @@ function PlayerState.endGame(player: Player): GameSummary
 end
 
 -- The numbers that are kept between sessions.
-local SAVED = { "OverallBank", "BestHaul", "BestGame", "FurthestTree" }
+local SAVED = { "OverallBank", "BestHaul", "BestGame", "FurthestTree", "BuildsDone" }
+for _, materialType in Config.Camp.MaterialOrder do
+	table.insert(SAVED, `Mat_{materialType}`)
+end
 
 function PlayerState.getSaved(player: Player): { [string]: number }
 	local data = {}
@@ -132,9 +195,13 @@ local function onCharacterAdded(player: Player, character: Model)
 end
 
 local function onPlayerAdded(player: Player)
-	for _, name in { "Haul", "GameBank", "OverallBank", "BestHaul", "BestGame", "FurthestTree" } do
+	for _, name in { "Haul", "GameBank" } do
 		player:SetAttribute(name, 0)
 	end
+	for _, name in SAVED do
+		player:SetAttribute(name, 0)
+	end
+	player:SetAttribute("CarriedMaterial", "")
 	player.CharacterAdded:Connect(function(character)
 		onCharacterAdded(player, character)
 	end)

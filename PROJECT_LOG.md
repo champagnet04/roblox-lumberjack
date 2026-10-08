@@ -32,6 +32,7 @@ Each entry says what changed, why, and whether it has been tested.
 | 2026-10-07 | Incentive to go deeper: trees give more wood the deeper they stand (up to 3x at the forest edge) and are visibly bigger, and felled trees take 3 minutes to regrow so the ones near camp run out. The guardian's 2-10 trees rule stays independent of distance. |
 | 2026-10-07 | Three permanent high scores: best haul, best game, and furthest tree (the deepest tree felled on a trip that made it home). The owner plans to attach incentives to these later. |
 | 2026-10-07 | The guardian's hidden wake number is 1-10 trees per trip (was 2-10), so the first tree is no longer guaranteed safe. Chosen "for now" over banking only after a chase. |
+| 2026-10-08 | Trial: a felled tree stays down for the whole game instead of regrowing after 3 minutes; the forest regrows when the game ends. To be judged on whether it gives the right difficulty. |
 | 2026-10-07 | Not yet confirmed by the owner (Claude's defaults): every tree in the playable area is choppable; hills are kept shallow. |
 
 ## Ideas noted for later
@@ -41,6 +42,17 @@ Each entry says what changed, why, and whether it has been tested.
 
 ## Open design questions
 
+- **Camp progression** (opened by the owner on 2026-10-07; in discussion, nothing built).
+  - Owner's direction: a slow progression from fire pit to village, broken into many more steps than lean-to, tent, hut, cabin, homestead, village.
+  - Building needs two things: banked wood, which is saved up and spent, and materials found lying around the forest during a game (for example a pile of sticks and a piece of cloth for the lean-to).
+  - Found materials are carried like wood: banked by reaching camp, dropped and lost if the guardian catches you.
+  - Decided 2026-10-07: every build has its own set of materials, all of which must be found in the forest. Only the materials for the player's next build appear. They should appear often enough not to cause a rage quit, but not so often that the game is easy. Starting out, that means the fire pit's materials.
+  - Decided 2026-10-07: only one material is out in the forest at a time, and a player can carry only one per trip. The next one appears after that one is banked or lost.
+  - Decided 2026-10-07: a carried material can only be banked if the player also has wood in their current haul. This stops a risk-free trip that collects a material without felling a tree, since only felling trees can wake the guardian.
+  - Decided 2026-10-08: the owner approved the rules for the first six builds. The player starts with a cold stone ring and must build the fire; the first six builds are visual only apart from the fire's light; one player per server for now. First version built the same day (see change log). The owner is unsure about the glowing outline and will decide after testing.
+  - Still to settle: whether builds give gameplay benefits or are visual only; the build list, material lists and prices; what the camp looks like before the fire pit is built; and how one shared camp works once several players are in a server.
+  - Superseded wording follows. To settle: whether materials appear only for the next build or at random; whether each stage is split into several small builds; whether builds give gameplay benefits or are visual only; prices; and how one shared camp works once several players are in a server.
+- **Materials are too easy to bring home** (owner's review, 2026-10-08; undecided). The glowing outline and lit materials were confirmed visible. But a player can fell one tree, which is safe nine times in ten, then collect the material and walk home. The owner's fallback is to keep it easy and make the progression very long. Options put forward by Claude: picking up a material always wakes the guardian; a material appears only after several trees are felled that trip; or more pieces and higher costs per build.
 - **Bank only after a chase?** (raised by the owner on 2026-10-07. Set aside for now: the owner chose a 1-10 wake number instead, so no tree is guaranteed safe. See the change log.) The idea: wood cannot be banked until the guardian has chased you on that trip.
   - For: it closes a loophole in the current rules. The hidden wake number is never below 2, so felling exactly one tree and walking home can be repeated forever with no risk.
   - Against: it removes the choice the spec treats as the game's identity, "do I go home now, or risk one more tree?". Trip length would be set only by the hidden number.
@@ -505,3 +517,113 @@ Consequence: mobile players cannot jump at all, so they cannot hop over fallen l
 
 Tested: `stylua` formatting applied, `selene` passes, `rojo build` succeeds.
 Not tested: not run in Studio or on a phone. Unconfirmed: that the jump button disappears, the sprint button's position on real devices, and hold-to-chop on touch (written in step 3b, also never tried on a phone).
+
+### 2026-10-07 — Milestone: Version 0 complete
+
+The owner declared Version 0, the basic single-player loop, complete. No code changed in this entry.
+
+Next topic is the incentive to keep playing: levelling up the camp. The owner's direction and the points still to settle are recorded under "Open design questions" as "Camp progression".
+
+### 2026-10-07 — Log only: camp materials rule decided
+
+No code changed. Recorded the owner's decision on camp materials under "Camp progression" in the open design questions.
+
+### 2026-10-07 — Log only: one material at a time
+
+No code changed. Recorded the owner's decision that a single material is placed at a time and only one can be carried per trip.
+
+### 2026-10-07 — Log only: materials need wood to bank
+
+No code changed. Recorded the owner's rule that a material banks only alongside wood in the current haul.
+
+### 2026-10-08 — Camp progression: first six builds
+
+Why: Version 0 is complete and the owner wants an incentive to keep playing: growing the camp. The rules were agreed over the preceding log-only entries and approved for the first six builds.
+
+Added:
+
+- `src/server/CampBuildService.luau`
+  - Keeps the camp in the world matched to the player's progress: finished builds are solid, and the next one stands as a faint gold outline with a "Build" prompt (hold for 1 second, within 12 studs).
+  - Building checks the overall bank and banked materials. If something is short, a message lists what is missing. Otherwise the wood and materials are spent and the build appears.
+  - Places one material in the forest at a time, only of a type the next build still needs. Walking within 5 studs picks it up. The next one appears 3 seconds after the carried one is banked or lost.
+  - Materials appear 45-110 studs from camp for the first build, and 20 studs farther out for each build completed. They never land inside a tree trunk.
+- `src/server/CampModels.luau` — models built from basic parts for the six builds (fire with its light, two log benches, a woodpile, a lean-to frame, its cloth cover, a bedroll) and the six materials (sticks, flint, fallen branch, rope, cloth, moss). Each material has a soft light and a thin 12-stud glowing column so it can be found in the dark.
+
+Changed:
+
+- `src/server/PlayerState.luau` — adds `BuildsDone`, a banked count per material (`Mat_<Type>`), and `CarriedMaterial`. A carried material banks together with the haul, and only if the haul is more than zero. It is lost with the haul on capture or any other death. Paying for a build deducts from the overall bank. `BuildsDone` and banked materials are added to the saved numbers.
+- `src/server/CampService.luau` — arriving at camp with a material but no wood shows "BRING WOOD TO BANK YOUR MATERIAL".
+- `src/server/WorldBuilder.luau` — the camp now starts as a cold stone ring. The fire, its light and the two log benches were removed from the starting world because they are now builds 1 and 2. The six lantern posts still light the camp.
+- `src/client/Hud.client.luau` — a NEXT BUILD panel on the left showing the build's name, wood and each material as have/need (green when met), and what is being carried. Messages for picking up and banking a material. The game-over screen lists a lost material.
+- `src/shared/Config.luau` — a `Camp` section with the six builds and their costs, the material list, and the spawn, pickup, build and outline settings.
+- `src/shared/Remotes.luau` — adds `Notice`, a short on-screen message from the server.
+- `src/server/Main.server.luau` — starts the camp build service.
+
+The six builds and their costs (all starting guesses, untested for balance):
+
+| # | Build | Wood | Materials |
+| --- | --- | --- | --- |
+| 1 | Fire pit | 30 | 1 sticks, 1 flint |
+| 2 | Log seat | 60 | 1 fallen branch |
+| 3 | Woodpile | 100 | 2 rope |
+| 4 | Lean-to frame | 150 | 2 sticks, 1 rope |
+| 5 | Lean-to cover | 220 | 2 cloth |
+| 6 | Bedroll | 300 | 1 cloth, 2 moss |
+
+Known limits:
+
+- One camp exists in the world, so with more than one player in a server the camp shows whichever player's progress changed last. The place should be limited to one player per server in its Roblox settings; this cannot be set from code.
+- A material stays where it is until found; it does not move if the player cannot find it.
+- Existing saves keep their overall bank and records, and start with no builds.
+
+Tested: `stylua` formatting applied, `selene` reports 0 errors and 0 warnings, `rojo build` succeeds.
+Not tested: nothing has been run in Studio. Unconfirmed: every model's look and position, the build prompt, pickup and banking of materials, how findable materials are, and whether the costs are reasonable.
+
+### 2026-10-08 — Camp progression: glow, costs and material look
+
+Why: the owner play-tested the first version. The next build's outline could not be seen ("there is no glow"); wood was too easy to save up for the costs; and each material appeared as "a glowing stick" (the thin marker column) instead of a lit-up model of the material itself.
+
+Changed:
+
+- `src/server/CampModels.luau`
+  - The next build's outline is now made of glowing neon parts with a bright gold edge in its shape. Before, it was plain 80% transparent plastic, which was nearly invisible at night.
+  - Materials no longer have the thin glowing column. Each material's own model is drawn at twice its size and lit up in its own shape with the same gold edge and tint, with an invisible lamp above it lighting the ground.
+- `src/shared/Config.luau`
+  - Wood costs raised: fire pit 100 (was 30), log seat 300 (60), woodpile 600 (100), lean-to frame 1,000 (150), lean-to cover 1,600 (220), bedroll 2,500 (300). Total 6,100 (was 860).
+  - `GhostTransparency` 0.6 (was 0.8); `MaterialGlowRange` 22 (was 16); `MaterialScale` 2 added; `MaterialBeamHeight` removed.
+
+Also seen in the owner's screenshot, not changed: the "PROGRESS IS NOT BEING SAVED" notice was showing in the published place, so saving is not working there yet. The reason is printed in the Output window on a line starting `[SaveService]`.
+
+Tested: `stylua` and `selene` pass, `rojo build` succeeds.
+Not tested: not run in Studio. Unconfirmed: that the outline and materials now glow visibly, and whether the new costs feel right.
+
+### 2026-10-08 — Log only: review of camp materials
+
+No code changed. The owner confirmed the glowing outline works and raised that materials are too easy to bring back. Recorded under "Open design questions" with the options being weighed.
+
+### 2026-10-08 — Fix: material hidden in the grass
+
+Why: the owner sent a screenshot standing at the flint and said its shape could not be seen. The material lay on the ground and was about two studs across, so the long terrain grass covered it.
+
+Changed:
+
+- `src/server/CampModels.luau` — a material now floats 3.5 studs above the ground, tilted slightly so its shape shows, instead of lying on it. The flint's colour is lighter so it is not dark grey on a dark background.
+- `src/shared/Config.luau` — `MaterialScale` 3 (was 2); `MaterialHoverHeight` 3.5 added.
+
+Tested: `stylua` and `selene` pass, `rojo build` succeeds.
+Not tested: not run in Studio; whether the shapes are now readable is unconfirmed.
+
+### 2026-10-08 — Trial: felled trees stay down for the whole game
+
+Why: the owner wants to try trees staying down for the whole game, to see whether that gives the right difficulty.
+
+Changed:
+
+- `src/server/TreeService.luau` — a felled tree no longer regrows on a timer. When a game ends (the guardian catches the player), every felled tree regrows at once.
+- `src/server/PlayerState.luau` — adds a `GameEnded` signal, fired when a game ends, which the tree service listens to.
+- `src/shared/Config.luau` — `RespawnTime` is 0 (was 180). 0 means "stay down until the game ends"; any other number restores timed regrowth with that many seconds.
+
+Consequences: within a game the forest only thins. There are 420 trees, so a long enough game could clear all of them. A player who is never caught never gets a fresh forest.
+
+Tested: `stylua` and `selene` pass, `rojo build` succeeds.
+Not tested: not run in Studio.

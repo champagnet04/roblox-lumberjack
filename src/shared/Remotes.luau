@@ -7,6 +7,7 @@ local NAMES = {
 	"ChopRequest", -- client -> server: player swung at a tree
 	"SetSprinting", -- client -> server: sprint key pressed or released
 	"Escaped", -- server -> client: player reached camp with the guardian behind them
+	"Notice", -- server -> client: a short message to show on screen
 	"GameOver", -- server -> client: player was caught, ending the game; carries the summary
 }
 

@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local PlayerState = require(script.Parent.PlayerState)
 
 local CampService = {}
@@ -26,9 +27,14 @@ function CampService.start()
 		while true do
 			for _, player in Players:GetPlayers() do
 				local inCamp = CampService.isInCamp(player)
+				local justArrived = inCamp and not player:GetAttribute("InCamp")
 				player:SetAttribute("InCamp", inCamp)
 				if inCamp then
-					PlayerState.bankHaul(player)
+					local banked = PlayerState.bankHaul(player)
+					-- A material only banks alongside wood; say so, or it looks like a bug.
+					if banked == 0 and justArrived and PlayerState.getCarried(player) ~= "" then
+						Remotes.Notice:FireClient(player, "BRING WOOD TO BANK YOUR MATERIAL")
+					end
 				end
 			end
 			task.wait(CHECK_INTERVAL)

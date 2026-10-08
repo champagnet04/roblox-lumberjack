@@ -1,4 +1,5 @@
 -- Tree health, chop validation, felling and regrowth. The server decides every outcome.
+-- By default a felled tree stays down until the game ends, then the whole forest regrows.
 -- Each tree's remaining health is published as a `Health` attribute for the client to read.
 
 local Players = game:GetService("Players")
@@ -42,6 +43,17 @@ local function tilt(tree: Model, state: TreeState, direction: Vector3, angle: nu
 	)
 end
 
+local function regrow(tree: Model, state: TreeState)
+	if not state.Felled then
+		return
+	end
+	tree:PivotTo(state.Upright)
+	state.Health = Config.Tree.SwingsToFell
+	tree:SetAttribute("Health", state.Health)
+	state.Felled = false
+	tree.Parent = treesFolder
+end
+
 local function fell(tree: Model, state: TreeState, direction: Vector3)
 	state.Felled = true
 
@@ -52,13 +64,10 @@ local function fell(tree: Model, state: TreeState, direction: Vector3)
 	end
 	tree.Parent = nil
 
-	task.delay(Config.Tree.RespawnTime, function()
-		tree:PivotTo(state.Upright)
-		state.Health = Config.Tree.SwingsToFell
-		tree:SetAttribute("Health", state.Health)
-		state.Felled = false
-		tree.Parent = treesFolder
-	end)
+	-- A respawn time of 0 means the tree stays down until the game ends.
+	if Config.Tree.RespawnTime > 0 then
+		task.delay(Config.Tree.RespawnTime, regrow, tree, state)
+	end
 end
 
 local function onChopRequest(player: Player, tree: any)
@@ -125,6 +134,13 @@ function TreeService.start()
 			}
 		end
 	end
+
+	-- When a game ends, the whole forest grows back for the next one.
+	PlayerState.GameEnded:Connect(function()
+		for tree, state in states do
+			regrow(tree :: Model, state)
+		end
+	end)
 
 	Remotes.ChopRequest.OnServerEvent:Connect(onChopRequest)
 	Players.PlayerRemoving:Connect(function(player)
