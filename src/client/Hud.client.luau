@@ -114,6 +114,19 @@ local bestHaulValue = makeStatRow("BEST HAUL", 2)
 local bestGameValue = makeStatRow("BEST GAME", 3)
 local furthestValue = makeStatRow("FURTHEST TREE", 4)
 
+-- Shown only when progress cannot be saved this session.
+local saveNotice = makeLabel({
+	Name = "SaveNotice",
+	AnchorPoint = Vector2.new(1, 0),
+	Position = UDim2.new(1, -16, 0, 299),
+	Size = UDim2.fromOffset(210, 18),
+	TextSize = 12,
+	TextColor3 = DANGER,
+	TextStrokeTransparency = 0.5,
+	Text = "PROGRESS IS NOT BEING SAVED",
+	Visible = false,
+}, gui)
+
 -- Shown for as long as the guardian is hunting the player.
 local chaseBanner = makeLabel({
 	Name = "ChaseBanner",
@@ -386,6 +399,10 @@ local function refreshStamina()
 	):Play()
 end
 
+local function refreshSaveStatus()
+	saveNotice.Visible = player:GetAttribute("SaveStatus") == "Unavailable"
+end
+
 local wasChased = false
 
 local function refreshChased()
@@ -425,3 +442,5 @@ refreshStats()
 refreshGameBank()
 refreshStamina()
 refreshChased()
+player:GetAttributeChangedSignal("SaveStatus"):Connect(refreshSaveStatus)
+refreshSaveStatus()

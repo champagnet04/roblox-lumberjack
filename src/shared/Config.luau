@@ -44,6 +44,13 @@ Config.Lighting = {
 	WarmLight = Color3.fromRGB(255, 170, 90),
 }
 
+Config.Save = {
+	Enabled = true,
+	-- Changing this name starts everyone from zero (the old data is kept under the old name).
+	StoreName = "PlayerData_v1",
+	AutosaveInterval = 60,
+}
+
 Config.Player = {
 	WalkSpeed = 16,
 	SprintSpeed = 24,

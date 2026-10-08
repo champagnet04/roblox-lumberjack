@@ -465,3 +465,26 @@ Effect: each trip has a 1 in 10 chance that the first tree wakes the guardian. F
 
 Tested: `selene` passes, `rojo build` succeeds.
 Not tested: not run in Studio.
+
+### 2026-10-07 — Saving between sessions
+
+Why: the overall bank and the three high scores reset to 0 every time the place was run, so saving up for camp upgrades was impossible.
+
+Added:
+
+- `src/server/SaveService.luau` — saves four numbers per player in a Roblox data store: overall bank, best haul, best game, furthest tree. The current haul and game bank are never saved.
+  - Loads when a player joins; saves when they leave, when the server shuts down, and once a minute if anything changed.
+  - If loading fails, that player's data is not saved for the session, so a failed load cannot overwrite real progress with zeros. A warning explaining the likely cause is printed to the Output window.
+  - Sets a `SaveStatus` attribute on the player: `Loading`, `Ready` or `Unavailable`.
+
+Changed:
+
+- `src/server/PlayerState.luau` — functions to read the saved numbers and to apply loaded ones. Wood banked before the load finishes is kept.
+- `src/client/Hud.client.luau` — a small red "PROGRESS IS NOT BEING SAVED" notice under the totals panel, shown only when saving is unavailable.
+- `src/shared/Config.luau` — a `Save` section: `Enabled`, `StoreName` (`PlayerData_v1`) and `AutosaveInterval` (60 seconds).
+- `src/server/Main.server.luau` — starts the save service.
+
+Requires from the owner, in Studio (cannot be done from code): publish the place to Roblox, turn on Game Settings > Security > "Enable Studio Access to API Services", and from then on open that published place rather than a new baseplate. Until then the game runs as before with the "not being saved" notice.
+
+Tested: `stylua` formatting applied, `selene` reports 0 errors and 0 warnings, `rojo build` succeeds.
+Not tested: nothing has been run in Studio, and no data store call has been made. Whether loading and saving work against a real data store is unconfirmed.

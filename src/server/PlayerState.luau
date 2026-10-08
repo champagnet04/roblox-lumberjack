@@ -10,7 +10,7 @@
 --               made it home
 --
 -- A game ends when the guardian captures the player.
--- Nothing is saved between play sessions yet.
+-- OverallBank and the three records are saved between sessions by SaveService.
 
 local Players = game:GetService("Players")
 
@@ -94,6 +94,32 @@ function PlayerState.endGame(player: Player): GameSummary
 		FurthestTree = get(player, "FurthestTree"),
 		OverallBank = get(player, "OverallBank"),
 	}
+end
+
+-- The numbers that are kept between sessions.
+local SAVED = { "OverallBank", "BestHaul", "BestGame", "FurthestTree" }
+
+function PlayerState.getSaved(player: Player): { [string]: number }
+	local data = {}
+	for _, name in SAVED do
+		data[name] = get(player, name)
+	end
+	return data
+end
+
+-- Applies numbers loaded from a save. Anything earned before the load finished is kept:
+-- banked wood is added on top, and records keep whichever value is higher.
+function PlayerState.applySaved(player: Player, data: { [string]: any })
+	for _, name in SAVED do
+		local value = data[name]
+		if typeof(value) == "number" then
+			if name == "OverallBank" then
+				player:SetAttribute(name, get(player, name) + value)
+			else
+				player:SetAttribute(name, math.max(get(player, name), value))
+			end
+		end
+	end
 end
 
 local function onCharacterAdded(player: Player, character: Model)
