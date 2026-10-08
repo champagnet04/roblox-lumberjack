@@ -1,4 +1,4 @@
--- Generates the whole world from code: terrain, camp, forest and undergrowth.
+-- Generates the whole world from code: terrain, camp, pine forest and undergrowth.
 -- Every model is assembled from basic parts. Camp is at the origin on flat ground at Y = 0.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,10 +16,10 @@ local BARK_COLORS = {
 	Color3.fromRGB(66, 56, 48),
 }
 local LEAF_COLORS = {
-	Color3.fromRGB(34, 70, 42),
-	Color3.fromRGB(40, 84, 48),
-	Color3.fromRGB(30, 62, 44),
-	Color3.fromRGB(52, 92, 50),
+	Color3.fromRGB(28, 62, 44),
+	Color3.fromRGB(34, 72, 48),
+	Color3.fromRGB(24, 54, 42),
+	Color3.fromRGB(40, 80, 52),
 }
 local BUSH_COLORS = {
 	Color3.fromRGB(48, 96, 52),
@@ -31,8 +31,10 @@ local STONE_COLOR = Color3.fromRGB(104, 106, 110)
 type TreeSpec = {
 	Height: number,
 	Diameter: number,
-	CanopyScale: number,
-	Detailed: boolean, -- roots and branches; skipped on distant border trees
+	Clearance: number, -- bare trunk below the lowest needles
+	FoliageWidth: number, -- width of the lowest tier
+	Tiers: number,
+	Detailed: boolean, -- roots; skipped on distant border trees
 }
 
 local function pick<T>(rng: Random, list: { T }): T
@@ -120,13 +122,13 @@ local function buildFirePit(parent: Instance)
 	local pit = Instance.new("Model")
 	pit.Name = "FirePit"
 
-	local stoneCount = 12
+	local stoneCount = 14
 	for i = 1, stoneCount do
 		local angle = (i / stoneCount) * math.pi * 2
 		makePart({
 			Name = "Stone",
-			Size = Vector3.new(1.8, 1.3, 1.5),
-			CFrame = CFrame.new(pointOnCircle(angle, 4, 0.5)) * CFrame.Angles(0, -angle, 0),
+			Size = Vector3.new(2.2, 1.5, 1.8),
+			CFrame = CFrame.new(pointOnCircle(angle, 5, 0.55)) * CFrame.Angles(0, -angle, 0),
 			Material = Enum.Material.Slate,
 			Color = STONE_COLOR,
 		}, pit)
@@ -157,8 +159,8 @@ local function buildFirePit(parent: Instance)
 	}, pit)
 
 	local fire = Instance.new("Fire")
-	fire.Size = 10
-	fire.Heat = 14
+	fire.Size = 6
+	fire.Heat = 10
 	fire.Parent = flame
 
 	local light = Instance.new("PointLight")
@@ -206,8 +208,8 @@ local function buildSafeZoneMarker(parent: Instance)
 
 		local lantern = makePart({
 			Name = "Lantern",
-			Size = Vector3.new(1, 1.3, 1),
-			Position = base + Vector3.new(0, 7.6, 0),
+			Size = Vector3.new(0.7, 0.9, 0.7),
+			Position = base + Vector3.new(0, 7.4, 0),
 			Material = Enum.Material.Neon,
 			Color = Color3.fromRGB(255, 190, 110),
 			CanCollide = false,
@@ -259,6 +261,80 @@ local function buildCamp(parent: Instance)
 	camp.Parent = parent
 end
 
+-- Finds which top corner of a CornerWedgePart is the tall one by measuring a probe part.
+local function findCornerWedgeApex(): (number, number)
+	local probe = Instance.new("CornerWedgePart")
+	probe.Anchored = true
+	probe.Size = Vector3.new(8, 8, 8)
+	probe.Position = Vector3.new(0, 1000, 0)
+	probe.Parent = Workspace
+
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = { probe }
+
+	local apexX, apexZ, highest = 1, -1, -math.huge
+	for _, x in { 1, -1 } do
+		for _, z in { 1, -1 } do
+			local origin = probe.Position + Vector3.new(x * 3, 10, z * 3)
+			local hit = Workspace:Raycast(origin, Vector3.new(0, -20, 0), params)
+			if hit and hit.Position.Y > highest then
+				apexX, apexZ, highest = x, z, hit.Position.Y
+			end
+		end
+	end
+
+	probe:Destroy()
+	return apexX, apexZ
+end
+
+-- A pyramid is four corner wedges. For each quarter: where it sits, and how far to turn it
+-- so its tall corner meets the others at the centre.
+local pyramidQuarters: { { X: number, Z: number, Yaw: number } } = {}
+
+local function preparePyramidQuarters()
+	local apexX, apexZ = findCornerWedgeApex()
+	local apex = Vector3.new(apexX, 0, apexZ)
+	table.clear(pyramidQuarters)
+	for _, x in { 1, -1 } do
+		for _, z in { 1, -1 } do
+			local towardCentre = Vector3.new(-x, 0, -z)
+			for turn = 0, 3 do
+				local yaw = turn * math.pi / 2
+				if CFrame.Angles(0, yaw, 0):VectorToWorldSpace(apex):Dot(towardCentre) > 1.5 then
+					table.insert(pyramidQuarters, { X = x, Z = z, Yaw = yaw })
+					break
+				end
+			end
+		end
+	end
+end
+
+local function buildPyramid(
+	baseCFrame: CFrame,
+	width: number,
+	height: number,
+	color: Color3,
+	parent: Instance
+)
+	for _, quarter in pyramidQuarters do
+		local wedge = Instance.new("CornerWedgePart")
+		wedge.Name = "Needles"
+		wedge.Anchored = true
+		wedge.CanCollide = false
+		wedge.CanQuery = false
+		wedge.CanTouch = false
+		wedge.Material = Enum.Material.Grass
+		wedge.Color = color
+		wedge.Size = Vector3.new(width / 2, height, width / 2)
+		wedge.CFrame = baseCFrame
+			* CFrame.new(quarter.X * width / 4, height / 2, quarter.Z * width / 4)
+			* CFrame.Angles(0, quarter.Yaw, 0)
+		wedge.Parent = parent
+	end
+end
+
+-- A pine: bare lower trunk, then stacked pyramids of needles narrowing to a point.
 local function buildTree(rng: Random, base: Vector3, spec: TreeSpec, parent: Instance)
 	local tree = Instance.new("Model")
 	tree.Name = "Tree"
@@ -267,28 +343,14 @@ local function buildTree(rng: Random, base: Vector3, spec: TreeSpec, parent: Ins
 	local height, diameter = spec.Height, spec.Diameter
 	local sunk = base - Vector3.new(0, 2, 0) -- start below ground so hills never expose the bottom
 
-	-- Trunk in two sections so it narrows toward the top.
-	local lowerHeight = height * 0.55 + 2
-	local lowerSize, lowerCFrame = uprightCylinder(sunk, lowerHeight, diameter)
+	local trunkSize, trunkCFrame = uprightCylinder(sunk, height * 0.85 + 2, diameter)
 	local trunk = makePart({
 		Name = "Trunk",
 		Shape = Enum.PartType.Cylinder,
-		Size = lowerSize,
-		CFrame = lowerCFrame,
+		Size = trunkSize,
+		CFrame = trunkCFrame,
 		Material = Enum.Material.Wood,
 		Color = bark,
-	}, tree)
-
-	local upperSize, upperCFrame =
-		uprightCylinder(sunk + Vector3.new(0, lowerHeight, 0), height * 0.45, diameter * 0.72)
-	makePart({
-		Name = "UpperTrunk",
-		Shape = Enum.PartType.Cylinder,
-		Size = upperSize,
-		CFrame = upperCFrame,
-		Material = Enum.Material.Wood,
-		Color = bark,
-		CanCollide = false,
 	}, tree)
 
 	-- Wider collar at the base.
@@ -325,49 +387,20 @@ local function buildTree(rng: Random, base: Vector3, spec: TreeSpec, parent: Ins
 		end
 	end
 
-	-- Canopy: overlapping clumps of leaves high above the ground, each on its own branch.
-	local clumpCount = rng:NextInteger(4, 6)
-	local clumpOffset = rng:NextNumber(0, math.pi * 2)
-	for i = 1, clumpCount do
-		local angle = clumpOffset + (i / clumpCount) * math.pi * 2 + rng:NextNumber(-0.4, 0.4)
-		local spread = rng:NextNumber(5, 13) * spec.CanopyScale
-		local clumpHeight = height * rng:NextNumber(0.68, 0.98)
-		local centre = base + pointOnCircle(angle, spread, clumpHeight)
-		local width = rng:NextNumber(16, 24) * spec.CanopyScale
-
-		makeFoliage({
-			Name = "Leaves",
-			Size = Vector3.new(width, width * rng:NextNumber(0.45, 0.65), width),
-			Position = centre,
-			Color = pick(rng, LEAF_COLORS),
-		}, tree)
-
-		if spec.Detailed then
-			local size, cframe = cylinderBetween(
-				base + Vector3.new(0, clumpHeight - rng:NextNumber(4, 9), 0),
-				centre,
-				diameter * 0.22
-			)
-			makePart({
-				Name = "Branch",
-				Shape = Enum.PartType.Cylinder,
-				Size = size,
-				CFrame = cframe,
-				Material = Enum.Material.Wood,
-				Color = bark,
-				CanCollide = false,
-				CanQuery = false,
-			}, tree)
-		end
+	-- Each tier overlaps the one above and is turned 45 degrees from it.
+	local tierStep = (height - spec.Clearance) / spec.Tiers
+	local yaw = rng:NextNumber(0, math.pi / 2)
+	for tier = 1, spec.Tiers do
+		local towardTop = (tier - 1) / math.max(spec.Tiers - 1, 1) -- 0 = lowest tier, 1 = highest
+		local tierBase = base + Vector3.new(0, spec.Clearance + (tier - 1) * tierStep, 0)
+		buildPyramid(
+			CFrame.new(tierBase) * CFrame.Angles(0, yaw + (tier - 1) * math.rad(45), 0),
+			spec.FoliageWidth * (1 - 0.62 * towardTop),
+			tierStep * 1.6,
+			pick(rng, LEAF_COLORS),
+			tree
+		)
 	end
-
-	local crownWidth = rng:NextNumber(16, 22) * spec.CanopyScale
-	makeFoliage({
-		Name = "Leaves",
-		Size = Vector3.new(crownWidth, crownWidth * 0.7, crownWidth),
-		Position = base + Vector3.new(0, height, 0),
-		Color = pick(rng, LEAF_COLORS),
-	}, tree)
 
 	tree.PrimaryPart = trunk
 	tree.Parent = parent
@@ -403,18 +436,21 @@ local function buildForest(rng: Random, parent: Instance)
 		end
 	end
 
+	local function between(min: number, max: number, alpha: number): number
+		return min + (max - min) * alpha
+	end
+
 	local trees = Instance.new("Folder")
 	trees.Name = "Trees"
 	scatter(world.TreeCount, world.TreeMinDistanceFromCamp, world.ForestRadius, function(position)
 		local size = rng:NextNumber() -- 0 = smallest tree, 1 = largest
 		buildTree(rng, position, {
-			Height = treeCfg.TrunkHeightMin
-				+ (treeCfg.TrunkHeightMax - treeCfg.TrunkHeightMin) * size,
-			Diameter = (
-				treeCfg.TrunkDiameterMin
-				+ (treeCfg.TrunkDiameterMax - treeCfg.TrunkDiameterMin) * size
-			) * rng:NextNumber(0.85, 1.15),
-			CanopyScale = 1,
+			Height = between(treeCfg.HeightMin, treeCfg.HeightMax, size),
+			Diameter = between(treeCfg.TrunkDiameterMin, treeCfg.TrunkDiameterMax, size),
+			Clearance = rng:NextNumber(treeCfg.ClearanceMin, treeCfg.ClearanceMax),
+			FoliageWidth = between(treeCfg.FoliageWidthMin, treeCfg.FoliageWidthMax, size)
+				* rng:NextNumber(0.9, 1.1),
+			Tiers = treeCfg.Tiers,
 			Detailed = true,
 		}, trees)
 	end)
@@ -428,12 +464,14 @@ local function buildForest(rng: Random, parent: Instance)
 		world.ForestRadius + 12 + world.BorderDepth,
 		function(position)
 			buildTree(rng, position, {
-				Height = rng:NextNumber(treeCfg.BorderTrunkHeightMin, treeCfg.BorderTrunkHeightMax),
+				Height = rng:NextNumber(treeCfg.BorderHeightMin, treeCfg.BorderHeightMax),
 				Diameter = rng:NextNumber(
 					treeCfg.BorderTrunkDiameterMin,
 					treeCfg.BorderTrunkDiameterMax
 				),
-				CanopyScale = 1.7,
+				Clearance = rng:NextNumber(treeCfg.ClearanceMax, treeCfg.ClearanceMax * 1.5),
+				FoliageWidth = treeCfg.BorderFoliageWidth * rng:NextNumber(0.85, 1.15),
+				Tiers = treeCfg.BorderTiers,
 				Detailed = false,
 			}, border)
 		end
@@ -514,6 +552,7 @@ function WorldBuilder.build()
 	end
 
 	TerrainBuilder.build()
+	preparePyramidQuarters()
 
 	local rng = Random.new(Config.World.Seed)
 	local world = Instance.new("Folder")

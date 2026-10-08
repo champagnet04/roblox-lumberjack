@@ -20,6 +20,7 @@ Each entry says what changed, why, and whether it has been tested.
 | 2026-10-07 | The forest should feel deep and enclosed: the player is beneath tall trees and cannot see the edge of the world. |
 | 2026-10-07 | The forest is dark. The campfire is the main light at camp and the player carries a torch to see in the forest. |
 | 2026-10-07 | Models may be generated in code to improve the look. No paid assets. |
+| 2026-10-07 | Trees are pines with a Christmas-tree shape.|
 | 2026-10-07 | Not yet confirmed by the owner (Claude's defaults): every tree in the playable area is choppable; hills are kept shallow. |
 
 ## Ideas noted for later
@@ -35,7 +36,8 @@ Each entry says what changed, why, and whether it has been tested.
 | --- | --- | --- |
 | 1 | Project tooling and this log | Done |
 | 2 | Config, remotes, world generation (ground, camp, fire pit, safe-zone ring, trees) | Done; look rejected after play-test, replaced by 2b |
-| 2b | Dense night forest: terrain hills, tall trees, fog, campfire and lanterns, player torch | Built; not yet play-tested in Studio |
+| 2b | Dense night forest: terrain hills, tall trees, fog, campfire and lanterns, player torch | Done; play-tested, direction approved, trees "look a little funny" |
+| 2c | Pine trees, plus fog, fire pit and lantern adjustments | Built; not yet play-tested in Studio |
 | 3 | Chopping, tree health, current haul, on-screen haul counter | Not started |
 | 4 | Safe zone, banking, banked wood counter | Not started |
 | 5 | Sprinting, stamina, carry slowdown, stamina bar | Not started |
@@ -104,3 +106,21 @@ Removed:
 
 Tested: `stylua` formatting applied, `selene` reports 0 errors and 0 warnings, `rojo build` succeeds and the built place contains the lighting and grass settings.
 Not tested: nothing has been run in Studio. Unconfirmed: overall darkness and fog levels, how the trees and canopy look, the torch's position in the hand, world generation time, and frame rate with roughly 10,000 parts.
+
+### 2026-10-07 — Step 2c: pine trees
+
+Why: the owner play-tested step 2b, said it was closer to the vision but the trees looked a little funny, and asked for a pine, Christmas-tree look.
+
+Changed:
+
+- `src/server/WorldBuilder.luau`
+  - Trees are now pines: one straight trunk with a base collar and roots, bare for the first 14–22 studs, then four stacked pyramids of needles that narrow to a point. Each tier is turned 45 degrees from the one below. Trees are 45–80 studs tall. The round leaf clumps and stick branches are gone.
+  - Each pyramid is four corner-wedge parts. At start-up the script measures one probe wedge to find which corner is the tall one, so the pyramids are assembled the right way round.
+  - Border trees use the same shape, larger, with three tiers.
+  - Fire pit: flames reduced and the stone ring widened so the stones and logs are visible.
+  - Lanterns made smaller.
+- `src/shared/Config.luau` — tree appearance values replaced with pine values (height, bare-trunk clearance, foliage width, tier count). Moonlight, ambient light and fog colour raised slightly so distant trunks fade into mist instead of black.
+- `src/server/LightingSetup.luau` — bloom reduced so lanterns and the fire glow less.
+
+Tested: `stylua` formatting applied, `selene` reports 0 errors and 0 warnings, `rojo build` succeeds.
+Not tested: nothing has been run in Studio. Unconfirmed: how the pines look, whether the pyramid tiers assemble correctly, and the new light and fog levels.

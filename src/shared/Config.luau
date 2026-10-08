@@ -26,13 +26,13 @@ Config.World = {
 
 Config.Lighting = {
 	ClockTime = 0, -- midnight; the campfire and the torch are the main lights
-	Brightness = 1.2, -- moonlight strength
-	Ambient = Color3.fromRGB(38, 48, 62),
-	OutdoorAmbient = Color3.fromRGB(50, 62, 80),
+	Brightness = 1.5, -- moonlight strength
+	Ambient = Color3.fromRGB(52, 64, 84),
+	OutdoorAmbient = Color3.fromRGB(70, 86, 110),
 	ExposureCompensation = 0,
-	FogDensity = 0.42,
+	FogDensity = 0.38,
 	FogHaze = 2,
-	FogColor = Color3.fromRGB(70, 95, 105),
+	FogColor = Color3.fromRGB(95, 120, 135),
 	FogDecay = Color3.fromRGB(25, 40, 50),
 
 	CampfireRange = 60, -- 60 is the engine maximum for a point light
@@ -76,15 +76,22 @@ Config.Tree = {
 	WoodMax = 20,
 	RespawnTime = 60,
 	ChopRange = 10,
-	-- Appearance
-	TrunkHeightMin = 40,
-	TrunkHeightMax = 70,
-	TrunkDiameterMin = 3,
-	TrunkDiameterMax = 6.5,
-	BorderTrunkHeightMin = 80,
-	BorderTrunkHeightMax = 110,
-	BorderTrunkDiameterMin = 9,
-	BorderTrunkDiameterMax = 14,
+	-- Appearance: pines with a bare lower trunk and stacked tiers of needles
+	HeightMin = 45,
+	HeightMax = 80,
+	TrunkDiameterMin = 2.5,
+	TrunkDiameterMax = 5,
+	ClearanceMin = 14, -- bare trunk below the lowest needles
+	ClearanceMax = 22,
+	FoliageWidthMin = 20, -- width of the lowest tier
+	FoliageWidthMax = 30,
+	Tiers = 4,
+	BorderHeightMin = 90,
+	BorderHeightMax = 125,
+	BorderTrunkDiameterMin = 8,
+	BorderTrunkDiameterMax = 12,
+	BorderFoliageWidth = 46,
+	BorderTiers = 3,
 }
 
 Config.Lorax = {

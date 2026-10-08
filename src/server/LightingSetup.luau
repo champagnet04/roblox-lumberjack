@@ -36,9 +36,9 @@ function LightingSetup.apply()
 	atmosphere.Parent = Lighting
 
 	local bloom = Instance.new("BloomEffect")
-	bloom.Intensity = 0.6
+	bloom.Intensity = 0.3
 	bloom.Size = 24
-	bloom.Threshold = 1.2
+	bloom.Threshold = 1.6
 	bloom.Parent = Lighting
 
 	local color = Instance.new("ColorCorrectionEffect")
