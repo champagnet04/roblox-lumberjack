@@ -96,11 +96,13 @@ Config.Tree = {
 	BorderTiers = 3,
 }
 
-Config.Lorax = {
-	DisplayName = "The Guardian", -- placeholder; "Lorax" is an internal code name only
-	SafeTriggerRadius = 60, -- trees this close to camp never trigger it
-	MaxTriggerChance = 0.25, -- chance per felled tree at the forest edge
-	WarningTime = 2,
+-- The creature that hunts the player. An original design; the name is a placeholder.
+Config.Guardian = {
+	DisplayName = "The Guardian",
+	SafeTriggerRadius = -1000000, -- trees this close to camp never trigger it
+	MaxTriggerChance = 1, -- chance per felled tree at the forest edge
+	RiseTime = 1.5, -- it rises out of the fallen tree's stump for this long
+	WaitTime = 1, -- then stands still for this long before it starts chasing
 	Speed = 21,
 	CaptureRange = 4,
 }

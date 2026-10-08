@@ -29,9 +29,31 @@ function PlayerState.bankHaul(player: Player): number
 	return haul
 end
 
+-- Throws away the whole haul. Returns how much was lost.
+function PlayerState.loseHaul(player: Player): number
+	local haul = PlayerState.getHaul(player)
+	player:SetAttribute("Haul", 0)
+	return haul
+end
+
+local function onCharacterAdded(player: Player, character: Model)
+	-- Dying any other way (falling, resetting) also loses the haul,
+	-- so resetting is not a free trip home.
+	local humanoid = character:WaitForChild("Humanoid") :: Humanoid
+	humanoid.Died:Connect(function()
+		PlayerState.loseHaul(player)
+	end)
+end
+
 local function onPlayerAdded(player: Player)
 	player:SetAttribute("Haul", 0)
 	player:SetAttribute("Banked", 0)
+	player.CharacterAdded:Connect(function(character)
+		onCharacterAdded(player, character)
+	end)
+	if player.Character then
+		task.spawn(onCharacterAdded, player, player.Character)
+	end
 end
 
 function PlayerState.start()

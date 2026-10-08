@@ -7,6 +7,7 @@ local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local GuardianService = require(script.Parent.GuardianService)
 local MovementService = require(script.Parent.MovementService)
 local PlayerState = require(script.Parent.PlayerState)
 
@@ -96,6 +97,7 @@ local function onChopRequest(player: Player, tree: any)
 	if state.Health <= 0 then
 		PlayerState.addHaul(player, rng:NextInteger(Config.Tree.WoodMin, Config.Tree.WoodMax))
 		task.spawn(fell, tree, state, direction)
+		GuardianService.onTreeFelled(player, state.Base)
 	end
 end
 

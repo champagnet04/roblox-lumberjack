@@ -6,7 +6,7 @@ local RunService = game:GetService("RunService")
 local NAMES = {
 	"ChopRequest", -- client -> server: player swung at a tree
 	"SetSprinting", -- client -> server: sprint key pressed or released
-	"LoraxWarning", -- server -> client: the creature is waking up
+	"Escaped", -- server -> client: player reached camp with the guardian behind them
 	"RunOver", -- server -> client: player was caught; carries the run summary
 }
 
