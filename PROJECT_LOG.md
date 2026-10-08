@@ -17,6 +17,16 @@ Each entry says what changed, why, and whether it has been tested.
 | 2026-10-07 | The game title is undecided. It will be chosen later, likely around "lumberjack run", based on popular Roblox search terms. |
 | 2026-10-07 | "Lorax" is used as an internal code name only. The name shown to players is a single config value. |
 
+| 2026-10-07 | The forest should feel deep and enclosed: the player is beneath tall trees and cannot see the edge of the world. |
+| 2026-10-07 | The forest is dark. The campfire is the main light at camp and the player carries a torch to see in the forest. |
+| 2026-10-07 | Models may be generated in code to improve the look. No paid assets. |
+| 2026-10-07 | Not yet confirmed by the owner (Claude's defaults): every tree in the playable area is choppable; hills are kept shallow. |
+
+## Ideas noted for later
+
+- The player wears a red flannel shirt and jeans.
+- A small map in the corner of the screen for navigating back to camp. Undecided; possibly a power-up.
+
 ---
 
 ## Build plan for Version 0
@@ -24,7 +34,8 @@ Each entry says what changed, why, and whether it has been tested.
 | Step | Contents | Status |
 | --- | --- | --- |
 | 1 | Project tooling and this log | Done |
-| 2 | Config, remotes, world generation (ground, camp, fire pit, safe-zone ring, trees) | Built; not yet play-tested in Studio |
+| 2 | Config, remotes, world generation (ground, camp, fire pit, safe-zone ring, trees) | Done; look rejected after play-test, replaced by 2b |
+| 2b | Dense night forest: terrain hills, tall trees, fog, campfire and lanterns, player torch | Built; not yet play-tested in Studio |
 | 3 | Chopping, tree health, current haul, on-screen haul counter | Not started |
 | 4 | Safe zone, banking, banked wood counter | Not started |
 | 5 | Sprinting, stamina, carry slowdown, stamina bar | Not started |
@@ -64,3 +75,32 @@ Added:
 
 Tested: `stylua` formatting applied, `selene` reports 0 errors and 0 warnings, `rojo build` succeeds.
 Not tested: the game has not been run in Studio, so the look and layout of the world are unconfirmed.
+
+### 2026-10-07 — Step 2b: dense night forest
+
+Why: the step 2 world looked like a sparse park in daylight. The owner wants a deep, enclosed forest, lit by a campfire and a hand-held torch.
+
+Added:
+
+- `src/server/TerrainBuilder.luau` — replaces the flat slab with Roblox terrain: gentle hills, grass with darker leafy patches, and a dirt patch at camp. The ground is flat at camp. Other code asks this module for the ground height at any point.
+- `src/server/LightingSetup.luau` — midnight, dim blue ambient light, blue-green fog, mild bloom and colour grading. Removes the default fog and effects that a new Studio place comes with.
+- `src/server/PlayerSetup.luau` — gives each player a lit torch (held as a Roblox tool, so the arm is raised) and limits camera zoom to 24 studs so the camera stays under the canopy.
+- `src/client/Setup.client.luau` — hides the default item bar so the torch cannot be put away.
+
+Changed:
+
+- `src/server/WorldBuilder.luau` — rewritten:
+  - 420 choppable trees, 40–70 studs tall, with a two-section trunk, base collar, roots, branches and 5–7 leaf clumps each, so the canopy closes overhead.
+  - 200 giant scenery trees in a band beyond the playable edge, and an invisible circular wall in front of them.
+  - 380 bushes, 130 rocks and 45 fallen logs.
+  - Camp: larger stone fire pit with leaning logs and a strong shadow-casting light, two log benches, a ring of small stones marking the safe zone (replacing the glowing yellow ring), and six lantern posts on that ring.
+- `src/shared/Config.luau` — new world sizes and counts, a `Lighting` section, tree size ranges, camera zoom limit. Camp clearing radius is now 26 and the safe zone 22 (were 40 and 30).
+- `src/server/Main.server.luau` — also runs the lighting and player setup.
+- `default.project.json` — sets lighting technology to Future and turns on terrain grass decoration.
+
+Removed:
+
+- `src/client/.gitkeep` — no longer needed now that the client folder has a script.
+
+Tested: `stylua` formatting applied, `selene` reports 0 errors and 0 warnings, `rojo build` succeeds and the built place contains the lighting and grass settings.
+Not tested: nothing has been run in Studio. Unconfirmed: overall darkness and fog levels, how the trees and canopy look, the torch's position in the hand, world generation time, and frame rate with roughly 10,000 parts.

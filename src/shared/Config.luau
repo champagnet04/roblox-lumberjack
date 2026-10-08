@@ -3,19 +3,51 @@
 local Config = {}
 
 Config.World = {
-	Seed = 1, -- same seed = same tree layout every time
-	GroundSize = 600,
-	CampRadius = 40, -- dirt clearing
-	SafeZoneRadius = 30, -- glowing ring; inside it the player is safe
-	ForestRadius = 280, -- trees spawn no farther than this from camp
-	TreeCount = 60,
-	TreeMinDistanceFromCamp = 55,
-	TreeSpacing = 14, -- minimum gap between two trees
+	Seed = 1, -- same seed = same forest layout every time
+	GroundSize = 720,
+	CampRadius = 26, -- dirt clearing; the ground is flat inside it
+	SafeZoneRadius = 22, -- ring of stones and lanterns; inside it the player is safe
+	ForestRadius = 280, -- edge of the playable forest
+	HillHeight = 14, -- rough height difference between hilltops and dips
+	HillScale = 90, -- larger = wider, gentler hills
+
+	TreeCount = 420, -- choppable trees
+	TreeMinDistanceFromCamp = 32,
+	TreeSpacing = 11, -- minimum gap between two trees
+
+	-- Giant scenery trees beyond the playable edge that hide the end of the world.
+	BorderTreeCount = 200,
+	BorderDepth = 45,
+
+	BushCount = 380,
+	RockCount = 130,
+	FallenLogCount = 45,
+}
+
+Config.Lighting = {
+	ClockTime = 0, -- midnight; the campfire and the torch are the main lights
+	Brightness = 1.2, -- moonlight strength
+	Ambient = Color3.fromRGB(38, 48, 62),
+	OutdoorAmbient = Color3.fromRGB(50, 62, 80),
+	ExposureCompensation = 0,
+	FogDensity = 0.42,
+	FogHaze = 2,
+	FogColor = Color3.fromRGB(70, 95, 105),
+	FogDecay = Color3.fromRGB(25, 40, 50),
+
+	CampfireRange = 60, -- 60 is the engine maximum for a point light
+	CampfireBrightness = 4,
+	LanternRange = 18,
+	LanternBrightness = 1.2,
+	TorchRange = 40,
+	TorchBrightness = 1.6,
+	WarmLight = Color3.fromRGB(255, 170, 90),
 }
 
 Config.Player = {
 	WalkSpeed = 16,
 	SprintSpeed = 24,
+	CameraMaxZoom = 24, -- keeps the camera under the canopy
 }
 
 Config.Stamina = {
@@ -44,12 +76,15 @@ Config.Tree = {
 	WoodMax = 20,
 	RespawnTime = 60,
 	ChopRange = 10,
-	-- Appearance (each tree is scaled randomly between ScaleMin and ScaleMax)
-	TrunkHeight = 14,
-	TrunkDiameter = 3,
-	CanopyDiameter = 13,
-	ScaleMin = 0.8,
-	ScaleMax = 1.3,
+	-- Appearance
+	TrunkHeightMin = 40,
+	TrunkHeightMax = 70,
+	TrunkDiameterMin = 3,
+	TrunkDiameterMax = 6.5,
+	BorderTrunkHeightMin = 80,
+	BorderTrunkHeightMax = 110,
+	BorderTrunkDiameterMin = 9,
+	BorderTrunkDiameterMax = 14,
 }
 
 Config.Lorax = {
