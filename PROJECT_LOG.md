@@ -52,6 +52,8 @@ Each entry says what changed, why, and whether it has been tested.
   - Decided 2026-10-08: the owner approved the rules for the first six builds. The player starts with a cold stone ring and must build the fire; the first six builds are visual only apart from the fire's light; one player per server for now. First version built the same day (see change log). The owner is unsure about the glowing outline and will decide after testing.
   - Still to settle: whether builds give gameplay benefits or are visual only; the build list, material lists and prices; what the camp looks like before the fire pit is built; and how one shared camp works once several players are in a server.
   - Superseded wording follows. To settle: whether materials appear only for the next build or at random; whether each stage is split into several small builds; whether builds give gameplay benefits or are visual only; prices; and how one shared camp works once several players are in a server.
+- **Log seat: glowing version appears after building it** (reported by the owner on 2026-10-08, unresolved, to pick up next session). The owner reports that building the log seat makes a glowing version pop up, while the fire pit works. Not yet known whether the two solid benches appear beside the fire. One possibility is that they do, and the glow is the next build's outline (the woodpile, which is also made of logs); another is that the log seat's model is not showing. To settle it: stand at the fire after building and look for two log benches about 9 studs from it, or check Workspace > World > Camp > Builds in the Explorer for a `LogSeat` model.
+- **Guardian appears too rarely** (owner, 2026-10-08, to discuss). The owner has been barely running into him. With a hidden number of 1-10 trees that resets on every return to camp, short trips usually end before he wakes. Options: lower the top of the range, or keep the count running across trips so banking does not reset it.
 - **Materials are too easy to bring home** (owner's review, 2026-10-08; undecided). The glowing outline and lit materials were confirmed visible. But a player can fell one tree, which is safe nine times in ten, then collect the material and walk home. The owner's fallback is to keep it easy and make the progression very long. Options put forward by Claude: picking up a material always wakes the guardian; a material appears only after several trees are felled that trip; or more pieces and higher costs per build.
 - **Bank only after a chase?** (raised by the owner on 2026-10-07. Set aside for now: the owner chose a 1-10 wake number instead, so no tree is guaranteed safe. See the change log.) The idea: wood cannot be banked until the guardian has chased you on that trip.
   - For: it closes a loophole in the current rules. The hidden wake number is never below 2, so felling exactly one tree and walking home can be repeated forever with no risk.
@@ -627,3 +629,36 @@ Consequences: within a game the forest only thins. There are 420 trees, so a lon
 
 Tested: `stylua` and `selene` pass, `rojo build` succeeds.
 Not tested: not run in Studio.
+
+### 2026-10-08 — Make the next build easy to find at camp
+
+Why: the owner, needing the log seat next, could not find its glowing outline at camp and sent a screenshot with none in view.
+
+Cause: not established. Reading the code, the outline should stand beside the fire ring (the log seat's two benches are 9 studs from the centre of camp). It could not be told from the screenshot whether the outline was out of view or missing.
+
+Changed:
+
+- `src/server/CampBuildService.luau` — the next build's outline now carries a floating gold label, "BUILD HERE" and the build's name, drawn on top of everything and readable from up to 120 studs.
+- `src/server/CampModels.luau` — the outline's glowing edge is now drawn through anything in front of it. Materials in the forest are unchanged and can still be hidden behind trees.
+
+If the label does not appear either, the outline is not being created and the Output window should show an error.
+
+Tested: `stylua` and `selene` pass, `rojo build` succeeds.
+Not tested: not run in Studio.
+
+### 2026-10-08 — Lower camp build costs
+
+Why: the owner pointed out that the overall bank goes down each time a build is paid for, so every build is saved for from scratch, and asked for the prices after the first to come down a little (the second from 300 to about 200-250).
+
+Changed:
+
+- `src/shared/Config.luau` — wood costs are now: fire pit 100 (unchanged), log seat 200 (was 300), woodpile 400 (600), lean-to frame 700 (1,000), lean-to cover 1,100 (1,600), bedroll 1,700 (2,500). Total 4,200 (was 6,100).
+
+Only the log seat's price was specified by the owner; the others were scaled down by about the same proportion.
+
+Tested: `selene` passes, `rojo build` succeeds.
+Not tested: not run in Studio.
+
+### 2026-10-08 — Log only: two open issues for next session
+
+No code changed. Recorded under "Open design questions": the unresolved log seat report, and the guardian appearing too rarely.

@@ -217,13 +217,15 @@ function CampModels.build(id: string, parent: Instance): Model
 end
 
 -- Adds a glowing edge and tint in the shape of the model, visible in the dark.
-local function addGlow(model: Model, fillTransparency: number)
+local function addGlow(model: Model, fillTransparency: number, seeThroughObstacles: boolean)
 	local highlight = Instance.new("Highlight")
 	highlight.FillColor = GHOST
 	highlight.FillTransparency = fillTransparency
 	highlight.OutlineColor = GHOST
 	highlight.OutlineTransparency = 0
-	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
+	highlight.DepthMode = if seeThroughObstacles
+		then Enum.HighlightDepthMode.AlwaysOnTop
+		else Enum.HighlightDepthMode.Occluded
 	highlight.Parent = model
 end
 
@@ -243,7 +245,8 @@ function CampModels.makeGhost(model: Model)
 			item:Destroy()
 		end
 	end
-	addGlow(model, 0.75)
+	-- Drawn through anything in the way, so the next build can always be found at camp.
+	addGlow(model, 0.6, true)
 end
 
 local materialBuilders: { [string]: (model: Model, at: Vector3) -> () } = {}
@@ -338,7 +341,7 @@ function CampModels.buildMaterial(materialType: string, at: Vector3, parent: Ins
 	model:ScaleTo(Config.Camp.MaterialScale)
 	model:PivotTo(CFrame.new(floatAt) * CFrame.Angles(math.rad(20), 0, math.rad(15)))
 
-	addGlow(model, 0.35)
+	addGlow(model, 0.35, false)
 
 	-- An invisible lamp just above it, lighting the ground around.
 	local lamp = makePart({

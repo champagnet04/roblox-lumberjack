@@ -119,6 +119,25 @@ local function syncCamp(player: Player)
 				prompt.RequiresLineOfSight = false
 				prompt.Triggered:Connect(tryBuild)
 				prompt.Parent = anchor
+
+				-- A floating label, readable from anywhere in camp, marking where to build.
+				local label = Instance.new("BillboardGui")
+				label.Name = "NextBuildLabel"
+				label.Size = UDim2.fromOffset(220, 46)
+				label.StudsOffsetWorldSpace = Vector3.new(0, 5, 0)
+				label.AlwaysOnTop = true
+				label.MaxDistance = 120
+				label.Parent = anchor
+
+				local text = Instance.new("TextLabel")
+				text.Size = UDim2.fromScale(1, 1)
+				text.BackgroundTransparency = 1
+				text.Font = Enum.Font.GothamBlack
+				text.TextSize = 18
+				text.TextColor3 = Color3.fromRGB(255, 214, 120)
+				text.TextStrokeTransparency = 0.3
+				text.Text = `BUILD HERE\n{string.upper(build.Name)}`
+				text.Parent = label
 			end
 		end
 	end
