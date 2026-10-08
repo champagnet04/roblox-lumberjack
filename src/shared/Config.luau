@@ -48,6 +48,7 @@ Config.Player = {
 	WalkSpeed = 16,
 	SprintSpeed = 24,
 	CameraMaxZoom = 24, -- keeps the camera under the canopy
+	ChaseCameraZoom = 36, -- the camera pulls back this far while the guardian is hunting you
 }
 
 Config.Stamina = {
@@ -74,9 +75,11 @@ Config.Carry = {
 Config.Tree = {
 	SwingsToFell = 5,
 	SwingCooldown = 0.35, -- time between swings while the button is held
-	WoodMin = 10,
+	WoodMin = 10, -- wood from a tree beside camp
 	WoodMax = 20,
-	RespawnTime = 60,
+	DeepWoodMultiplier = 3, -- trees at the forest edge give this many times more
+	RespawnTime = 180, -- slow enough that the trees near camp run out and you must go deeper
+	DepthSizeWeight = 0.7, -- how much of a tree's size comes from depth (the rest is random)
 	ChopRange = 10,
 	-- Appearance: pines with a bare lower trunk and stacked tiers of needles
 	HeightMin = 45,
@@ -99,12 +102,18 @@ Config.Tree = {
 -- The creature that hunts the player. An original design; the name is a placeholder.
 Config.Guardian = {
 	DisplayName = "The Guardian",
-	SafeTriggerRadius = -1000000, -- trees this close to camp never trigger it
-	MaxTriggerChance = 1, -- chance per felled tree at the forest edge
+	-- Each trip out of camp, a hidden number between these two is picked.
+	-- The guardian wakes when the player has felled that many trees.
+	-- For testing, set both to 1 to wake it on the first tree.
+	WakeAfterTreesMin = 2,
+	WakeAfterTreesMax = 10,
 	RiseTime = 1.5, -- it rises out of the fallen tree's stump for this long
 	WaitTime = 1, -- then stands still for this long before it starts chasing
 	Speed = 21,
 	CaptureRange = 4,
+	-- It turns see-through when it comes this close to the line between camera and player.
+	SeeThroughDistance = 6,
+	SeeThroughAmount = 0.7, -- 0 = solid, 1 = invisible
 }
 
 return Config

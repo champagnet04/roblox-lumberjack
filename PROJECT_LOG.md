@@ -26,6 +26,10 @@ Each entry says what changed, why, and whether it has been tested.
 | 2026-10-07 | Carry slowdown keeps the spec's numbers for now; to be tuned after the creature exists (step 6). |
 | 2026-10-07 | The creature must not look like or be named after the Lorax, to avoid copyright trouble. It is an original design (a bark-and-moss forest spirit with antlers and glowing eyes), called "The Guardian" as a placeholder. The code no longer uses the word "Lorax". |
 | 2026-10-07 | The guardian rises from the stump of the tree that woke it, waits a second, then chases. |
+| 2026-10-07 | The guardian wakes after a random 2-10 trees felled per trip out of camp, wherever the trees stand. This replaces the distance-based chance. |
+| 2026-10-07 | A game ends when the guardian captures the player. Time limits wait for multiplayer. |
+| 2026-10-07 | Wood model: **current haul** (carried, at risk), **game bank** (banked this game, resets when the game ends), **overall bank** (everything ever banked, never lost, spent on camp upgrades). Two permanent high scores: best single haul and best game. Camp upgrades are meant to be expensive relative to what one game yields. Not yet built. |
+| 2026-10-07 | Incentive to go deeper: trees give more wood the deeper they stand (up to 3x at the forest edge) and are visibly bigger, and felled trees take 3 minutes to regrow so the ones near camp run out. The guardian's 2-10 trees rule stays independent of distance. |
 | 2026-10-07 | Not yet confirmed by the owner (Claude's defaults): every tree in the playable area is choppable; hills are kept shallow. |
 
 ## Ideas noted for later
@@ -35,7 +39,8 @@ Each entry says what changed, why, and whether it has been tested.
 
 ## Open design questions
 
-- **Incentive to go deeper into the forest** (raised by the owner on 2026-10-07, to discuss later). At present every tree gives the same 10–20 wood wherever it stands, and from step 6 the creature becomes more likely the farther from camp a tree is. So going deeper adds risk with no extra reward, and the best strategy is to chop near camp.
+- **Two captures per game?** The owner is weighing whether the first capture in a game only loses the current haul and the second ends the game. Undecided.
+- **Incentive to go deeper into the forest** (raised by the owner on 2026-10-07). Addressed on the same day by depth-scaled wood and slower regrowth; see the change log. The numbers still need play-testing.
 
 ---
 
@@ -310,3 +315,90 @@ Still open: the owner's proposed trigger rule (the guardian wakes after a random
 
 Tested: `stylua` and `selene` pass, `rojo build` succeeds.
 Not tested: not run in Studio; the rise and the fairness of the new head start are unconfirmed.
+
+### 2026-10-07 — Guardian wake rule: random 2-10 trees per trip
+
+Why: the owner wanted a chance of waking the guardian on every outing without it taking forever, and confirmed the count is in trees felled, not axe swings.
+
+Changed:
+
+- `src/server/GuardianService.luau` — each time a player is in camp, a hidden number from 2 to 10 is picked for their next trip. Every tree they fell counts toward it, wherever it stands, and the guardian wakes on the tree that reaches it. The count and number reset when the player is back in camp (after banking, escaping or being caught). The distance-based chance is removed.
+- `src/shared/Config.luau` — `SafeTriggerRadius` and `MaxTriggerChance` (which had been committed holding temporary test values) are replaced by `WakeAfterTreesMin` (2) and `WakeAfterTreesMax` (10). Setting both to 1 wakes the guardian on the first tree, for testing.
+
+Consequence: the first tree of a trip is always safe, and every trip of 10 trees or more ends in a chase.
+
+Also recorded in this log: the owner's wood model and the decision that a game ends on capture (both under Decisions), and the undecided two-captures idea (under Open design questions).
+
+Tested: `stylua` and `selene` pass, `rojo build` succeeds.
+Not tested: not run in Studio.
+
+### 2026-10-07 — Incentive to go deeper: richer deep trees, slower regrowth
+
+Why: every tree gave the same wood, so chopping beside camp was the best strategy. The owner chose to make deeper trees worth more and to slow regrowth from 60 seconds to 3 minutes, so near trees run out and the player is pushed outward.
+
+Added:
+
+- `src/shared/Forest.luau` — one shared function giving a tree's depth: 0 for the trees nearest camp (32 studs out), 1 at the forest edge (280 studs).
+
+Changed:
+
+- `src/server/TreeService.luau` — wood from a felled tree is the usual 10-20 multiplied by 1x beside camp, rising in a straight line to 3x at the forest edge (30-60 wood).
+- `src/server/WorldBuilder.luau` — tree size now follows depth: 70% from how deep the tree stands, 30% random. Trees near camp are the smallest (about 45 studs tall) and trees at the edge the largest (about 80), so value can be read at a glance.
+- `src/shared/Config.luau` — `RespawnTime` is 180 (was 60); adds `DeepWoodMultiplier` (3) and `DepthSizeWeight` (0.7).
+
+Side effect: a load of deep wood builds up much faster, so the carry slowdown (which starts at 50 wood) now comes into play within two or three deep trees.
+
+Tested: `stylua` and `selene` pass, `rojo build` succeeds.
+Not tested: not run in Studio. Unconfirmed: whether 3x and 3 minutes give the right pull outward, and how the size gradient looks.
+
+### 2026-10-07 — Fix: torch flame detached; clearer view during a chase
+
+Why: the owner sent a screenshot showing the torch "messed up" (the flame lying on the ground several studs from the player, with a bare stick in the hand), and asked for a better view when being chased: zoomed out enough to see how close the guardian is, without its head blocking the camera.
+
+Torch cause (reasoned from the code and screenshot, not confirmed in Studio): the torch's flaming head was joined to its handle with a `WeldConstraint`, which records the gap between two parts at the moment it switches on. Since step 3b the torch is welded to the left hand at the same moment, so the handle could jump to the hand first and the head be locked in place wherever it was built, about 11 studs away.
+
+Changed:
+
+- `src/server/PlayerSetup.luau` — the torch head and the axe head are now fixed to their handles with an explicit offset, which does not depend on timing.
+- `src/server/GuardianService.luau` — tags the guardian model so the client can find it.
+- `src/shared/Config.luau` — adds `ChaseCameraZoom` (36), `SeeThroughDistance` (6) and `SeeThroughAmount` (0.7).
+
+Added:
+
+- `src/client/ChaseCamera.client.luau`
+  - While the player is being chased, the camera is held at 36 studs (normal maximum is 24). It returns to normal when the chase ends.
+  - Whenever the guardian comes within 6 studs of the line between the camera and the player, it turns 70% see-through on that player's screen, so it cannot hide the player.
+
+Tested: `stylua` and `selene` pass, `rojo build` succeeds.
+Not tested: not run in Studio. Unconfirmed: that the torch flame is back on the torch, and whether 36 studs gives a good chase view under the canopy.
+
+### 2026-10-07 — Fix: chase camera did not zoom back in at camp
+
+Why: the owner play-tested the chase camera and torch fix. The torch looks good and the zoom-out looks good, but the camera stayed zoomed out after reaching the safe zone.
+
+Cause: not found. Read on its own, the previous code should have restored the normal zoom when the chase ended. It relied on a change event for the `Chased` attribute and on lowering only the maximum zoom to pull the camera in.
+
+Changed:
+
+- `src/client/ChaseCamera.client.luau`
+  - The chase state is now checked every frame instead of on a change event, so a missed event cannot leave the zoom stuck.
+  - When a chase ends, the camera is pinned at the normal distance (24 studs) for half a second, using the same method that pulls it out during a chase, and then the player's zoom control is released.
+  - If the camera is still far out two seconds after a chase ends, a one-line `[ChaseCamera]` warning with the zoom values is printed to the Studio Output window.
+
+Torch fix confirmed by the owner in Studio.
+
+Tested: `stylua` and `selene` pass, `rojo build` succeeds.
+Not tested: not run in Studio; whether the zoom now resets is unconfirmed.
+
+### 2026-10-07 — Fix: chase camera returns to the player's earlier zoom
+
+Why: the owner sent before and after screenshots. After a chase the camera came back to 24 studs, the maximum allowed, but the game starts at Roblox's default of about 12.5 studs, and that closer view is what it should return to.
+
+Cause: the reset sent the camera to the maximum zoom instead of to where it had been. This also explains the earlier "does not reset" report: the camera had been coming in from 36 to 24, which still looked zoomed out.
+
+Changed:
+
+- `src/client/ChaseCamera.client.luau` — when a chase starts, the camera's current distance is remembered. When it ends, the camera is pinned at that remembered distance for half a second, then zoom control is released as before.
+
+Tested: `stylua` and `selene` pass, `rojo build` succeeds.
+Not tested: not run in Studio.

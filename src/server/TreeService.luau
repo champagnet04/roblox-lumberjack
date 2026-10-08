@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Forest = require(ReplicatedStorage.Shared.Forest)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local GuardianService = require(script.Parent.GuardianService)
 local MovementService = require(script.Parent.MovementService)
@@ -95,7 +96,11 @@ local function onChopRequest(player: Player, tree: any)
 	state.Health -= 1
 	tree:SetAttribute("Health", state.Health)
 	if state.Health <= 0 then
-		PlayerState.addHaul(player, rng:NextInteger(Config.Tree.WoodMin, Config.Tree.WoodMax))
+		-- Deeper trees are worth more.
+		local cfg = Config.Tree
+		local multiplier = 1 + (cfg.DeepWoodMultiplier - 1) * Forest.depthAt(state.Base)
+		local wood = math.round(rng:NextInteger(cfg.WoodMin, cfg.WoodMax) * multiplier)
+		PlayerState.addHaul(player, wood)
 		task.spawn(fell, tree, state, direction)
 		GuardianService.onTreeFelled(player, state.Base)
 	end

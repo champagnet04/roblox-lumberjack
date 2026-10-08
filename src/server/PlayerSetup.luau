@@ -23,10 +23,15 @@ local function makeHeldPart(props: { [string]: any }, parent: Instance): Part
 	return part
 end
 
-local function weldTo(handle: BasePart, part: BasePart)
-	local weld = Instance.new("WeldConstraint")
+-- Fixes a part to a handle at an exact offset.
+-- (A WeldConstraint is not used here: it measures the offset when it switches on, which can be
+-- after the handle has already snapped to the hand, leaving the part floating far away.)
+local function attach(handle: BasePart, part: BasePart, offset: CFrame)
+	part.CFrame = handle.CFrame * offset
+	local weld = Instance.new("Weld")
 	weld.Part0 = handle
 	weld.Part1 = part
+	weld.C0 = offset
 	weld.Parent = part
 end
 
@@ -47,11 +52,10 @@ local function buildAxe(): Tool
 	local head = makeHeldPart({
 		Name = "Head",
 		Size = Vector3.new(0.25, 1, 1.1),
-		CFrame = handle.CFrame * CFrame.new(0, 1.2, -0.5), -- blade faces forward
 		Material = Enum.Material.Metal,
 		Color = Color3.fromRGB(150, 154, 160),
 	}, axe)
-	weldTo(handle, head)
+	attach(handle, head, CFrame.new(0, 1.2, -0.5)) -- blade faces forward
 
 	return axe
 end
@@ -70,11 +74,10 @@ local function buildTorch(): (Model, Part)
 	local head = makeHeldPart({
 		Name = "Head",
 		Size = Vector3.new(0.6, 0.7, 0.6),
-		CFrame = handle.CFrame * CFrame.new(0, 1.5, 0),
 		Material = Enum.Material.Slate,
 		Color = Color3.fromRGB(40, 32, 28),
 	}, torch)
-	weldTo(handle, head)
+	attach(handle, head, CFrame.new(0, 1.5, 0))
 
 	local fire = Instance.new("Fire")
 	fire.Size = 3

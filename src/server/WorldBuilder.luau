@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Forest = require(ReplicatedStorage.Shared.Forest)
 local TerrainBuilder = require(script.Parent.TerrainBuilder)
 
 local WorldBuilder = {}
@@ -443,7 +444,9 @@ local function buildForest(rng: Random, parent: Instance)
 	local trees = Instance.new("Folder")
 	trees.Name = "Trees"
 	scatter(world.TreeCount, world.TreeMinDistanceFromCamp, world.ForestRadius, function(position)
-		local size = rng:NextNumber() -- 0 = smallest tree, 1 = largest
+		-- 0 = smallest tree, 1 = largest. Trees grow bigger deeper in, because they are worth more.
+		local weight = treeCfg.DepthSizeWeight
+		local size = Forest.depthAt(position) * weight + rng:NextNumber() * (1 - weight)
 		buildTree(rng, position, {
 			Height = between(treeCfg.HeightMin, treeCfg.HeightMax, size),
 			Diameter = between(treeCfg.TrunkDiameterMin, treeCfg.TrunkDiameterMax, size),

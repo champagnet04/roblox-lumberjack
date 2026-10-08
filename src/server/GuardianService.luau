@@ -1,8 +1,10 @@
 -- The forest's guardian: the creature that may wake when a tree is felled and hunts the
 -- player who felled it. It is an original design (a bark-and-moss forest spirit).
--- It rises from where the fallen tree stood, waits a moment, then gives chase.
+-- It wakes after a hidden, random number of trees felled on each trip out of camp,
+-- rises from where the last tree stood, waits a moment, then gives chase.
 -- One guardian per player. It glides in a straight line and ignores obstacles.
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -29,8 +31,24 @@ type Chase = {
 	StartsAt: number, -- when it stops waiting and begins to move
 }
 
+-- Counts trees felled since the player last left camp, against a hidden number.
+type Trip = {
+	Felled: number,
+	WakesAt: number,
+}
+
 local rng = Random.new()
 local chases: { [Player]: Chase } = {}
+local trips: { [Player]: Trip } = {}
+
+-- Starts a fresh count with a new hidden number. Happens whenever the player is back in camp.
+local function newTrip(player: Player)
+	local cfg = Config.Guardian
+	trips[player] = {
+		Felled = 0,
+		WakesAt = rng:NextInteger(cfg.WakeAfterTreesMin, cfg.WakeAfterTreesMax),
+	}
+end
 
 local function makePart(props: { [string]: any }, parent: Instance): Part
 	local part = Instance.new("Part")
@@ -209,21 +227,22 @@ local function stepChase(player: Player, chase: Chase, dt: number)
 	place(chase, root.Position, math.sin(now * 4) * 0.35) -- slight bob as it glides
 end
 
--- Called when a player fells a tree. May wake the guardian.
+-- Called when a player fells a tree. Wakes the guardian if this is the trip's unlucky tree.
 function GuardianService.onTreeFelled(player: Player, treePosition: Vector3)
 	if chases[player] or CampService.isInCamp(player) then
 		return
 	end
 
-	local cfg = Config.Guardian
-	local distanceFromCamp = (treePosition * FLAT).Magnitude
-	local depth = (distanceFromCamp - cfg.SafeTriggerRadius)
-		/ (Config.World.ForestRadius - cfg.SafeTriggerRadius)
-	local chance = cfg.MaxTriggerChance * math.clamp(depth, 0, 1)
-	if rng:NextNumber() >= chance then
+	local trip = trips[player]
+	if not trip then
+		return
+	end
+	trip.Felled += 1
+	if trip.Felled < trip.WakesAt then
 		return
 	end
 
+	local cfg = Config.Guardian
 	local root = rootOf(player)
 	if not root then
 		return
@@ -237,6 +256,7 @@ function GuardianService.onTreeFelled(player: Player, treePosition: Vector3)
 	}
 	chases[player] = chase
 	place(chase, root.Position, -RISE_DEPTH)
+	CollectionService:AddTag(chase.Model, "Guardian") -- lets the client find it for the chase camera
 	chase.Model.Parent = Workspace
 	player:SetAttribute("Chased", true)
 end
@@ -244,12 +264,22 @@ end
 function GuardianService.start()
 	local function onPlayerAdded(player: Player)
 		player:SetAttribute("Chased", false)
+		newTrip(player)
+		-- CampService keeps InCamp up to date; arriving home resets the count.
+		player:GetAttributeChangedSignal("InCamp"):Connect(function()
+			if player:GetAttribute("InCamp") then
+				newTrip(player)
+			end
+		end)
 	end
 	Players.PlayerAdded:Connect(onPlayerAdded)
 	for _, player in Players:GetPlayers() do
 		onPlayerAdded(player)
 	end
-	Players.PlayerRemoving:Connect(endChase)
+	Players.PlayerRemoving:Connect(function(player)
+		endChase(player)
+		trips[player] = nil
+	end)
 
 	RunService.Heartbeat:Connect(function(dt)
 		for player, chase in chases do
