@@ -24,7 +24,7 @@ Each entry says what changed, why, and whether it has been tested.
 | Step | Contents | Status |
 | --- | --- | --- |
 | 1 | Project tooling and this log | Done |
-| 2 | Config, remotes, world generation (ground, camp, fire pit, safe-zone ring, trees) | Not started |
+| 2 | Config, remotes, world generation (ground, camp, fire pit, safe-zone ring, trees) | Built; not yet play-tested in Studio |
 | 3 | Chopping, tree health, current haul, on-screen haul counter | Not started |
 | 4 | Safe zone, banking, banked wood counter | Not started |
 | 5 | Sprinting, stamina, carry slowdown, stamina bar | Not started |
@@ -46,3 +46,21 @@ Added:
 - `PROJECT_LOG.md` — this file.
 
 No game code yet. Nothing to test: the `src` folders do not exist until step 2, so `rojo serve` will not run yet.
+
+### 2026-10-07 — Step 2: config, remotes, world generation
+
+Added:
+
+- `src/shared/Config.luau` — every tuning number for Version 0 (world sizes, player speeds, stamina, carry slowdown points, tree values, creature values and its display name "The Guardian" as a placeholder).
+- `src/shared/Remotes.luau` — four message channels created by the server: `ChopRequest`, `SetSprinting`, `LoraxWarning`, `RunOver`. Nothing uses them yet.
+- `src/server/WorldBuilder.luau` — generates the world at server start:
+  - 600-stud grass ground with invisible walls at the edges.
+  - Dirt camp clearing (radius 40) at the centre, with a stone fire pit, a lit fire, and a glowing ring at radius 30 marking the safe zone.
+  - A hidden spawn point beside the fire.
+  - 60 trees (brown trunk, green ball canopy, random size) between 55 and 280 studs from camp, at least 14 studs apart. The layout is the same every run because the random seed is fixed.
+  - Removes the default `Baseplate` and `SpawnLocation` that a new Studio place comes with.
+- `src/server/Main.server.luau` — server entry point; calls the world builder.
+- `src/client/.gitkeep` — keeps the empty client folder in git so Rojo can build. Removed when client scripts arrive in step 3.
+
+Tested: `stylua` formatting applied, `selene` reports 0 errors and 0 warnings, `rojo build` succeeds.
+Not tested: the game has not been run in Studio, so the look and layout of the world are unconfirmed.
