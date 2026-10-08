@@ -105,7 +105,7 @@ Config.Guardian = {
 	-- Each trip out of camp, a hidden number between these two is picked.
 	-- The guardian wakes when the player has felled that many trees.
 	-- For testing, set both to 1 to wake it on the first tree.
-	WakeAfterTreesMin = 2,
+	WakeAfterTreesMin = 1, -- 1 means even the first tree of a trip can wake it
 	WakeAfterTreesMax = 10,
 	RiseTime = 1.5, -- it rises out of the fallen tree's stump for this long
 	WaitTime = 1, -- then stands still for this long before it starts chasing

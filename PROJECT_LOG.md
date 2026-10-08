@@ -31,6 +31,7 @@ Each entry says what changed, why, and whether it has been tested.
 | 2026-10-07 | Wood model: **current haul** (carried, at risk), **game bank** (banked this game, resets when the game ends), **overall bank** (everything ever banked, never lost, spent on camp upgrades). Two permanent high scores: best single haul and best game. Camp upgrades are meant to be expensive relative to what one game yields. Built the same day (see change log); saving between sessions is not. |
 | 2026-10-07 | Incentive to go deeper: trees give more wood the deeper they stand (up to 3x at the forest edge) and are visibly bigger, and felled trees take 3 minutes to regrow so the ones near camp run out. The guardian's 2-10 trees rule stays independent of distance. |
 | 2026-10-07 | Three permanent high scores: best haul, best game, and furthest tree (the deepest tree felled on a trip that made it home). The owner plans to attach incentives to these later. |
+| 2026-10-07 | The guardian's hidden wake number is 1-10 trees per trip (was 2-10), so the first tree is no longer guaranteed safe. Chosen "for now" over banking only after a chase. |
 | 2026-10-07 | Not yet confirmed by the owner (Claude's defaults): every tree in the playable area is choppable; hills are kept shallow. |
 
 ## Ideas noted for later
@@ -40,6 +41,10 @@ Each entry says what changed, why, and whether it has been tested.
 
 ## Open design questions
 
+- **Bank only after a chase?** (raised by the owner on 2026-10-07. Set aside for now: the owner chose a 1-10 wake number instead, so no tree is guaranteed safe. See the change log.) The idea: wood cannot be banked until the guardian has chased you on that trip.
+  - For: it closes a loophole in the current rules. The hidden wake number is never below 2, so felling exactly one tree and walking home can be repeated forever with no risk.
+  - Against: it removes the choice the spec treats as the game's identity, "do I go home now, or risk one more tree?". Trip length would be set only by the hidden number.
+  - Alternative suggested by Claude: keep banking free, but stop resetting the guardian's tree count when the player banks. The count would run across trips until he wakes, so going home early secures wood without dodging the chase.
 - **Two captures per game?** The owner is weighing whether the first capture in a game only loses the current haul and the second ends the game. Undecided.
 - **Incentive to go deeper into the forest** (raised by the owner on 2026-10-07). Addressed on the same day by depth-scaled wood and slower regrowth; see the change log. The numbers still need play-testing.
 
@@ -442,4 +447,21 @@ Changed:
 For scale: the nearest trees are 32 studs from camp and the forest edge is 280.
 
 Tested: `stylua` and `selene` pass, `rojo build` succeeds.
+Not tested: not run in Studio.
+
+### 2026-10-07 — Log only: open question on banking
+
+No code changed. Added "Bank only after a chase?" to the open design questions, with the arguments on each side and one alternative.
+
+### 2026-10-07 — Guardian wake number: 1-10 trees
+
+Why: with a minimum of 2, the first tree of every trip was always safe, so felling one tree and going home could be repeated with no risk. The owner chose to remove the guarantee.
+
+Changed:
+
+- `src/shared/Config.luau` — `WakeAfterTreesMin` is now 1 (was 2).
+
+Effect: each trip has a 1 in 10 chance that the first tree wakes the guardian. Felling one tree per trip is no longer risk-free, but it is still the lowest-risk way to play, at 90% safe per trip.
+
+Tested: `selene` passes, `rojo build` succeeds.
 Not tested: not run in Studio.
