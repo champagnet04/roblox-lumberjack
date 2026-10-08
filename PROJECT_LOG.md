@@ -37,8 +37,8 @@ Each entry says what changed, why, and whether it has been tested.
 | 1 | Project tooling and this log | Done |
 | 2 | Config, remotes, world generation (ground, camp, fire pit, safe-zone ring, trees) | Done; look rejected after play-test, replaced by 2b |
 | 2b | Dense night forest: terrain hills, tall trees, fog, campfire and lanterns, player torch | Done; play-tested, direction approved, trees "look a little funny" |
-| 2c | Pine trees, plus fog, fire pit and lantern adjustments | Built; not yet play-tested in Studio |
-| 3 | Chopping, tree health, current haul, on-screen haul counter | Not started |
+| 2c | Pine trees, plus fog, fire pit and lantern adjustments | Done; play-tested, owner said it looks good for now |
+| 3 | Chopping, tree health, current haul, on-screen haul counter | Built; not yet play-tested in Studio |
 | 4 | Safe zone, banking, banked wood counter | Not started |
 | 5 | Sprinting, stamina, carry slowdown, stamina bar | Not started |
 | 6 | Lorax trigger, warning, chase, capture, run-over screen | Not started |
@@ -124,3 +124,21 @@ Changed:
 
 Tested: `stylua` formatting applied, `selene` reports 0 errors and 0 warnings, `rojo build` succeeds.
 Not tested: nothing has been run in Studio. Unconfirmed: how the pines look, whether the pyramid tiers assemble correctly, and the new light and fog levels.
+
+### 2026-10-07 — Step 3: chopping and current haul
+
+Added:
+
+- `src/server/TreeService.luau` — every tree in the playable forest has 5 health. On a chop request the server checks that the tree is standing, the player is within 10 studs of the trunk, and 0.6 seconds have passed since their last swing. A hit makes the tree shake, leaning away from the player. The fifth hit tips the tree over, removes it, awards 10–20 wood, and regrows it after 60 seconds.
+- `src/server/PlayerState.luau` — holds each player's current haul, stored as a `Haul` attribute on the player so the client can display it. Starts at 0 on join.
+- `src/client/Input.client.luau` — a left click or screen tap on a tree sends a chop request. Needles and bushes do not block the click; rocks and other trees do.
+- `src/client/Hud.client.luau` — a "CURRENT HAUL" panel in the top-right corner that pops briefly when the number goes up.
+
+Changed:
+
+- `src/server/Main.server.luau` — starts the player state and tree services after the world is built.
+
+Not in this step: no axe model or swing animation, swings cost no stamina, the haul cannot be banked, and felling a tree cannot trigger the creature.
+
+Tested: `stylua` formatting applied, `selene` reports 0 errors and 0 warnings, `rojo build` succeeds.
+Not tested: nothing has been run in Studio. Unconfirmed: that clicks register on trunks, how the shake and fall look, and the haul panel's position and size.
