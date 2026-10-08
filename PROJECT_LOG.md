@@ -48,7 +48,7 @@ Each entry says what changed, why, and whether it has been tested.
 | 3 | Chopping, tree health, current haul, on-screen haul counter | Done; play-tested, works, but click cadence felt glitchy |
 | 3b | Hold-to-chop with an axe swing; torch moved to the left hand | Done; play-tested, pace changed to 0.4s at the owner's request |
 | 4 | Safe zone, banking, banked wood counter | Done; play-tested, owner confirmed banking works |
-| 5 | Sprinting, stamina, carry slowdown, stamina bar | Built; not yet play-tested in Studio |
+| 5 | Sprinting, stamina, carry slowdown, stamina bar | Done; play-tested, owner approved |
 | 6 | Lorax trigger, warning, chase, capture, run-over screen | Not started |
 
 ---
@@ -233,3 +233,21 @@ Not in this step: no on-screen sprint button for mobile, and no deliberate rest 
 
 Tested: `stylua` formatting applied, `selene` reports 0 errors and 0 warnings, `rojo build` succeeds.
 Not tested: nothing has been run in Studio. Unconfirmed: the feel of sprint speed, drain and refill rates, and the stamina bar's look.
+
+### 2026-10-07 — Fix: axe swing not visible
+
+Why: the owner play-tested step 5 (approved) and reported that no axe swing animation plays while chopping.
+
+Cause: not confirmed. The swing was written to turn the right shoulder joint, and only if that joint was a `Motor6D`. The most likely reason nothing moved is that current Roblox avatars use a newer joint type (`AnimationConstraint`), which the code skipped. This was not verified in Studio.
+
+Changed:
+
+- `src/client/ChopAnimation.luau`
+  - The axe now pivots in the hand during a swing: back 50 degrees on the windup, forward 65 degrees on the strike. This moves the weld that holds the axe, so it does not depend on the avatar's joint type.
+  - The shoulder swing now accepts either joint type.
+  - If no usable shoulder joint is found, a one-time warning is printed to the Studio Output window naming what was found, so the cause can be confirmed.
+
+Step 5 marked as play-tested and approved.
+
+Tested: `stylua` and `selene` pass, `rojo build` succeeds.
+Not tested: not run in Studio; whether the swing is now visible is unconfirmed.

@@ -1,7 +1,8 @@
 -- Chopping visuals on the player's own screen: the axe swing, the raised torch arm,
 -- and the tree's shake when a swing lands.
--- Arms are posed by turning the shoulder joints directly, so no animation assets are needed.
--- This only works on R15 avatars (the Roblox default); on others the arms are left alone.
+-- No animation assets are needed. The swing is made of two movements:
+--   1. the axe pivots in the hand (works on every avatar), and
+--   2. the right arm swings from the shoulder (R15 avatars only).
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -15,38 +16,73 @@ local SWING_TIME = 0.36 -- must stay shorter than Config.Tree.SwingCooldown
 local WINDUP_TIME = 0.1
 
 -- Shoulder angles in degrees: 0 = arm hanging down, 90 = straight out in front, 180 = straight up.
-local REST_ANGLE = 90
-local WINDUP_ANGLE = 165
-local IMPACT_ANGLE = 45
+local ARM_REST = 90
+local ARM_WINDUP = 165
+local ARM_IMPACT = 45
 local TORCH_ARM = CFrame.Angles(math.rad(85), 0, 0)
+
+-- How far the axe tips in the hand, in degrees: positive = back over the shoulder, negative = forward.
+local AXE_WINDUP = 50
+local AXE_IMPACT = -65
 
 local player = Players.LocalPlayer
 local swingStart: number? = nil
+
+-- The weld that holds the axe in the hand, and its position when not swinging.
+local axeGrip: JointInstance? = nil
+local axeGripRest = CFrame.new()
+local warnedNoShoulder = false
 
 local function lerp(from: number, to: number, alpha: number): number
 	return from + (to - from) * alpha
 end
 
-local function swingAngle(elapsed: number): number
+-- A swing goes rest -> windup -> impact -> rest. Returns the angle at a moment in the swing.
+local function swingAngle(elapsed: number, rest: number, windup: number, impact: number): number
 	if elapsed < WINDUP_TIME then
-		return lerp(REST_ANGLE, WINDUP_ANGLE, elapsed / WINDUP_TIME)
+		return lerp(rest, windup, elapsed / WINDUP_TIME)
 	elseif elapsed < ChopAnimation.IMPACT_DELAY then
 		local alpha = (elapsed - WINDUP_TIME) / (ChopAnimation.IMPACT_DELAY - WINDUP_TIME)
-		return lerp(WINDUP_ANGLE, IMPACT_ANGLE, alpha * alpha)
+		return lerp(windup, impact, alpha * alpha)
 	else
 		local alpha = (elapsed - ChopAnimation.IMPACT_DELAY)
 			/ (SWING_TIME - ChopAnimation.IMPACT_DELAY)
-		return lerp(IMPACT_ANGLE, REST_ANGLE, alpha)
+		return lerp(impact, rest, alpha)
 	end
 end
 
-local function shoulder(character: Model, armName: string, jointName: string): Motor6D?
+-- Roblox avatars use either Motor6D or AnimationConstraint for joints; both have a Transform.
+local function shoulder(character: Model, armName: string, jointName: string): any
 	local arm = character:FindFirstChild(armName)
 	local joint = arm and arm:FindFirstChild(jointName)
-	if joint and joint:IsA("Motor6D") then
+	if joint and (joint:IsA("Motor6D") or joint:IsA("AnimationConstraint")) then
 		return joint
 	end
 	return nil
+end
+
+-- Finds the weld Roblox creates between the right hand and the equipped axe.
+local function findAxeGrip(character: Model): JointInstance?
+	local hand = character:FindFirstChild("RightHand") or character:FindFirstChild("Right Arm")
+	local grip = hand and hand:FindFirstChild("RightGrip")
+	if grip and grip:IsA("JointInstance") then
+		return grip
+	end
+	return nil
+end
+
+local function poseAxe(character: Model, degrees: number)
+	local grip = findAxeGrip(character)
+	if grip ~= axeGrip then
+		-- A new axe was equipped (for example after respawning); remember its resting position.
+		axeGrip = grip
+		if grip then
+			axeGripRest = grip.C0
+		end
+	end
+	if grip then
+		grip.C0 = axeGripRest * CFrame.Angles(math.rad(degrees), 0, 0)
+	end
 end
 
 function ChopAnimation.swing()
@@ -103,10 +139,25 @@ RunService.PreSimulation:Connect(function()
 		local elapsed = os.clock() - swingStart
 		if elapsed >= SWING_TIME then
 			swingStart = nil
+			poseAxe(character, 0)
 		else
+			poseAxe(character, swingAngle(elapsed, 0, AXE_WINDUP, AXE_IMPACT))
+
 			local right = shoulder(character, "RightUpperArm", "RightShoulder")
 			if right then
-				right.Transform = CFrame.Angles(math.rad(swingAngle(elapsed)), 0, 0)
+				local degrees = swingAngle(elapsed, ARM_REST, ARM_WINDUP, ARM_IMPACT)
+				right.Transform = CFrame.Angles(math.rad(degrees), 0, 0)
+			elseif not warnedNoShoulder then
+				warnedNoShoulder = true
+				local arm = character:FindFirstChild("RightUpperArm")
+				local found = arm and arm:FindFirstChild("RightShoulder")
+				warn(
+					"[ChopAnimation] No usable right shoulder joint, so the arm will not swing.",
+					"RightUpperArm:",
+					if arm then "found" else "missing",
+					"RightShoulder:",
+					if found then found.ClassName else "missing"
+				)
 			end
 		end
 	end
