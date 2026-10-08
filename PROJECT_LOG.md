@@ -33,6 +33,7 @@ Each entry says what changed, why, and whether it has been tested.
 | 2026-10-07 | Three permanent high scores: best haul, best game, and furthest tree (the deepest tree felled on a trip that made it home). The owner plans to attach incentives to these later. |
 | 2026-10-07 | The guardian's hidden wake number is 1-10 trees per trip (was 2-10), so the first tree is no longer guaranteed safe. Chosen "for now" over banking only after a chase. |
 | 2026-10-08 | Trial: a felled tree stays down for the whole game instead of regrowing after 3 minutes; the forest regrows when the game ends. To be judged on whether it gives the right difficulty. |
+| 2026-10-08 | The guardian's tree count no longer resets when the player returns to camp. It resets, with a new hidden number, only when he wakes. The range stays 1-10 for now and may be raised. |
 | 2026-10-07 | Not yet confirmed by the owner (Claude's defaults): every tree in the playable area is choppable; hills are kept shallow. |
 
 ## Ideas noted for later
@@ -53,7 +54,7 @@ Each entry says what changed, why, and whether it has been tested.
   - Still to settle: whether builds give gameplay benefits or are visual only; the build list, material lists and prices; what the camp looks like before the fire pit is built; and how one shared camp works once several players are in a server.
   - Superseded wording follows. To settle: whether materials appear only for the next build or at random; whether each stage is split into several small builds; whether builds give gameplay benefits or are visual only; prices; and how one shared camp works once several players are in a server.
 - **Log seat: glowing version appears after building it** (reported by the owner on 2026-10-08, unresolved, to pick up next session). The owner reports that building the log seat makes a glowing version pop up, while the fire pit works. Not yet known whether the two solid benches appear beside the fire. One possibility is that they do, and the glow is the next build's outline (the woodpile, which is also made of logs); another is that the log seat's model is not showing. To settle it: stand at the fire after building and look for two log benches about 9 studs from it, or check Workspace > World > Camp > Builds in the Explorer for a `LogSeat` model.
-- **Guardian appears too rarely** (owner, 2026-10-08, to discuss). The owner has been barely running into him. With a hidden number of 1-10 trees that resets on every return to camp, short trips usually end before he wakes. Options: lower the top of the range, or keep the count running across trips so banking does not reset it.
+- **Guardian appears too rarely** (owner, 2026-10-08; addressed the same day by keeping the count running across trips, see change log; the range may still be raised). The owner has been barely running into him. With a hidden number of 1-10 trees that resets on every return to camp, short trips usually end before he wakes. Options: lower the top of the range, or keep the count running across trips so banking does not reset it.
 - **Materials are too easy to bring home** (owner's review, 2026-10-08; undecided). The glowing outline and lit materials were confirmed visible. But a player can fell one tree, which is safe nine times in ten, then collect the material and walk home. The owner's fallback is to keep it easy and make the progression very long. Options put forward by Claude: picking up a material always wakes the guardian; a material appears only after several trees are felled that trip; or more pieces and higher costs per build.
 - **Bank only after a chase?** (raised by the owner on 2026-10-07. Set aside for now: the owner chose a 1-10 wake number instead, so no tree is guaranteed safe. See the change log.) The idea: wood cannot be banked until the guardian has chased you on that trip.
   - For: it closes a loophole in the current rules. The hidden wake number is never below 2, so felling exactly one tree and walking home can be repeated forever with no risk.
@@ -662,3 +663,17 @@ Not tested: not run in Studio.
 ### 2026-10-08 — Log only: two open issues for next session
 
 No code changed. Recorded under "Open design questions": the unresolved log seat report, and the guardian appearing too rarely.
+
+### 2026-10-08 — Guardian count runs across trips
+
+Why: the owner had been barely meeting the guardian. The hidden number reset on every return to camp, so short trips usually ended before he woke. The owner chose to reset it only when he wakes.
+
+Changed:
+
+- `src/server/GuardianService.luau` — returning to camp no longer resets the tree count. A new hidden number is picked, and the count set back to zero, at the moment the guardian wakes.
+- `src/shared/Config.luau` — comment on the wake range updated; the numbers are unchanged (1-10).
+
+Effect: he now wakes once every 1 to 10 felled trees however the player splits them between trips, about every five or six trees on average. Banking after one tree no longer avoids him. Trees felled while he is already chasing do not count.
+
+Tested: `stylua` and `selene` pass, `rojo build` succeeds.
+Not tested: not run in Studio.

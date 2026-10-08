@@ -179,10 +179,10 @@ Config.Camp = {
 -- The creature that hunts the player. An original design; the name is a placeholder.
 Config.Guardian = {
 	DisplayName = "The Guardian",
-	-- Each trip out of camp, a hidden number between these two is picked.
-	-- The guardian wakes when the player has felled that many trees.
-	-- For testing, set both to 1 to wake it on the first tree.
-	WakeAfterTreesMin = 1, -- 1 means even the first tree of a trip can wake it
+	-- A hidden number between these two is picked, and the guardian wakes when the player has
+	-- felled that many trees. Banking does not reset the count; a new number is picked only
+	-- when he wakes. For testing, set both to 1 to wake it on every tree.
+	WakeAfterTreesMin = 1,
 	WakeAfterTreesMax = 10,
 	RiseTime = 1.5, -- it rises out of the fallen tree's stump for this long
 	WaitTime = 1, -- then stands still for this long before it starts chasing

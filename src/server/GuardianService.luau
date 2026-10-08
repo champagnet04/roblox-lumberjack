@@ -1,6 +1,6 @@
 -- The forest's guardian: the creature that may wake when a tree is felled and hunts the
 -- player who felled it. It is an original design (a bark-and-moss forest spirit).
--- It wakes after a hidden, random number of trees felled on each trip out of camp,
+-- It wakes after a hidden, random number of trees felled since it last woke,
 -- rises from where the last tree stood, waits a moment, then gives chase.
 -- One guardian per player. It glides in a straight line and ignores obstacles.
 
@@ -31,7 +31,8 @@ type Chase = {
 	StartsAt: number, -- when it stops waiting and begins to move
 }
 
--- Counts trees felled since the player last left camp, against a hidden number.
+-- Counts trees felled since the guardian last woke, against a hidden number.
+-- Going back to camp does not reset it.
 type Trip = {
 	Felled: number,
 	WakesAt: number,
@@ -41,7 +42,7 @@ local rng = Random.new()
 local chases: { [Player]: Chase } = {}
 local trips: { [Player]: Trip } = {}
 
--- Starts a fresh count with a new hidden number. Happens whenever the player is back in camp.
+-- Starts a fresh count with a new hidden number. Happens each time the guardian wakes.
 local function newTrip(player: Player)
 	local cfg = Config.Guardian
 	trips[player] = {
@@ -225,7 +226,7 @@ local function stepChase(player: Player, chase: Chase, dt: number)
 	place(chase, root.Position, math.sin(now * 4) * 0.35) -- slight bob as it glides
 end
 
--- Called when a player fells a tree. Wakes the guardian if this is the trip's unlucky tree.
+-- Called when a player fells a tree. Wakes the guardian if this tree reaches the hidden number.
 function GuardianService.onTreeFelled(player: Player, treePosition: Vector3)
 	if chases[player] or CampService.isInCamp(player) then
 		return
@@ -257,18 +258,15 @@ function GuardianService.onTreeFelled(player: Player, treePosition: Vector3)
 	CollectionService:AddTag(chase.Model, "Guardian") -- lets the client find it for the chase camera
 	chase.Model.Parent = Workspace
 	player:SetAttribute("Chased", true)
+
+	-- He has woken, so the count starts again for next time.
+	newTrip(player)
 end
 
 function GuardianService.start()
 	local function onPlayerAdded(player: Player)
 		player:SetAttribute("Chased", false)
 		newTrip(player)
-		-- CampService keeps InCamp up to date; arriving home resets the count.
-		player:GetAttributeChangedSignal("InCamp"):Connect(function()
-			if player:GetAttribute("InCamp") then
-				newTrip(player)
-			end
-		end)
 	end
 	Players.PlayerAdded:Connect(onPlayerAdded)
 	for _, player in Players:GetPlayers() do
