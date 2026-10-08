@@ -177,12 +177,10 @@ local function endChase(player: Player)
 end
 
 local function capture(player: Player)
-	local lost = PlayerState.loseHaul(player)
+	-- Being caught ends the game.
+	local summary = PlayerState.endGame(player)
 	endChase(player)
-	Remotes.RunOver:FireClient(player, {
-		WoodLost = lost,
-		Banked = PlayerState.getBanked(player),
-	})
+	Remotes.GameOver:FireClient(player, summary)
 	-- Back to camp. LoadCharacter can pause, so it runs on its own thread.
 	task.spawn(function()
 		player:LoadCharacter()

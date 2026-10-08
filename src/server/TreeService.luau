@@ -101,6 +101,7 @@ local function onChopRequest(player: Player, tree: any)
 		local multiplier = 1 + (cfg.DeepWoodMultiplier - 1) * Forest.depthAt(state.Base)
 		local wood = math.round(rng:NextInteger(cfg.WoodMin, cfg.WoodMax) * multiplier)
 		PlayerState.addHaul(player, wood)
+		PlayerState.recordTreeDistance(player, (state.Base * Vector3.new(1, 0, 1)).Magnitude)
 		task.spawn(fell, tree, state, direction)
 		GuardianService.onTreeFelled(player, state.Base)
 	end

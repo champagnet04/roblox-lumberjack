@@ -1,29 +1,66 @@
--- Per-player run state, owned by the server.
+-- Per-player wood and scores, owned by the server.
 -- Values are stored as attributes on the Player so the client can read them for the HUD.
---   Haul   = wood carried on the current run; at risk until banked
---   Banked = wood safely brought back to camp (not saved between sessions in Version 0)
+--
+--   Haul        wood carried right now; at risk until banked
+--   GameBank    wood banked so far in the current game; back to 0 when the game ends
+--   OverallBank everything ever banked; never lost; spent on camp upgrades (later)
+--   BestHaul    the most wood banked in a single trip
+--   BestGame    the highest GameBank a game has finished with
+--   FurthestTree the greatest distance from camp (in studs) of a tree felled on a trip that
+--               made it home
+--
+-- A game ends when the guardian captures the player.
+-- Nothing is saved between play sessions yet.
 
 local Players = game:GetService("Players")
 
 local PlayerState = {}
 
-function PlayerState.getHaul(player: Player): number
-	return player:GetAttribute("Haul") or 0
+export type GameSummary = {
+	WoodLost: number, -- the haul being carried when caught
+	GameBank: number, -- what this game banked in total
+	BestGame: number,
+	IsBestGame: boolean, -- this game set a new best
+	BestHaul: number,
+	FurthestTree: number,
+	OverallBank: number,
+}
+
+-- Distance of the furthest tree felled on the current trip. It only becomes a record
+-- once the player gets back to camp.
+local tripFurthest: { [Player]: number } = {}
+
+local function get(player: Player, name: string): number
+	return player:GetAttribute(name) or 0
 end
 
-function PlayerState.getBanked(player: Player): number
-	return player:GetAttribute("Banked") or 0
+function PlayerState.getHaul(player: Player): number
+	return get(player, "Haul")
 end
 
 function PlayerState.addHaul(player: Player, amount: number)
-	player:SetAttribute("Haul", PlayerState.getHaul(player) + amount)
+	player:SetAttribute("Haul", get(player, "Haul") + amount)
 end
 
--- Moves the whole haul into banked wood. Returns how much was banked.
+-- Notes how far from camp a felled tree stood.
+function PlayerState.recordTreeDistance(player: Player, distance: number)
+	tripFurthest[player] = math.max(tripFurthest[player] or 0, distance)
+end
+
+-- Moves the whole haul into the game bank and the overall bank. Returns how much was banked.
 function PlayerState.bankHaul(player: Player): number
-	local haul = PlayerState.getHaul(player)
+	local haul = get(player, "Haul")
 	if haul > 0 then
-		player:SetAttribute("Banked", PlayerState.getBanked(player) + haul)
+		if haul > get(player, "BestHaul") then
+			player:SetAttribute("BestHaul", haul)
+		end
+		local furthest = math.round(tripFurthest[player] or 0)
+		if furthest > get(player, "FurthestTree") then
+			player:SetAttribute("FurthestTree", furthest)
+		end
+		tripFurthest[player] = nil
+		player:SetAttribute("OverallBank", get(player, "OverallBank") + haul)
+		player:SetAttribute("GameBank", get(player, "GameBank") + haul)
 		player:SetAttribute("Haul", 0)
 	end
 	return haul
@@ -31,14 +68,37 @@ end
 
 -- Throws away the whole haul. Returns how much was lost.
 function PlayerState.loseHaul(player: Player): number
-	local haul = PlayerState.getHaul(player)
+	local haul = get(player, "Haul")
 	player:SetAttribute("Haul", 0)
+	tripFurthest[player] = nil -- a trip that did not make it home sets no distance record
 	return haul
+end
+
+-- Ends the current game: the haul is lost, the game bank is scored and reset.
+-- The overall bank is untouched, because banked wood was already added to it.
+function PlayerState.endGame(player: Player): GameSummary
+	local lost = PlayerState.loseHaul(player)
+	local gameBank = get(player, "GameBank")
+	local isBest = gameBank > get(player, "BestGame")
+	if isBest then
+		player:SetAttribute("BestGame", gameBank)
+	end
+	player:SetAttribute("GameBank", 0)
+
+	return {
+		WoodLost = lost,
+		GameBank = gameBank,
+		BestGame = get(player, "BestGame"),
+		IsBestGame = isBest,
+		BestHaul = get(player, "BestHaul"),
+		FurthestTree = get(player, "FurthestTree"),
+		OverallBank = get(player, "OverallBank"),
+	}
 end
 
 local function onCharacterAdded(player: Player, character: Model)
 	-- Dying any other way (falling, resetting) also loses the haul,
-	-- so resetting is not a free trip home.
+	-- so resetting is not a free trip home. The game itself carries on.
 	local humanoid = character:WaitForChild("Humanoid") :: Humanoid
 	humanoid.Died:Connect(function()
 		PlayerState.loseHaul(player)
@@ -46,8 +106,9 @@ local function onCharacterAdded(player: Player, character: Model)
 end
 
 local function onPlayerAdded(player: Player)
-	player:SetAttribute("Haul", 0)
-	player:SetAttribute("Banked", 0)
+	for _, name in { "Haul", "GameBank", "OverallBank", "BestHaul", "BestGame", "FurthestTree" } do
+		player:SetAttribute(name, 0)
+	end
 	player.CharacterAdded:Connect(function(character)
 		onCharacterAdded(player, character)
 	end)
@@ -58,6 +119,9 @@ end
 
 function PlayerState.start()
 	Players.PlayerAdded:Connect(onPlayerAdded)
+	Players.PlayerRemoving:Connect(function(player)
+		tripFurthest[player] = nil
+	end)
 	for _, player in Players:GetPlayers() do
 		onPlayerAdded(player)
 	end

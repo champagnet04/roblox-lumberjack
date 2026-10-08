@@ -28,8 +28,9 @@ Each entry says what changed, why, and whether it has been tested.
 | 2026-10-07 | The guardian rises from the stump of the tree that woke it, waits a second, then chases. |
 | 2026-10-07 | The guardian wakes after a random 2-10 trees felled per trip out of camp, wherever the trees stand. This replaces the distance-based chance. |
 | 2026-10-07 | A game ends when the guardian captures the player. Time limits wait for multiplayer. |
-| 2026-10-07 | Wood model: **current haul** (carried, at risk), **game bank** (banked this game, resets when the game ends), **overall bank** (everything ever banked, never lost, spent on camp upgrades). Two permanent high scores: best single haul and best game. Camp upgrades are meant to be expensive relative to what one game yields. Not yet built. |
+| 2026-10-07 | Wood model: **current haul** (carried, at risk), **game bank** (banked this game, resets when the game ends), **overall bank** (everything ever banked, never lost, spent on camp upgrades). Two permanent high scores: best single haul and best game. Camp upgrades are meant to be expensive relative to what one game yields. Built the same day (see change log); saving between sessions is not. |
 | 2026-10-07 | Incentive to go deeper: trees give more wood the deeper they stand (up to 3x at the forest edge) and are visibly bigger, and felled trees take 3 minutes to regrow so the ones near camp run out. The guardian's 2-10 trees rule stays independent of distance. |
+| 2026-10-07 | Three permanent high scores: best haul, best game, and furthest tree (the deepest tree felled on a trip that made it home). The owner plans to attach incentives to these later. |
 | 2026-10-07 | Not yet confirmed by the owner (Claude's defaults): every tree in the playable area is choppable; hills are kept shallow. |
 
 ## Ideas noted for later
@@ -399,6 +400,46 @@ Cause: the reset sent the camera to the maximum zoom instead of to where it had 
 Changed:
 
 - `src/client/ChaseCamera.client.luau` — when a chase starts, the camera's current distance is remembered. When it ends, the camera is pinned at that remembered distance for half a second, then zoom control is released as before.
+
+Tested: `stylua` and `selene` pass, `rojo build` succeeds.
+Not tested: not run in Studio.
+
+### 2026-10-07 — Wood model: current haul, game bank, overall bank, two high scores
+
+Why: the owner confirmed the basic loop is built and pointed out that the wood banks were still not separated as they had described. Until now there was the current haul and a single "banked wood" number.
+
+Changed:
+
+- `src/server/PlayerState.luau` — rewritten around five numbers per player:
+  - `Haul` — wood being carried; at risk.
+  - `GameBank` — wood banked in the current game; reset to 0 when the game ends.
+  - `OverallBank` — everything ever banked; never reduced. This is what camp upgrades will spend.
+  - `BestHaul` — the largest single haul banked. A haul lost to the guardian does not count.
+  - `BestGame` — the highest game bank a game has finished with.
+  Banking adds the haul to both the game bank and the overall bank at once. Ending a game loses the carried haul, scores the game bank against the best game, and resets the game bank. Dying any other way still loses only the haul.
+- `src/server/GuardianService.luau` — being caught now ends the game and sends the full summary.
+- `src/shared/Remotes.luau` — `RunOver` renamed `GameOver`.
+- `src/client/Hud.client.luau`
+  - Top-right panels are now CURRENT HAUL and GAME BANK, with a smaller panel under them showing TOTAL BANKED, BEST HAUL and BEST GAME.
+  - A "NEW BEST HAUL!" message joins the banking message when a haul beats the record.
+  - The run-over screen is now GAME OVER: wood banked this game, "NEW BEST GAME!" when earned, the haul lost, best game, best haul and total banked, with a NEW GAME button.
+
+Not built: saving. All five numbers start at 0 each time the place is run, so the overall bank and the high scores do not yet survive between sessions. Captures per game is still one; the two-captures idea remains an open question.
+
+Tested: `stylua` formatting applied, `selene` reports 0 errors and 0 warnings, `rojo build` succeeds.
+Not tested: not run in Studio. Unconfirmed: the layout of the new panels and the game-over screen.
+
+### 2026-10-07 — High score: furthest tree
+
+Why: the owner asked to also record the furthest tree, so players can try to go as deep as they can without getting caught. These high scores will have incentives attached later.
+
+Changed:
+
+- `src/server/PlayerState.luau` — adds `FurthestTree`: the greatest distance from camp, in whole studs, of a tree felled on a trip that got home. The distance is tracked during the trip and only becomes a record when the haul is banked. Being caught, or dying any other way, discards it.
+- `src/server/TreeService.luau` — reports each felled tree's distance from camp.
+- `src/client/Hud.client.luau` — FURTHEST TREE added as a fourth row in the totals panel and a line on the game-over screen; "NEW FURTHEST TREE!" joins the banking message when the record is beaten.
+
+For scale: the nearest trees are 32 studs from camp and the forest edge is 280.
 
 Tested: `stylua` and `selene` pass, `rojo build` succeeds.
 Not tested: not run in Studio.

@@ -7,7 +7,7 @@ local NAMES = {
 	"ChopRequest", -- client -> server: player swung at a tree
 	"SetSprinting", -- client -> server: sprint key pressed or released
 	"Escaped", -- server -> client: player reached camp with the guardian behind them
-	"RunOver", -- server -> client: player was caught; carries the run summary
+	"GameOver", -- server -> client: player was caught, ending the game; carries the summary
 }
 
 local Remotes = {}

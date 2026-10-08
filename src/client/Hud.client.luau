@@ -76,7 +76,43 @@ local function makePanel(name: string, titleText: string, offsetY: number): (Tex
 end
 
 local haulValue, haulScale = makePanel("Haul", "CURRENT HAUL", 16)
-local bankedValue, bankedScale = makePanel("Banked", "BANKED WOOD", 96)
+local gameBankValue, gameBankScale = makePanel("GameBank", "GAME BANK", 96)
+
+-- Smaller panel underneath for the permanent numbers.
+local statsPanel = Instance.new("Frame")
+statsPanel.Name = "Stats"
+statsPanel.AnchorPoint = Vector2.new(1, 0)
+statsPanel.Position = UDim2.new(1, -16, 0, 176)
+statsPanel.Size = UDim2.fromOffset(210, 117)
+statsPanel.BackgroundColor3 = PANEL_COLOR
+statsPanel.BackgroundTransparency = 0.35
+statsPanel.BorderSizePixel = 0
+statsPanel.Parent = gui
+roundCorners(statsPanel, UDim.new(0, 10))
+
+local function makeStatRow(titleText: string, row: number): TextLabel
+	local offsetY = 10 + (row - 1) * 25
+	makeLabel({
+		Position = UDim2.fromOffset(14, offsetY),
+		Size = UDim2.new(1, -28, 0, 22),
+		TextSize = 13,
+		TextColor3 = TITLE_COLOR,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Text = titleText,
+	}, statsPanel)
+	return makeLabel({
+		Position = UDim2.fromOffset(14, offsetY),
+		Size = UDim2.new(1, -28, 0, 22),
+		Font = Enum.Font.GothamBlack,
+		TextSize = 16,
+		TextXAlignment = Enum.TextXAlignment.Right,
+	}, statsPanel)
+end
+
+local overallValue = makeStatRow("TOTAL BANKED", 1)
+local bestHaulValue = makeStatRow("BEST HAUL", 2)
+local bestGameValue = makeStatRow("BEST GAME", 3)
+local furthestValue = makeStatRow("FURTHEST TREE", 4)
 
 -- Shown for as long as the guardian is hunting the player.
 local chaseBanner = makeLabel({
@@ -148,7 +184,7 @@ makeLabel({
 
 gui.Parent = playerGui
 
--- Run-over screen: covers everything after the guardian catches the player.
+-- Game-over screen: covers everything after the guardian catches the player.
 local runOverGui = Instance.new("ScreenGui")
 runOverGui.Name = "RunOver"
 runOverGui.ResetOnSpawn = false
@@ -167,7 +203,7 @@ overlay.Parent = runOverGui
 local summary = Instance.new("Frame")
 summary.AnchorPoint = Vector2.new(0.5, 0.5)
 summary.Position = UDim2.fromScale(0.5, 0.5)
-summary.Size = UDim2.fromOffset(520, 380)
+summary.Size = UDim2.fromOffset(560, 560)
 summary.BackgroundTransparency = 1
 summary.Parent = overlay
 
@@ -176,7 +212,7 @@ summaryLayout.FillDirection = Enum.FillDirection.Vertical
 summaryLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 summaryLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 summaryLayout.SortOrder = Enum.SortOrder.LayoutOrder
-summaryLayout.Padding = UDim.new(0, 10)
+summaryLayout.Padding = UDim.new(0, 8)
 summaryLayout.Parent = summary
 
 makeLabel({
@@ -185,7 +221,7 @@ makeLabel({
 	Font = Enum.Font.GothamBlack,
 	TextSize = 60,
 	TextColor3 = DANGER,
-	Text = "RUN OVER",
+	Text = "GAME OVER",
 }, summary)
 
 makeLabel({
@@ -196,38 +232,42 @@ makeLabel({
 	Text = `{Config.Guardian.DisplayName} caught you.`,
 }, summary)
 
-local woodLostLabel = makeLabel({
-	LayoutOrder = 3,
-	Size = UDim2.new(1, 0, 0, 44),
-	Font = Enum.Font.GothamBlack,
-	TextSize = 32,
-}, summary)
+local function makeSummaryLine(order: number, textSize: number, color: Color3): TextLabel
+	return makeLabel({
+		LayoutOrder = order,
+		Size = UDim2.new(1, 0, 0, textSize + 12),
+		Font = Enum.Font.GothamBlack,
+		TextSize = textSize,
+		TextColor3 = color,
+	}, summary)
+end
 
-local bankedLabel = makeLabel({
-	LayoutOrder = 4,
-	Size = UDim2.new(1, 0, 0, 44),
-	Font = Enum.Font.GothamBlack,
-	TextSize = 32,
-	TextColor3 = GOLD,
-}, summary)
+local gameBankLabel = makeSummaryLine(3, 34, GOLD)
+local newBestLabel = makeSummaryLine(4, 20, GOLD)
+newBestLabel.Text = "NEW BEST GAME!"
+local woodLostLabel = makeSummaryLine(5, 24, DANGER)
+local bestGameLabel = makeSummaryLine(6, 20, WHITE)
+local bestHaulLabel = makeSummaryLine(7, 20, WHITE)
+local furthestLabel = makeSummaryLine(8, 20, WHITE)
+local overallLabel = makeSummaryLine(9, 20, WHITE)
 
 makeLabel({
-	LayoutOrder = 5,
+	LayoutOrder = 10,
 	Size = UDim2.new(1, 0, 0, 24),
 	TextSize = 16,
 	TextColor3 = TITLE_COLOR,
-	Text = "Banked wood is never lost.",
+	Text = "Everything you banked this game is safe in your total.",
 }, summary)
 
 local tryAgain = Instance.new("TextButton")
-tryAgain.LayoutOrder = 6
+tryAgain.LayoutOrder = 11
 tryAgain.Size = UDim2.fromOffset(240, 56)
 tryAgain.BackgroundColor3 = GOLD
 tryAgain.BorderSizePixel = 0
 tryAgain.Font = Enum.Font.GothamBlack
 tryAgain.TextSize = 24
 tryAgain.TextColor3 = PANEL_COLOR
-tryAgain.Text = "TRY AGAIN"
+tryAgain.Text = "NEW GAME"
 tryAgain.Parent = summary
 roundCorners(tryAgain, UDim.new(0, 12))
 
@@ -261,27 +301,39 @@ local function pop(scale: UIScale)
 	TweenService:Create(scale, TweenInfo.new(0.25, Enum.EasingStyle.Quad), { Scale = 1 }):Play()
 end
 
--- Escaping and banking happen at the same moment, so they share one message.
+-- Escaping, banking and a new best haul can all happen at the same moment,
+-- so they share one message.
 local ARRIVAL_WINDOW = 1.5
 local lastEscapeAt = -math.huge
 local lastBankAt = -math.huge
+local lastBestHaulAt = -math.huge
+local lastFurthestAt = -math.huge
 local lastBankAmount = 0
 
 local function showArrivalToast()
 	local now = os.clock()
-	local escaped = now - lastEscapeAt < ARRIVAL_WINDOW
-	local banked = now - lastBankAt < ARRIVAL_WINDOW
-	if escaped and banked then
-		showToast(`YOU ESCAPED!  +{lastBankAmount} WOOD BANKED`)
-	elseif escaped then
-		showToast("YOU ESCAPED!")
-	elseif banked then
-		showToast(`+{lastBankAmount} WOOD BANKED`)
+	local parts = {}
+	if now - lastEscapeAt < ARRIVAL_WINDOW then
+		table.insert(parts, "YOU ESCAPED!")
+	end
+	if now - lastBestHaulAt < ARRIVAL_WINDOW then
+		table.insert(parts, "NEW BEST HAUL!")
+	end
+	if now - lastFurthestAt < ARRIVAL_WINDOW then
+		table.insert(parts, "NEW FURTHEST TREE!")
+	end
+	if now - lastBankAt < ARRIVAL_WINDOW then
+		table.insert(parts, `+{lastBankAmount} WOOD BANKED`)
+	end
+	if #parts > 0 then
+		showToast(table.concat(parts, "  "))
 	end
 end
 
 local shownHaul = 0
-local shownBanked = 0
+local shownGameBank = 0
+local shownBestHaul = 0
+local shownFurthest = 0
 
 local function refreshHaul()
 	local haul = player:GetAttribute("Haul") or 0
@@ -292,16 +344,34 @@ local function refreshHaul()
 	shownHaul = haul
 end
 
-local function refreshBanked()
-	local banked = player:GetAttribute("Banked") or 0
-	bankedValue.Text = `{banked} WOOD`
-	if banked > shownBanked then
-		pop(bankedScale)
+local function refreshGameBank()
+	local gameBank = player:GetAttribute("GameBank") or 0
+	gameBankValue.Text = `{gameBank} WOOD`
+	if gameBank > shownGameBank then
+		pop(gameBankScale)
 		lastBankAt = os.clock()
-		lastBankAmount = banked - shownBanked
+		lastBankAmount = gameBank - shownGameBank
 		showArrivalToast()
 	end
-	shownBanked = banked
+	shownGameBank = gameBank
+end
+
+local function refreshStats()
+	local bestHaul = player:GetAttribute("BestHaul") or 0
+	overallValue.Text = tostring(player:GetAttribute("OverallBank") or 0)
+	bestHaulValue.Text = tostring(bestHaul)
+	bestGameValue.Text = tostring(player:GetAttribute("BestGame") or 0)
+	if bestHaul > shownBestHaul then
+		lastBestHaulAt = os.clock()
+	end
+	shownBestHaul = bestHaul
+
+	local furthest = player:GetAttribute("FurthestTree") or 0
+	furthestValue.Text = `{furthest} STUDS`
+	if furthest > shownFurthest then
+		lastFurthestAt = os.clock()
+	end
+	shownFurthest = furthest
 end
 
 local function refreshStamina()
@@ -332,17 +402,26 @@ Remotes.Escaped.OnClientEvent:Connect(function()
 	showArrivalToast()
 end)
 
-Remotes.RunOver.OnClientEvent:Connect(function(result)
-	woodLostLabel.Text = `WOOD LOST: {result.WoodLost}`
-	bankedLabel.Text = `BANKED WOOD: {result.Banked}`
+Remotes.GameOver.OnClientEvent:Connect(function(result)
+	gameBankLabel.Text = `THIS GAME: {result.GameBank} WOOD BANKED`
+	newBestLabel.Visible = result.IsBestGame
+	woodLostLabel.Text = `HAUL LOST: {result.WoodLost}`
+	bestGameLabel.Text = `BEST GAME: {result.BestGame}`
+	bestHaulLabel.Text = `BEST HAUL: {result.BestHaul}`
+	furthestLabel.Text = `FURTHEST TREE: {result.FurthestTree} STUDS`
+	overallLabel.Text = `TOTAL BANKED: {result.OverallBank}`
 	runOverGui.Enabled = true
 end)
 
 player:GetAttributeChangedSignal("Stamina"):Connect(refreshStamina)
 player:GetAttributeChangedSignal("Haul"):Connect(refreshHaul)
-player:GetAttributeChangedSignal("Banked"):Connect(refreshBanked)
+player:GetAttributeChangedSignal("GameBank"):Connect(refreshGameBank)
+for _, name in { "OverallBank", "BestHaul", "BestGame", "FurthestTree" } do
+	player:GetAttributeChangedSignal(name):Connect(refreshStats)
+end
 player:GetAttributeChangedSignal("Chased"):Connect(refreshChased)
 refreshHaul()
-refreshBanked()
+refreshStats()
+refreshGameBank()
 refreshStamina()
 refreshChased()
