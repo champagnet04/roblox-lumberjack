@@ -40,7 +40,7 @@ Each entry says what changed, why, and whether it has been tested.
 
 - The player wears a red flannel shirt and jeans.
 - A small map in the corner of the screen for navigating back to camp. Undecided; possibly a power-up.
-- Multiplayer mode, to be made after the whole camp progression is built (owner, 2026-10-08).
+- Multiplayer mode, to be made after the whole camp progression is built (owner, 2026-10-08). Planned on 2026-10-09; the plan is in `MULTIPLAYER.md`.
 - Where to pick up (2026-10-08): the next step is the quiz on how the tent camp's pieces should look, then building it. The plan is in `CAMP_PROGRESSION.md`. Still to be seen in Studio: the torch flame that no longer trails, and the fainter next-build outline.
 
 ## Open design questions
@@ -965,3 +965,22 @@ No game code changed. Like the icon, it is uploaded by hand on the Roblox websit
 
 Tested: the script runs and the picture was checked by eye.
 Not tested: not uploaded to Roblox.
+
+### 2026-10-09 — Multiplayer planned (design file, no code)
+
+Why: the owner asked to plan the multiplayer mode, and answered a quiz.
+
+Changed:
+
+- `MULTIPLAYER.md` — new. The owner's decisions:
+  - A race that is also last one standing: about 6 minutes, ending on the timer or when one racer is left. The survivor with the most wood banked wins.
+  - A menu on joining, with Solo and Race.
+  - One guardian for the forest, hunting whoever fells the tree that wakes it, with danger rising through the round.
+  - Being caught costs the wood you carry and puts you out for the round; you watch from camp.
+  - Camp perks do not apply in a race. No contact between players at first.
+  - 1 to 15 real players, with bots filling a round up to 8. Bots are named lumberjack characters of mixed skill who can win.
+  - Fixed prizes (300, 200, 100, 50 for other survivors, 0 if caught), multiplied by the player's wood-worth. Chosen "for now" so that racing does not shorten the solo progression.
+  - The next round starts with the same group.
+- The file also holds details Claude filled in that the owner has not reviewed (rising danger numbers, what happens with one real player, race records and others), marked as such.
+
+No game code changed. Nothing of multiplayer is built.
