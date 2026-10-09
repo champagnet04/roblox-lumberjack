@@ -40,6 +40,8 @@ Each entry says what changed, why, and whether it has been tested.
 
 - The player wears a red flannel shirt and jeans.
 - A small map in the corner of the screen for navigating back to camp. Undecided; possibly a power-up.
+- Multiplayer mode, to be made after the whole camp progression is built (owner, 2026-10-08).
+- Where to pick up (2026-10-08): the next step is the quiz on how the tent camp's pieces should look, then building it. The plan is in `CAMP_PROGRESSION.md`. Still to be seen in Studio: the torch flame that no longer trails, and the fainter next-build outline.
 
 ## Open design questions
 
