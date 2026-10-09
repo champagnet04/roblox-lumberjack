@@ -937,3 +937,31 @@ Changed:
 No game code changed. The game still has only the lean-to stage and its prices.
 
 Not tested: the hours rest on one rough timing of the first stage (30 to 60 minutes) and leave out the non-wood perks, so later stages are likely to run somewhat faster than shown. To be checked by timing the tent camp once it is built.
+
+### 2026-10-08 — Game icon
+
+Why: the owner asked for an icon for the game.
+
+Changed:
+
+- `art/make_icon.py` — new. A Python script that draws the icon: a blocky lumberjack in red flannel holding an axe and a raised torch, with the guardian's antlered shape and glowing eyes looming behind him among dark pines. There is no title on it, because the game's name is not decided.
+- `art/icon/game_icon.png` — new, made by the script. 512 by 512.
+
+No game code changed. The icon is uploaded by hand on the Roblox website; it is not part of the Rojo build.
+
+Tested: the script runs and the picture was checked by eye.
+Not tested: not uploaded to Roblox, and not looked at at the small size it has in the games list.
+
+### 2026-10-08 — Game thumbnail
+
+Why: the owner asked for a thumbnail to go with the icon.
+
+Changed:
+
+- `art/make_thumbnail.py` — new. A Python script that draws the thumbnail in the icon's style: the lumberjack running for the campfire and lean-to on the left, looking back, while the guardian looms out of the trees on the right and reaches after him. No title, because the game's name is not decided.
+- `art/icon/game_thumbnail.png` — new, made by the script. 1920 by 1080.
+
+No game code changed. Like the icon, it is uploaded by hand on the Roblox website.
+
+Tested: the script runs and the picture was checked by eye.
+Not tested: not uploaded to Roblox.
