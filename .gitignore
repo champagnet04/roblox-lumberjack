@@ -5,3 +5,6 @@
 sourcemap.json
 roblox.yml
 .DS_Store
+
+# Python environment for the model-sculpting scripts in art/
+.venv/

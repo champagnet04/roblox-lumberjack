@@ -18,6 +18,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 
@@ -185,6 +186,26 @@ function PlayerState.applySaved(player: Player, data: { [string]: any })
 	end
 end
 
+-- True when the Studio-only test settings in Config.Testing are switched on.
+function PlayerState.isTesting(): boolean
+	return Config.Testing.Enabled and RunService:IsStudio()
+end
+
+-- Starts the player from the state described in Config.Testing.
+local function applyTestState(player: Player)
+	local testing = Config.Testing
+	local buildsDone = math.clamp(testing.BuildsDone, 0, #Config.Camp.Builds)
+	player:SetAttribute("BuildsDone", buildsDone)
+	player:SetAttribute("OverallBank", testing.Wood)
+
+	local nextBuild = Config.Camp.Builds[buildsDone + 1]
+	if testing.GiveNextMaterials and nextBuild then
+		for _, requirement in nextBuild.Materials do
+			player:SetAttribute(`Mat_{requirement.Type}`, requirement.Count)
+		end
+	end
+end
+
 local function onCharacterAdded(player: Player, character: Model)
 	-- Dying any other way (falling, resetting) also loses the haul,
 	-- so resetting is not a free trip home. The game itself carries on.
@@ -202,6 +223,9 @@ local function onPlayerAdded(player: Player)
 		player:SetAttribute(name, 0)
 	end
 	player:SetAttribute("CarriedMaterial", "")
+	if PlayerState.isTesting() then
+		applyTestState(player)
+	end
 	player.CharacterAdded:Connect(function(character)
 		onCharacterAdded(player, character)
 	end)

@@ -121,6 +121,12 @@ function SaveService.start()
 	if not Config.Save.Enabled then
 		return
 	end
+	if PlayerState.isTesting() then
+		warn(
+			"[SaveService] Config.Testing is on: starting from the test state; nothing is loaded or saved."
+		)
+		return
+	end
 
 	local ok, result = pcall(function()
 		return DataStoreService:GetDataStore(Config.Save.StoreName)

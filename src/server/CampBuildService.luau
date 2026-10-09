@@ -109,8 +109,21 @@ local function syncCamp(player: Player)
 			local ghost = CampModels.build(build.Id, buildsFolder)
 			CampModels.makeGhost(ghost)
 
-			local anchor = ghost:FindFirstChildWhichIsA("BasePart")
-			if anchor then
+			local firstPart = ghost:FindFirstChildWhichIsA("BasePart")
+			if firstPart then
+				-- The prompt and label hang in the air above the outline. Attached to the
+				-- outline itself, the prompt's box sat on top of it and hid it from view.
+				local anchor = Instance.new("Part")
+				anchor.Name = "PromptAnchor"
+				anchor.Anchored = true
+				anchor.Size = Vector3.one
+				anchor.Transparency = 1
+				anchor.CanCollide = false
+				anchor.CanQuery = false
+				anchor.CanTouch = false
+				anchor.Position = firstPart.Position + Vector3.new(0, Config.Camp.PromptHeight, 0)
+				anchor.Parent = ghost
+
 				local prompt = Instance.new("ProximityPrompt")
 				prompt.ActionText = "Build"
 				prompt.ObjectText = `{build.Name} ({describeCost(build)})`
@@ -124,7 +137,7 @@ local function syncCamp(player: Player)
 				local label = Instance.new("BillboardGui")
 				label.Name = "NextBuildLabel"
 				label.Size = UDim2.fromOffset(220, 46)
-				label.StudsOffsetWorldSpace = Vector3.new(0, 5, 0)
+				label.StudsOffsetWorldSpace = Vector3.new(0, 3, 0)
 				label.AlwaysOnTop = true
 				label.MaxDistance = 120
 				label.Parent = anchor

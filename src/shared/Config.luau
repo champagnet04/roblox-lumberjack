@@ -44,6 +44,15 @@ Config.Lighting = {
 	WarmLight = Color3.fromRGB(255, 170, 90),
 }
 
+-- Test settings. They only ever apply inside Roblox Studio, never in the published game.
+-- While Enabled is true, every Play starts from the state below and nothing is loaded or saved.
+Config.Testing = {
+	Enabled = false,
+	BuildsDone = 7, -- start with this many camp builds already finished (0 to 7)
+	Wood = 1000, -- start with this much wood in the overall bank
+	GiveNextMaterials = true, -- start with every material the next build needs
+}
+
 Config.Save = {
 	Enabled = true,
 	-- Changing this name starts everyone from zero (the old data is kept under the old name).
@@ -119,44 +128,52 @@ Config.Camp = {
 			Materials = { { Type = "Sticks", Count = 1 }, { Type = "Flint", Count = 1 } },
 		},
 		{
-			Id = "LogSeat",
-			Name = "Log seat",
+			Id = "StumpStools",
+			Name = "Stump stools",
 			Wood = 200,
-			Materials = { { Type = "Branch", Count = 1 } },
+			Materials = { { Type = "Saw", Count = 1 } },
+		},
+		{
+			Id = "CookingFrame",
+			Name = "Cooking frame",
+			Wood = 350,
+			Materials = { { Type = "ForkedBranch", Count = 2 }, { Type = "Rope", Count = 1 } },
 		},
 		{
 			Id = "Woodpile",
 			Name = "Woodpile",
-			Wood = 400,
+			Wood = 500,
 			Materials = { { Type = "Rope", Count = 2 } },
 		},
 		{
 			Id = "LeanToFrame",
 			Name = "Lean-to frame",
 			Wood = 700,
-			Materials = { { Type = "Sticks", Count = 2 }, { Type = "Rope", Count = 1 } },
+			Materials = { { Type = "Pole", Count = 2 }, { Type = "Rope", Count = 1 } },
 		},
 		{
 			Id = "LeanToCover",
 			Name = "Lean-to cover",
-			Wood = 1100,
+			Wood = 1000,
 			Materials = { { Type = "Cloth", Count = 2 } },
 		},
 		{
 			Id = "Bedroll",
 			Name = "Bedroll",
-			Wood = 1700,
+			Wood = 1400,
 			Materials = { { Type = "Cloth", Count = 1 }, { Type = "Moss", Count = 2 } },
 		},
 	},
 
 	-- Every material type, in a fixed order (used for saving and the on-screen list).
-	MaterialOrder = { "Sticks", "Flint", "Branch", "Rope", "Cloth", "Moss" },
+	MaterialOrder = { "Sticks", "Flint", "Saw", "ForkedBranch", "Rope", "Pole", "Cloth", "Moss" },
 	Materials = {
 		Sticks = { Name = "sticks" },
 		Flint = { Name = "flint" },
-		Branch = { Name = "fallen branch" },
+		Saw = { Name = "rusty saw" },
+		ForkedBranch = { Name = "forked branch" },
 		Rope = { Name = "rope" },
+		Pole = { Name = "long pole" },
 		Cloth = { Name = "cloth" },
 		Moss = { Name = "moss" },
 	},
@@ -171,7 +188,8 @@ Config.Camp = {
 	MaterialHoverHeight = 3.5, -- they float this far above the ground, clear of the long grass
 	PickupRange = 5,
 
-	BuildRange = 12, -- how close to the outline you must stand to build
+	BuildRange = 14, -- how close to the outline you must stand to build
+	PromptHeight = 5, -- the build prompt floats this far above the outline, so it does not cover it
 	BuildHoldTime = 1, -- seconds the build prompt must be held
 	GhostTransparency = 0.6, -- how faint the glowing outline of the next build is (1 = invisible)
 }

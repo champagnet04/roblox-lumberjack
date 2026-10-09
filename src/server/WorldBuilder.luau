@@ -119,26 +119,6 @@ local function buildBoundary(parent: Instance)
 	end
 end
 
--- The cold stone ring. The fire itself is the player's first camp build (see CampModels).
-local function buildFireRing(parent: Instance)
-	local pit = Instance.new("Model")
-	pit.Name = "FireRing"
-
-	local stoneCount = 14
-	for i = 1, stoneCount do
-		local angle = (i / stoneCount) * math.pi * 2
-		makePart({
-			Name = "Stone",
-			Size = Vector3.new(2.2, 1.5, 1.8),
-			CFrame = CFrame.new(pointOnCircle(angle, 5, 0.55)) * CFrame.Angles(0, -angle, 0),
-			Material = Enum.Material.Slate,
-			Color = STONE_COLOR,
-		}, pit)
-	end
-
-	pit.Parent = parent
-end
-
 local function buildSafeZoneMarker(parent: Instance)
 	local marker = Instance.new("Model")
 	marker.Name = "SafeZoneMarker"
@@ -195,7 +175,6 @@ local function buildCamp(parent: Instance)
 	local camp = Instance.new("Folder")
 	camp.Name = "Camp"
 
-	buildFireRing(camp)
 	buildSafeZoneMarker(camp)
 
 	local spawnLocation = Instance.new("SpawnLocation")

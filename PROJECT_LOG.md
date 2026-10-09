@@ -53,7 +53,15 @@ Each entry says what changed, why, and whether it has been tested.
   - Decided 2026-10-08: the owner approved the rules for the first six builds. The player starts with a cold stone ring and must build the fire; the first six builds are visual only apart from the fire's light; one player per server for now. First version built the same day (see change log). The owner is unsure about the glowing outline and will decide after testing.
   - Still to settle: whether builds give gameplay benefits or are visual only; the build list, material lists and prices; what the camp looks like before the fire pit is built; and how one shared camp works once several players are in a server.
   - Superseded wording follows. To settle: whether materials appear only for the next build or at random; whether each stage is split into several small builds; whether builds give gameplay benefits or are visual only; prices; and how one shared camp works once several players are in a server.
-- **Log seat: glowing version appears after building it** (reported by the owner on 2026-10-08, unresolved, to pick up next session). The owner reports that building the log seat makes a glowing version pop up, while the fire pit works. Not yet known whether the two solid benches appear beside the fire. One possibility is that they do, and the glow is the next build's outline (the woodpile, which is also made of logs); another is that the log seat's model is not showing. To settle it: stand at the fire after building and look for two log benches about 9 studs from it, or check Workspace > World > Camp > Builds in the Explorer for a `LogSeat` model.
+- **Camp stage 1 redesign** (2026-10-08; quiz answered, design proposed, nothing built yet). The owner saw all six builds together and found the camp poor: pieces seemed missing, the logs "look dumb", and part of the lean-to appears to be under the ground. Answers from the quiz:
+  - Models: sculpt 3D models for what basic shapes cannot do, the way the Sphinx was made in the roblox-travel project (a script writes a model file that is imported once in Studio). Only the pieces that truly need it; the rest stay code-built. Free Toolbox models are a fallback.
+  - Seven builds, in this order: fire pit, stump stools, cooking frame, woodpile, lean-to frame, lean-to cover, bedroll.
+  - Seating is upright stump stools.
+  - The cooking frame is two forked sticks with a crossbar over the fire (the owner sent a reference photo). It holds a piece of meat for now; a hanging pot is a later build.
+  - The lean-to cover stays cloth, a little tattered.
+  - Feel: starts rough and gets cosier with each stage.
+  - After this stage looks right, plan the next stage (the tent).
+- **Log seat: glowing version appears after building it** (reported by the owner on 2026-10-08; a likely cause was addressed the same day, see "Build prompt was covering the outline" in the change log; awaiting the owner's confirmation). The owner reports that building the log seat makes a glowing version pop up, while the fire pit works. Not yet known whether the two solid benches appear beside the fire. One possibility is that they do, and the glow is the next build's outline (the woodpile, which is also made of logs); another is that the log seat's model is not showing. To settle it: stand at the fire after building and look for two log benches about 9 studs from it, or check Workspace > World > Camp > Builds in the Explorer for a `LogSeat` model.
 - **Guardian appears too rarely** (owner, 2026-10-08; addressed the same day by keeping the count running across trips, see change log; the range may still be raised). The owner has been barely running into him. With a hidden number of 1-10 trees that resets on every return to camp, short trips usually end before he wakes. Options: lower the top of the range, or keep the count running across trips so banking does not reset it.
 - **Materials are too easy to bring home** (owner's review, 2026-10-08; undecided). The glowing outline and lit materials were confirmed visible. But a player can fell one tree, which is safe nine times in ten, then collect the material and walk home. The owner's fallback is to keep it easy and make the progression very long. Options put forward by Claude: picking up a material always wakes the guardian; a material appears only after several trees are felled that trip; or more pieces and higher costs per build.
 - **Bank only after a chase?** (raised by the owner on 2026-10-07. Set aside for now: the owner chose a 1-10 wake number instead, so no tree is guaranteed safe. See the change log.) The idea: wood cannot be banked until the guardian has chased you on that trip.
@@ -677,3 +685,147 @@ Effect: he now wakes once every 1 to 10 felled trees however the player splits t
 
 Tested: `stylua` and `selene` pass, `rojo build` succeeds.
 Not tested: not run in Studio.
+
+### 2026-10-08 — Studio test settings
+
+Why: the owner asked for a way to keep progress in Studio so the camp builds can be tested without starting over each time. Saving was not working in their Studio sessions (the "not being saved" notice was showing).
+
+Added:
+
+- `src/shared/Config.luau` — a `Testing` section: `Enabled`, `BuildsDone`, `Wood` and `GiveNextMaterials`. Off by default.
+- `src/server/PlayerState.luau` — when testing is on and the game is running in Studio, each player starts with that many builds finished, that much wood in the overall bank, and optionally every material the next build needs.
+- `src/server/SaveService.luau` — while testing is on, nothing is loaded or saved, so test values cannot overwrite real progress.
+
+The settings are ignored outside Studio, so leaving `Enabled = true` in a published game has no effect on players.
+
+Tested: `stylua` and `selene` pass, `rojo build` succeeds.
+Not tested: not run in Studio.
+
+### 2026-10-08 — Build prompt was covering the outline; log seat redesigned
+
+Why: the owner sent a screenshot taken before building the log seat, showing the "BUILD HERE: LOG SEAT" label and the build prompt but no glowing outline.
+
+Likely cause (worked out from the screenshot, not confirmed in Studio): the build prompt was attached to the outline's own part, so its box was drawn exactly where the bench lies. In the screenshot the prompt sits directly under the label, where the outline should be, and is about the size of the bench at that distance. The woodpile's outline was visible in earlier screenshots because it was seen from farther away, before the prompt appeared.
+
+Changed:
+
+- `src/server/CampBuildService.luau` — the prompt and the label are now attached to an invisible point 5 studs above the outline, so neither sits on top of it.
+- `src/server/CampModels.luau` — the log seat is redesigned so it reads as a seat when built: each bench is a pale log raised on two stumps. Before, each was a dark brown log lying on brown dirt, which was easy to miss.
+- `src/shared/Config.luau` — `PromptHeight` (5) added; `BuildRange` 14 (was 12) to allow for the prompt being higher up.
+
+Tested: `stylua` and `selene` pass, `rojo build` succeeds.
+Not tested: not run in Studio. Unconfirmed: that the outline is now visible under the prompt, and that the built log seat is easy to see.
+
+### 2026-10-08 — Fix: game would not start (missing number in test settings)
+
+Why: the owner reported being put in a plain baseplate instead of the game.
+
+Cause: in `src/shared/Config.luau`, the `BuildsDone` line of the test settings had no number after the equals sign, left that way while hand-editing. Every script loads the config first, so the syntax error stopped the whole game. Confirmed with `selene`, which reported parse errors starting on that line. This is the same kind of failure as the doubled comma on 2026-10-07.
+
+Changed:
+
+- `src/shared/Config.luau` — `BuildsDone` set to 1, the value needed for the log seat check. The owner's other test values are untouched: `Enabled = true`, `Wood = 1000`, `GiveNextMaterials = true`.
+
+Tested: `selene` reports 0 parse errors.
+Not tested: not run in Studio.
+
+### 2026-10-08 — Test settings: start with all six builds
+
+Why: the owner asked to start six builds in, to see the finished camp.
+
+Changed:
+
+- `src/shared/Config.luau` — in the Studio-only test settings, `Enabled = true` and `BuildsDone = 6`. The other test values are as the owner left them.
+
+This is a test setting, not a gameplay change. It should be switched off (`Enabled = false`) before normal play or committing.
+
+Tested: `selene` passes.
+Not tested: not run in Studio. The lean-to frame, cover and bedroll have never been seen assembled.
+
+### 2026-10-08 — Log only: camp stage 1 redesign quiz
+
+No code changed. The owner reviewed the finished six-build camp, was unhappy with its look, and asked to be quizzed before a rebuild. The answers are recorded under "Camp stage 1 redesign" in the open design questions.
+
+### 2026-10-08 — Camp stage 1 redesign approved; sculpted camp kit (pictures only so far)
+
+Why: the owner approved the stage 1 redesign ("sounds good"): seven builds instead of six, with sculpted models for what plain parts cannot do.
+
+Approved design:
+
+| # | Build | Wood | Materials to find | How it is made |
+|---|---|---|---|---|
+| 1 | Fire pit | 100 | 1 sticks, 1 flint | Sculpted rocks and logs |
+| 2 | Stump stools | 200 | 1 rusty saw | Sculpted stump |
+| 3 | Cooking frame (meat for now; a pot is a later build) | 350 | 2 forked branches, 1 rope | Sculpted sticks and meat |
+| 4 | Woodpile | 500 | 2 rope | Sculpted log, repeated |
+| 5 | Lean-to frame | 700 | 2 long poles, 1 rope | Code |
+| 6 | Lean-to cover (a little tattered) | 1,000 | 2 cloth | Code |
+| 7 | Bedroll | 1,400 | 1 cloth, 2 moss | Code |
+
+Layout: fire in the centre; stools in an arc on the spawn side; cooking frame straddling the fire; lean-to on the far side, open to the fire, with the bedroll inside; woodpile beside the lean-to. Rusty saw, forked branch and long pole are new materials. The design lives in this log; there is no separate design file.
+
+Changed:
+
+- `art/make_camp_kit.py` — new. A Python script that sculpts eight pieces (three rocks, a stump, a log, a forked stick, a crossbar, a joint of meat), writes them to one model file, and draws preview pictures of the pieces and of builds 1 to 4 put together. Same method as the Sphinx in roblox-travel.
+- `art/models/camp_kit.obj` — new, made by the script. About 13,000 triangles in total; the largest piece is 4,000.
+- `art/previews/*.png` — new, made by the script: `kit_pieces`, `camp_from_spawn`, `camp_fire_close`, `camp_stools_woodpile`.
+- `.gitignore` — ignores `.venv/`, the Python environment the script runs in (numpy, scikit-image, pillow, fast-simplification).
+
+No game code has changed. The game still has the old six builds and the old models until the owner approves the look of the pictures.
+
+Tested: the script runs and the pictures were checked by eye.
+Not tested: the model file has not been imported into Studio. The pictures use flat colours; bark, stone and fire will look different in the game.
+
+### 2026-10-08 — Camp stage 1 rebuilt: seven builds, sculpted pieces
+
+Why: the owner approved the preview pictures ("i like it").
+
+Changed:
+
+- `src/shared/Config.luau` — `Camp.Builds` is now the seven approved builds with the approved wood costs and materials. Three new materials (rusty saw, forked branch, long pole); "fallen branch" is gone. Test settings: `BuildsDone = 7`, so the whole camp shows (still `Enabled = true`).
+- `src/server/CampModels.luau` — rewritten.
+  - Sculpted pieces are copied from a model named `CampKit` in ServerStorage. If it is not there, every piece falls back to a plain shape and the Output window says so.
+  - Fire pit: eleven rough rocks in a ring about 6 studs across, four charred logs, glowing embers, flame and light.
+  - Stump stools: three stumps with pale sawn tops, replacing the log benches.
+  - Cooking frame (new): two forked sticks, a crooked spit, meat over the fire.
+  - Woodpile: six logs with pale sawn ends and two stakes, moved next to the lean-to.
+  - Lean-to frame: forked posts, a crooked ridge pole lashed with rope, five crooked slanted poles whose feet rest on the ground.
+  - Lean-to cover: six cloth strips in two shades with three patches; the ragged lower edge stops above the ground instead of going into it.
+  - Bedroll: moss bed, mat, folded blanket, rolled pillow tied with rope.
+  - Materials in the forest: new models for the saw, forked branch and long pole; sticks and flint use sculpted pieces.
+- `src/server/WorldBuilder.luau` — removed the old ring of fourteen stone blocks at the centre of camp. The fire pit build now brings its own rocks, so camp starts as bare ground with the glowing outline.
+
+Notes:
+
+- Saved progress from before this change still loads, but the build numbers now mean the new list, and any banked "fallen branch" is ignored.
+- One Studio step is needed: import `art/models/camp_kit.obj` and keep it in ServerStorage as `CampKit`.
+
+Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` all pass.
+Not tested: nothing has been run in Studio. The sculpted pieces have never been imported, so their size, facing and how Roblox's bark and stone textures sit on them are unseen. The plain-shape fallback is also unseen.
+
+### 2026-10-08 — Fix: camp kit imported as one merged mesh
+
+Why: the owner imported `camp_kit.obj` and Studio produced a single mesh named `default` instead of eight named pieces, so the game could not find any of them.
+
+Cause (likely, not confirmed): the file labelled each piece with an object line (`o`) only, and Studio separates meshes by group lines (`g`).
+
+Changed:
+
+- `art/make_camp_kit.py` — writes a group line as well as an object line for each piece.
+- `art/models/camp_kit.obj` — regenerated. The shapes are unchanged.
+
+Tested: the file now has a `g` line for each of the eight pieces.
+Not tested: not yet re-imported, so it is not known whether Studio now keeps the pieces separate.
+
+### 2026-10-08 — Camp builds sit on the measured ground
+
+Why: after importing the kit the owner saw the cover, cooking frame and fire, but no rocks, stumps or woodpile, and suspected the ground covers them.
+
+Cause (suspected, not confirmed): the terrain's visible surface sits above the height it was filled to (Y = 0), so low pieces built at Y = 0 are buried. The same thing would explain the old stone ring never showing and the old lean-to looking cut off.
+
+Changed:
+
+- `src/server/CampModels.luau` — each build now measures the real terrain surface under it and is lifted onto it. It prints the measured height for each build, and how many of the eight sculpted pieces were found in `CampKit`, to the Output window.
+
+Tested: `stylua`, `selene` and `rojo build` pass.
+Not tested: not run in Studio. If the measured heights print as about 0, the ground is not the cause and the missing pieces need another look.
