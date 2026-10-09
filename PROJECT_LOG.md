@@ -61,6 +61,53 @@ Each entry says what changed, why, and whether it has been tested.
   - The lean-to cover stays cloth, a little tattered.
   - Feel: starts rough and gets cosier with each stage.
   - After this stage looks right, plan the next stage (the tent).
+- **Camp progression to the village** (2026-10-08; quiz in progress, nothing built). Settled so far:
+  - Seven stages: lean-to, tent camp, hut, cabin, homestead, settlement, village. Each is broken into builds the way the lean-to stage was.
+  - The number of builds grows by stage: about 7, 7, 8, 8, 9, 10, 10.
+  - Wood costs carry on in the same gentle curve after the bedroll (1,400): each build costs more than the last by a growing step. The owner likes the current costs because players should have to come back.
+  - Finishing a stage unlocks one perk; other builds are visual only.
+  - The tent replaces the lean-to. The owner wants more to collect between the tent and the hut.
+  - Claude's first draft of builds per stage was not accepted ("builds need changes"). The owner wants to discuss each stage in turn and develop ideas, starting with the tent camp.
+  - Tent camp approved 2026-10-08 ("this is fine"): a canvas A-frame tent that goes up in the middle of the stage, nine builds, each needing more materials than the lean-to builds. The picnic table the owner asked for goes in the hut stage. Order, wood, materials:
+    - 8 Hanging pot, 1,800: 1 iron pot, 1 chain, 1 rope
+    - 9 Lantern post, 2,300: 1 long pole, 1 old lantern, 1 rope
+    - 10 Tent poles (lean-to comes down), 2,800: 3 long poles, 1 rope
+    - 11 Tent canvas, 3,400: 3 canvas, 1 rope
+    - 12 Pegs and guy ropes, 4,000: 2 tent pegs, 2 rope
+    - 13 Cot (replaces the bedroll), 4,700: 2 long poles, 1 canvas, 1 rope
+    - 14 Supply crate, 5,400: 3 planks, 1 nails
+    - 15 Drying rack, 6,200: 2 forked branches, 1 long pole, 1 rope
+    - 16 Clothesline, 7,000: 2 long poles, 1 rope, 1 cloth
+  - Prices, settled 2026-10-08 on Claude's recommendation (the owner was unsure of the best approach but preferred about 42 trips to about 125): the wood numbers in the tent camp list above are replaced by 1,600, 1,900, 2,200, 2,500, 2,800, 3,100, 3,400, 3,700, 4,000 (25,200 in total). Finishing any stage makes wood worth more when it is banked, starting with the lean-to stage at 2 times. It is applied at banking, so what the player carries, the carry slowdown and the chase are unchanged. Later stages follow the same pattern: prices and the multiplier climb together.
+  - Assumption to check: a normal trip banks about 300 wood. This is Claude's guess from the tree values, not measured. The aim is that the trips needed for wood stay close to the trips needed for materials (34 in the tent camp), as they do in the lean-to stage (about 14 against 13).
+  - Each stage also unlocks one other perk. Carrying more wood was first picked for the tent camp; which stage gets which perk is still open.
+  - Hut stage approved 2026-10-08 ("this sounds good"): a small log hut on a stone footing with a bark roof; the tent stays beside it as storage. Ten builds. Wood is worth 3 times during this stage. Finishing it gives wood worth 4 times and a better axe (four swings per tree instead of five). Order, wood, materials:
+    - 17 Picnic table, 4,200: 3 planks, 1 nails
+    - 18 Chopping block, 4,400: 1 axe head, 1 rusty saw, 1 rope
+    - 19 Sawhorse and plank stack, 4,600: 2 long poles, 1 rusty saw, 1 nails
+    - 20 Stone footing, 4,800: 4 flat stones
+    - 21 Log walls, 5,000: 2 long poles, 2 moss
+    - 22 Bark roof, 5,200: 3 bark sheets, 1 rope
+    - 23 Door, 5,400: 2 planks, 1 hinge, 1 nails
+    - 24 Workbench and tool rack, 5,600: 2 planks, 1 old tools, 1 nails
+    - 25 Rain barrel, 5,800: 1 barrel, 2 planks, 1 rope
+    - 26 Stone path from the fire to the door, 6,000: 4 flat stones
+  - Cabin stage approved 2026-10-08 ("this sounds good"): a log cabin with a shingle roof, stone chimney, glass windows and a covered porch. The player can walk inside, and the inside has its own builds. The hut stays as the workshop and the tent as storage. Eleven builds. Wood is worth 4 times during this stage. Finishing it gives wood worth 5 times and a bigger stamina bar. Order, wood, materials:
+    - 27 Stone foundation, 6,300: 5 flat stones
+    - 28 Log walls, 6,500: 3 long poles, 2 moss
+    - 29 Roof beams, 6,700: 3 long poles, 1 nails
+    - 30 Shingle roof, 6,900: 4 shingles, 1 nails
+    - 31 Door and windows, 7,100: 2 glass panes, 1 hinge, 1 plank, 1 nails
+    - 32 Chimney and hearth, 7,300: 3 flat stones, 1 clay, 1 flint
+    - 33 Porch and steps, 7,500: 3 planks, 1 long pole, 1 nails
+    - 34 Rocking chair and porch lantern, 7,700: 2 planks, 1 old lantern, 1 rope
+    - 35 Bed with a quilt, 7,900: 2 planks, 1 quilt, 1 cloth
+    - 36 Table and shelves, 8,100: 3 planks, 1 jars, 1 nails
+    - 37 Shutters and flower boxes, 8,300: 2 planks, 1 hinge, 2 wildflowers
+  - Decided 2026-10-08: plan the builds for every stage first. All wood prices are provisional and will be adjusted afterwards, based on how long the whole game should take a player.
+  - Homestead, settlement and village build lists approved 2026-10-08 ("this looks good"): 12, 12 and 13 builds, 74 in the whole game. Perks: corner map, lantern, founding a new camp. The owner also decided the clearing must grow with the camp and the forest must grow in proportion with it.
+  - The whole plan now lives in `CAMP_PROGRESSION.md`. That file is the one to read and edit; the lists above in this log are the record of how it was agreed.
+  - Owner's aim for the chase (2026-10-08): getting away from the guardian should be tricky but not impossible. Perks must be checked against this.
 - **Log seat: glowing version appears after building it** (reported by the owner on 2026-10-08; a likely cause was addressed the same day, see "Build prompt was covering the outline" in the change log; awaiting the owner's confirmation). The owner reports that building the log seat makes a glowing version pop up, while the fire pit works. Not yet known whether the two solid benches appear beside the fire. One possibility is that they do, and the glow is the next build's outline (the woodpile, which is also made of logs); another is that the log seat's model is not showing. To settle it: stand at the fire after building and look for two log benches about 9 studs from it, or check Workspace > World > Camp > Builds in the Explorer for a `LogSeat` model.
 - **Guardian appears too rarely** (owner, 2026-10-08; addressed the same day by keeping the count running across trips, see change log; the range may still be raised). The owner has been barely running into him. With a hidden number of 1-10 trees that resets on every return to camp, short trips usually end before he wakes. Options: lower the top of the range, or keep the count running across trips so banking does not reset it.
 - **Materials are too easy to bring home** (owner's review, 2026-10-08; undecided). The glowing outline and lit materials were confirmed visible. But a player can fell one tree, which is safe nine times in ten, then collect the material and walk home. The owner's fallback is to keep it easy and make the progression very long. Options put forward by Claude: picking up a material always wakes the guardian; a material appears only after several trees are felled that trip; or more pieces and higher costs per build.
@@ -829,3 +876,62 @@ Changed:
 
 Tested: `stylua`, `selene` and `rojo build` pass.
 Not tested: not run in Studio. If the measured heights print as about 0, the ground is not the cause and the missing pieces need another look.
+
+### 2026-10-08 — Torch flame no longer trails; next-build outline fainter
+
+Why: the owner reported that the fire following the torch gets in the way of the view, and asked for the glowing outline of the next build to be a little more transparent. On the torch they asked to keep the one flame but remove the path of fire behind it.
+
+Cause: the torch used Roblox's built-in fire effect, which leaves its flames in the air where they were made. As the player moves, they string out behind the torch and across the middle of the screen.
+
+Changed:
+
+- `src/server/PlayerSetup.luau` — the torch's fire effect is replaced by a small flame whose particles are fixed to the torch, so they move with it and leave no trail. The torch's light is unchanged.
+- `src/shared/Config.luau` — `GhostTransparency` 0.8 (was 0.6).
+- `src/server/CampModels.luau` — the outline's see-through-walls tint now uses `GhostTransparency` too (it was a separate fixed 0.6), so one number controls both.
+
+Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
+Not tested: not run in Studio. Unseen: the size and look of the new flame, and whether the outline at 0.8 is still easy to find at camp.
+
+### 2026-10-08 — Camp progression planned to the village (design file, no code)
+
+Why: the owner asked to plan the camp progression up to the village, and answered a quiz stage by stage.
+
+Changed:
+
+- `CAMP_PROGRESSION.md` — new. The rules, a summary table, all 74 builds across seven stages with wood prices and materials, and the questions still open.
+
+No game code changed. Only the lean-to stage exists in the game.
+
+Not reviewed by the owner: the materials and prices for the homestead, settlement and village (the owner approved their build lists only). All prices after the lean-to stage are provisional. The trip counts in the file rest on a guess that a trip banks about 300 wood.
+
+### 2026-10-08 — Design file: play-time estimate replaces the trip counts (no code)
+
+Why: the owner gave real figures. The lean-to stage took 30 minutes to an hour, and a trip banks about 20 to 110 wood. Claude's earlier guess of 300 wood a trip was wrong, so the trip counts built on it (42, 57, 67 and so on) were wrong too.
+
+Changed:
+
+- `CAMP_PROGRESSION.md` — the summary now gives estimated play time per stage and per build, worked from the owner's figures (about 95 wood a minute before the multiplier): about 23 hours for the whole game, a build every 15 to 25 minutes after the lean-to stage. Added an open question: materials reach the forest edge by about the ninth build, because each build pushes them 20 studs farther out.
+
+Prices are unchanged. The owner's aim is recorded: long enough to bring players back, not so long that they quit, with frequent rewards.
+
+Not tested: the estimate rests on one rough timing of the first stage.
+
+### 2026-10-08 — Design file: prices set for a game of about 50 hours (no code)
+
+Why: the owner decided the game should take 50 hours or more so that players keep coming back, chose to put the extra time in the late game, and said to keep this design for Version 0, with updates to come later.
+
+Changed:
+
+- `CAMP_PROGRESSION.md` — every wood price from build 8 to build 74 is raised. Prices still climb by a fixed step within each stage:
+  - Tent camp: 2,200 to 5,400 (34,200 in total, about 3 hours)
+  - Hut: 5,900 to 11,300 (86,000, about 5 hours)
+  - Cabin: 11,500 to 17,500 (159,500, about 7 hours)
+  - Homestead: 18,000 to 29,000 (282,000, about 10 hours)
+  - Settlement: 29,800 to 38,600 (410,400, about 12 hours)
+  - Village: 39,000 to 47,400 (561,600, about 14 hours)
+  - Whole game: 1,537,950 wood, about 52 hours. The lean-to stage is unchanged.
+- The summary now states the 50-hour aim and that this is the Version 0 design. A daily reason to return (Claude's suggestion) is listed as not in Version 0.
+
+No game code changed. The game still has only the lean-to stage and its prices.
+
+Not tested: the hours rest on one rough timing of the first stage (30 to 60 minutes) and leave out the non-wood perks, so later stages are likely to run somewhat faster than shown. To be checked by timing the tent camp once it is built.

@@ -191,7 +191,7 @@ Config.Camp = {
 	BuildRange = 14, -- how close to the outline you must stand to build
 	PromptHeight = 5, -- the build prompt floats this far above the outline, so it does not cover it
 	BuildHoldTime = 1, -- seconds the build prompt must be held
-	GhostTransparency = 0.6, -- how faint the glowing outline of the next build is (1 = invisible)
+	GhostTransparency = 0.8, -- how faint the glowing outline of the next build is (1 = invisible)
 }
 
 -- The creature that hunts the player. An original design; the name is a placeholder.

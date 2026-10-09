@@ -603,7 +603,7 @@ function CampModels.makeGhost(model: Model)
 		end
 	end
 	-- Drawn through anything in the way, so the next build can always be found at camp.
-	addGlow(model, 0.6, true)
+	addGlow(model, Config.Camp.GhostTransparency, true)
 end
 
 local materialBuilders: { [string]: (model: Model, at: Vector3) -> () } = {}

@@ -79,10 +79,31 @@ local function buildTorch(): (Model, Part)
 	}, torch)
 	attach(handle, head, CFrame.new(0, 1.5, 0))
 
-	local fire = Instance.new("Fire")
-	fire.Size = 3
-	fire.Heat = 6
-	fire.Parent = head
+	-- One flame that stays on the torch. Roblox's Fire effect leaves its flames behind in
+	-- the air as the player moves, and that trail hung across the middle of the screen.
+	local flame = Instance.new("ParticleEmitter")
+	flame.Name = "Flame"
+	flame.Texture = "rbxasset://textures/particles/fire_main.dds"
+	flame.LockedToPart = true -- the flames move with the torch, so there is no trail
+	flame.EmissionDirection = Enum.NormalId.Top
+	flame.Rate = 30
+	flame.Lifetime = NumberRange.new(0.35, 0.55)
+	flame.Speed = NumberRange.new(2.5, 3.5)
+	flame.SpreadAngle = Vector2.new(8, 8)
+	flame.Rotation = NumberRange.new(0, 360)
+	flame.RotSpeed = NumberRange.new(-60, 60)
+	flame.LightEmission = 1
+	flame.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.9),
+		NumberSequenceKeypoint.new(1, 0.2),
+	})
+	flame.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.2),
+		NumberSequenceKeypoint.new(0.7, 0.5),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	flame.Color = ColorSequence.new(Color3.fromRGB(255, 190, 90), Color3.fromRGB(230, 80, 30))
+	flame.Parent = head
 
 	local light = Instance.new("PointLight")
 	light.Color = Config.Lighting.WarmLight
