@@ -11,6 +11,7 @@
 --   BuildsDone  how many camp builds are finished
 --   Mat_<Type>  banked materials of each type, waiting to be used in a build
 --   CarriedMaterial  the one material being carried this trip ("" for none); at risk like the haul
+--   RaceScore   wood banked in a race (Config.Mode = "Race"); a score only, never saved
 --
 -- A game ends when the guardian captures the player.
 -- OverallBank, the three records, BuildsDone and banked materials are saved between
@@ -23,6 +24,8 @@ local RunService = game:GetService("RunService")
 local Config = require(ReplicatedStorage.Shared.Config)
 
 local PlayerState = {}
+
+local IS_RACE = Config.Mode == "Race"
 
 -- Fires with the player when their game ends (the guardian caught them).
 local gameEnded = Instance.new("BindableEvent")
@@ -101,6 +104,14 @@ end
 -- A carried material is banked with it; without wood, nothing banks.
 function PlayerState.bankHaul(player: Player): number
 	local haul = get(player, "Haul")
+	if IS_RACE then
+		-- In a race, banked wood is only a score. Nothing permanent changes.
+		if haul > 0 then
+			player:SetAttribute("RaceScore", get(player, "RaceScore") + haul)
+			player:SetAttribute("Haul", 0)
+		end
+		return haul
+	end
 	if haul > 0 then
 		if haul > get(player, "BestHaul") then
 			player:SetAttribute("BestHaul", haul)
@@ -216,14 +227,14 @@ local function onCharacterAdded(player: Player, character: Model)
 end
 
 local function onPlayerAdded(player: Player)
-	for _, name in { "Haul", "GameBank" } do
+	for _, name in { "Haul", "GameBank", "RaceScore" } do
 		player:SetAttribute(name, 0)
 	end
 	for _, name in SAVED do
 		player:SetAttribute(name, 0)
 	end
 	player:SetAttribute("CarriedMaterial", "")
-	if PlayerState.isTesting() then
+	if PlayerState.isTesting() and not IS_RACE then
 		applyTestState(player)
 	end
 	player.CharacterAdded:Connect(function(character)

@@ -548,6 +548,15 @@ local function groundHeightAt(spot: Vector3): number
 	return if hit then hit.Position.Y else 0
 end
 
+-- True once the terrain at camp can be measured. For a moment after the world is made the
+-- measurement finds nothing, and anything built then is placed too low and partly buried.
+function CampModels.groundIsReady(): boolean
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = { Workspace.Terrain }
+	return Workspace:Raycast(Vector3.new(0, 40, 0), Vector3.new(0, -80, 0), params) ~= nil
+end
+
 -- Builds one camp structure, in place, by its Id from Config.Camp.Builds.
 function CampModels.build(id: string, parent: Instance): Model
 	local model = Instance.new("Model")

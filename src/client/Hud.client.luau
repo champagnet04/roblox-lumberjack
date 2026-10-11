@@ -16,6 +16,9 @@ local GOLD = Color3.fromRGB(255, 214, 120)
 local DANGER = Color3.fromRGB(255, 96, 80)
 local WHITE = Color3.fromRGB(255, 255, 255)
 local GUARDIAN_NAME = string.upper(Config.Guardian.DisplayName)
+local IS_RACE = Config.Mode == "Race"
+-- The banked-wood number in the corner: this game's bank in solo, the race score in a race.
+local BANK_ATTRIBUTE = if IS_RACE then "RaceScore" else "GameBank"
 
 local function makeLabel(props: { [string]: any }, parent: Instance): TextLabel
 	local label = Instance.new("TextLabel")
@@ -76,7 +79,8 @@ local function makePanel(name: string, titleText: string, offsetY: number): (Tex
 end
 
 local haulValue, haulScale = makePanel("Haul", "CURRENT HAUL", 16)
-local gameBankValue, gameBankScale = makePanel("GameBank", "GAME BANK", 96)
+local gameBankValue, gameBankScale =
+	makePanel("GameBank", if IS_RACE then "RACE SCORE" else "GAME BANK", 96)
 
 -- Smaller panel underneath for the permanent numbers.
 local statsPanel = Instance.new("Frame")
@@ -89,6 +93,7 @@ statsPanel.BackgroundTransparency = 0.35
 statsPanel.BorderSizePixel = 0
 statsPanel.Parent = gui
 roundCorners(statsPanel, UDim.new(0, 10))
+statsPanel.Visible = not IS_RACE -- a race does not touch the permanent numbers
 
 local function makeStatRow(titleText: string, row: number): TextLabel
 	local offsetY = 10 + (row - 1) * 25
@@ -137,6 +142,7 @@ buildPanel.BackgroundTransparency = 0.35
 buildPanel.BorderSizePixel = 0
 buildPanel.Parent = gui
 roundCorners(buildPanel, UDim.new(0, 10))
+buildPanel.Visible = not IS_RACE -- nothing is built during a race
 
 makeLabel({
 	Name = "Title",
@@ -166,6 +172,56 @@ local buildLines = makeLabel({
 	TextXAlignment = Enum.TextXAlignment.Left,
 	TextYAlignment = Enum.TextYAlignment.Top,
 }, buildPanel)
+
+-- Race scoreboard, on the left: every racer and the wood they have banked, highest first.
+local scorePanel = Instance.new("Frame")
+scorePanel.Name = "Scoreboard"
+scorePanel.Position = UDim2.fromOffset(16, 70)
+scorePanel.Size = UDim2.fromOffset(240, 60)
+scorePanel.BackgroundColor3 = PANEL_COLOR
+scorePanel.BackgroundTransparency = 0.35
+scorePanel.BorderSizePixel = 0
+scorePanel.Visible = IS_RACE
+scorePanel.Parent = gui
+roundCorners(scorePanel, UDim.new(0, 10))
+
+makeLabel({
+	Name = "Title",
+	Position = UDim2.fromOffset(14, 8),
+	Size = UDim2.new(1, -28, 0, 18),
+	TextSize = 13,
+	TextColor3 = TITLE_COLOR,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	Text = "RACE",
+}, scorePanel)
+
+local SCORE_ROW_HEIGHT = 20
+local scoreRows: { { Name: TextLabel, Score: TextLabel } } = {}
+
+local function scoreRow(index: number): { Name: TextLabel, Score: TextLabel }
+	local row = scoreRows[index]
+	if not row then
+		local offsetY = 30 + (index - 1) * SCORE_ROW_HEIGHT
+		row = {
+			Name = makeLabel({
+				Position = UDim2.fromOffset(14, offsetY),
+				Size = UDim2.new(1, -90, 0, SCORE_ROW_HEIGHT),
+				TextSize = 14,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				TextTruncate = Enum.TextTruncate.AtEnd,
+			}, scorePanel),
+			Score = makeLabel({
+				Position = UDim2.fromOffset(14, offsetY),
+				Size = UDim2.new(1, -28, 0, SCORE_ROW_HEIGHT),
+				Font = Enum.Font.GothamBlack,
+				TextSize = 14,
+				TextXAlignment = Enum.TextXAlignment.Right,
+			}, scorePanel),
+		}
+		scoreRows[index] = row
+	end
+	return row
+end
 
 -- Shown for as long as the guardian is hunting the player.
 local chaseBanner = makeLabel({
@@ -236,6 +292,25 @@ makeLabel({
 }, staminaBar)
 
 gui.Parent = playerGui
+
+-- The whole display shrinks on small screens, so it does not cover the view on a phone.
+-- It is full size on a screen of FULL_SIZE_SCREEN or larger, and never below MIN_HUD_SCALE.
+local FULL_SIZE_SCREEN = Vector2.new(1280, 720)
+local MIN_HUD_SCALE = 0.5
+
+local hudScale = Instance.new("UIScale")
+hudScale.Parent = gui
+
+local function fitHudToScreen()
+	local screen = gui.AbsoluteSize
+	if screen.X <= 0 or screen.Y <= 0 then
+		return
+	end
+	local fit = math.min(screen.X / FULL_SIZE_SCREEN.X, screen.Y / FULL_SIZE_SCREEN.Y)
+	hudScale.Scale = math.clamp(fit, MIN_HUD_SCALE, 1)
+end
+gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitHudToScreen)
+fitHudToScreen()
 
 -- Game-over screen: covers everything after the guardian catches the player.
 local runOverGui = Instance.new("ScreenGui")
@@ -404,7 +479,7 @@ local function refreshHaul()
 end
 
 local function refreshGameBank()
-	local gameBank = player:GetAttribute("GameBank") or 0
+	local gameBank = player:GetAttribute(BANK_ATTRIBUTE) or 0
 	gameBankValue.Text = `{gameBank} WOOD`
 	if gameBank > shownGameBank then
 		pop(gameBankScale)
@@ -542,7 +617,7 @@ end)
 
 player:GetAttributeChangedSignal("Stamina"):Connect(refreshStamina)
 player:GetAttributeChangedSignal("Haul"):Connect(refreshHaul)
-player:GetAttributeChangedSignal("GameBank"):Connect(refreshGameBank)
+player:GetAttributeChangedSignal(BANK_ATTRIBUTE):Connect(refreshGameBank)
 for _, name in { "OverallBank", "BestHaul", "BestGame", "FurthestTree" } do
 	player:GetAttributeChangedSignal(name):Connect(refreshStats)
 end
@@ -561,3 +636,43 @@ end
 refreshBuild()
 player:GetAttributeChangedSignal("SaveStatus"):Connect(refreshSaveStatus)
 refreshSaveStatus()
+
+-- You are shown in gold; whoever the guardian is hunting is shown in red.
+local function refreshScoreboard()
+	local racers = Players:GetPlayers()
+	table.sort(racers, function(a, b)
+		local scoreA = a:GetAttribute("RaceScore") or 0
+		local scoreB = b:GetAttribute("RaceScore") or 0
+		if scoreA ~= scoreB then
+			return scoreA > scoreB
+		end
+		return a.Name < b.Name
+	end)
+
+	for index, racer in racers do
+		local row = scoreRow(index)
+		local hunted = racer:GetAttribute("Chased") == true
+		local color = if hunted then DANGER elseif racer == player then GOLD else WHITE
+		row.Name.Text = `{index}. {racer.DisplayName}{if hunted then " (HUNTED)" else ""}`
+		row.Name.TextColor3 = color
+		row.Name.Visible = true
+		row.Score.Text = tostring(racer:GetAttribute("RaceScore") or 0)
+		row.Score.TextColor3 = color
+		row.Score.Visible = true
+	end
+	for index = #racers + 1, #scoreRows do
+		scoreRows[index].Name.Visible = false
+		scoreRows[index].Score.Visible = false
+	end
+	scorePanel.Size = UDim2.fromOffset(240, 38 + #racers * SCORE_ROW_HEIGHT)
+end
+
+if IS_RACE then
+	-- Redrawn on a timer: simpler and safer than listening to every racer for changes.
+	task.spawn(function()
+		while true do
+			refreshScoreboard()
+			task.wait(0.5)
+		end
+	end)
+end

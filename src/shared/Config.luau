@@ -2,6 +2,17 @@
 
 local Config = {}
 
+-- Which game this server runs.
+--   "Solo"  the single-player game: your own camp, saved between sessions.
+--   "Race"  the multiplayer race (see MULTIPLAYER.md): one shared camp, one guardian for
+--           everyone, and nothing saved. For now it is switched on here by hand, for
+--           testing in Studio with several players. A menu will choose it later.
+Config.Mode = "Solo"
+
+Config.Race = {
+	CampBuilds = 7, -- the shared camp shows this many finished builds (7 = the whole lean-to stage)
+}
+
 Config.World = {
 	Seed = 1, -- same seed = same forest layout every time
 	GroundSize = 720,

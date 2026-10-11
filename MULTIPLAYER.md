@@ -1,6 +1,6 @@
 # Multiplayer: The Race
 
-The plan for multiplayer, agreed with the owner on 2026-10-09. Nothing here is built. The owner wants it made after the whole camp progression is built (see `CAMP_PROGRESSION.md`).
+The plan for multiplayer, agreed with the owner on 2026-10-09 and confirmed on 2026-10-11 ("I agree with this design for multiplayer"). Nothing here is built. The owner wants it made after the whole camp progression is built (see `CAMP_PROGRESSION.md`).
 
 ## What it is
 
@@ -21,6 +21,7 @@ Solo play stays as it is: each player's own camp, built over about 50 hours. A r
 | Rising danger | The guardian wakes more easily and runs faster as the round goes on. |
 | Caught | You lose what you are carrying and you are out for the round. |
 | When out | You wait safe at the campfire, can watch any remaining racer, and see the scoreboard. |
+| Trees | Shared by everyone. A felled tree stays down for the whole round, and the forest regrows between rounds. Deeper trees give more wood, as in solo. |
 | Camp perks | Not used in a race. Everyone has the same axe, stamina and torch. |
 | Contact between players | None at first. Racers compete for the same trees and share the guardian, and that is all. Pushing may come later, once the basic race is fun. |
 | After a round | Results show for a few seconds, the forest regrows, and the next round starts with whoever stays. A button returns to the menu at any time. |
@@ -55,7 +56,6 @@ These fill gaps the quiz did not cover. Each is a starting point to change.
 
 - **Rising danger numbers.** The guardian's hidden wake number starts at 1 to 10 trees, as in solo, and narrows to 1 to 3 by the last minute. Its speed starts at 21 and reaches 24, a sprinting player's top speed, by the end.
 - **After a catch.** The guardian goes back to sleep and a new hidden number is picked, as in solo.
-- **Trees.** Shared by everyone. A felled tree stays down for the round. Deeper trees give more wood, as in solo.
 - **Camp materials.** None appear in a race. Materials for camp builds are found in solo only.
 - **A round with one real player left.** If every real player has been caught and only bots remain, the round ends at once and goes to results, so nobody waits for bots to finish.
 - **A race with one real player.** It runs against seven bots.

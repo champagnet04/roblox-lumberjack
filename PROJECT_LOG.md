@@ -984,3 +984,42 @@ Changed:
 - The file also holds details Claude filled in that the owner has not reviewed (rising danger numbers, what happens with one real player, race records and others), marked as such.
 
 No game code changed. Nothing of multiplayer is built.
+
+### 2026-10-11 — Multiplayer design confirmed; trees do not regrow during a round (design file, no code)
+
+The owner agreed with the multiplayer design and with trees staying down for the whole round, regrowing between rounds. `MULTIPLAYER.md` now lists that under the decided rules instead of Claude's draft details.
+
+Also reported by the owner: when two people play at the same time they are put in the same server, which breaks the single-player game. The fix for now is a setting on the Roblox website (server size of 1), not code; see the next entry once it is done.
+
+### 2026-10-11 — Multiplayer step 1: several players in one forest, one guardian, a scoreboard
+
+Why: the owner approved step 1 of `MULTIPLAYER.md` and decided to build multiplayer now, with the rest of the solo camp to follow once multiplayer is done. (This reverses the earlier order.) Also on this day the owner set the live game's server size to 1 on the Roblox website, so the solo game is one player per server.
+
+Changed:
+
+- `src/shared/Config.luau` — new `Mode` setting, "Solo" or "Race". It is "Solo", and with that the game plays exactly as before. New `Race` section with `CampBuilds` (7).
+- `src/server/Main.server.luau` — in Race mode, saving is not started and the camp is the shared finished one.
+- `src/server/GuardianService.luau` — in Race mode there is one hidden count that every player's felled trees add to, and one guardian, which hunts whoever felled the tree that woke it. While it is out, felled trees do not count. A caught racer loses what they carry, sees a message, and restarts at camp with their score kept.
+- `src/server/PlayerState.luau` — new `RaceScore`. In Race mode, banking adds to it and changes nothing permanent. The Studio test settings are ignored in Race mode.
+- `src/server/CampBuildService.luau` — new `startShared`: builds the lean-to stage once for everyone, with no outline, prompt or materials.
+- `src/client/Hud.client.luau` — in Race mode: a scoreboard on the left listing every player and their banked wood, highest first (you in gold, the hunted player in red); the corner number reads "RACE SCORE"; the permanent numbers and the next-build panel are hidden.
+
+Known gaps, all planned for later steps: there are no rounds, so nobody wins and the forest never regrows in Race mode; a caught player is not out; no bots; no menu, so the mode is switched by hand in the config; no prizes.
+
+Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
+Not tested: nothing has been run in Studio, in either mode. Race mode needs Studio's local server test with two or more players. `Mode` must be back on "Solo" before publishing.
+
+### 2026-10-11 — Race camp no longer buried; on-screen display shrinks on small screens
+
+Why: the owner tested Race mode in Studio with two players. The scoreboard, race score and shared forest worked. Two problems: at the race camp the logs were cut off and the stump stools could not be seen, and the wood boxes cover too much of a small screen, which would block the view on a phone.
+
+Cause of the camp problem (likely, not confirmed): the race camp was built the instant the world was made, before the ground's height can be measured. The measurement found nothing, so every build was placed at height 0 and the low pieces were buried. In solo the camp is built when the player arrives, a moment later, so it did not show there.
+
+Changed:
+
+- `src/server/CampModels.luau` — new `groundIsReady`, true once the ground at camp can be measured.
+- `src/server/CampBuildService.luau` — the race camp waits for that (up to 10 seconds) before building.
+- `src/client/Hud.client.luau` — the whole on-screen display now scales with the screen: full size at 1280 by 720 or larger, shrinking in step with the screen down to half size. This applies in both modes and to everything in the display (wood boxes, scoreboard, next-build panel, stamina bar, messages), not only the two wood boxes.
+
+Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
+Not tested: not run in Studio. To confirm the camp cause, the Output window prints "Ground under ... is at height ..." for each build; before this change those would have read 0.00 in Race mode.

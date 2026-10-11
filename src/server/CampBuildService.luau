@@ -8,7 +8,8 @@
 --   * The next build is shown at camp as a faint outline. Walking up to it and holding the
 --     prompt builds it, if the wood and materials are there.
 --
--- There is one camp in the world, so this assumes one player per server for now.
+-- There is one camp in the world, so the solo game assumes one player per server.
+-- A race uses startShared instead: one finished camp for everyone, with nothing to build.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -238,6 +239,28 @@ local function onPlayerAdded(player: Player)
 		syncCamp(player)
 	end)
 	syncCamp(player)
+end
+
+-- For a race: builds the first `buildCount` builds once, for everyone. No outline, no
+-- prompt and no materials in the forest. Call after the world has been built.
+function CampBuildService.startShared(buildCount: number)
+	buildsFolder = Instance.new("Folder")
+	buildsFolder.Name = "Builds"
+	buildsFolder.Parent = Workspace:WaitForChild("World"):WaitForChild("Camp")
+
+	-- This runs the moment the world is made, before the ground can be measured. Built
+	-- straight away, the low pieces (rocks, stools, woodpile) end up under the ground.
+	task.spawn(function()
+		local deadline = os.clock() + 10
+		while not CampModels.groundIsReady() and os.clock() < deadline do
+			task.wait(0.1)
+		end
+		for index, build in Config.Camp.Builds do
+			if index <= buildCount then
+				CampModels.build(build.Id, buildsFolder)
+			end
+		end
+	end)
 end
 
 -- Call after the world has been built.

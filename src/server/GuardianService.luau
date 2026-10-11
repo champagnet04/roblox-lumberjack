@@ -2,7 +2,11 @@
 -- player who felled it. It is an original design (a bark-and-moss forest spirit).
 -- It wakes after a hidden, random number of trees felled since it last woke,
 -- rises from where the last tree stood, waits a moment, then gives chase.
--- One guardian per player. It glides in a straight line and ignores obstacles.
+-- It glides in a straight line and ignores obstacles.
+--
+-- Solo: each player has their own count and their own guardian.
+-- Race: there is one count and one guardian for the whole forest. Every tree anyone fells
+-- adds to the count, and the guardian hunts whoever felled the tree that woke it.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -38,14 +42,22 @@ type Trip = {
 	WakesAt: number,
 }
 
+local IS_RACE = Config.Mode == "Race"
+local SHARED = "Shared" -- the one count everybody adds to in a race
+
 local rng = Random.new()
 local chases: { [Player]: Chase } = {}
-local trips: { [Player]: Trip } = {}
+local trips: { [Player | string]: Trip } = {}
+
+-- Whose count a player's felled trees add to.
+local function countFor(player: Player): Player | string
+	return if IS_RACE then SHARED else player
+end
 
 -- Starts a fresh count with a new hidden number. Happens each time the guardian wakes.
-local function newTrip(player: Player)
+local function newTrip(owner: Player | string)
 	local cfg = Config.Guardian
-	trips[player] = {
+	trips[owner] = {
 		Felled = 0,
 		WakesAt = rng:NextInteger(cfg.WakeAfterTreesMin, cfg.WakeAfterTreesMax),
 	}
@@ -178,10 +190,18 @@ local function endChase(player: Player)
 end
 
 local function capture(player: Player)
-	-- Being caught ends the game.
-	local summary = PlayerState.endGame(player)
-	endChase(player)
-	Remotes.GameOver:FireClient(player, summary)
+	if IS_RACE then
+		-- For now a caught racer loses what they carry and restarts at camp, keeping
+		-- their score. Being out for the round arrives with rounds.
+		local lost = PlayerState.loseHaul(player)
+		endChase(player)
+		Remotes.Notice:FireClient(player, `CAUGHT! {lost} WOOD LOST`)
+	else
+		-- Being caught ends the game.
+		local summary = PlayerState.endGame(player)
+		endChase(player)
+		Remotes.GameOver:FireClient(player, summary)
+	end
 	-- Back to camp. LoadCharacter can pause, so it runs on its own thread.
 	task.spawn(function()
 		player:LoadCharacter()
@@ -231,8 +251,11 @@ function GuardianService.onTreeFelled(player: Player, treePosition: Vector3)
 	if chases[player] or CampService.isInCamp(player) then
 		return
 	end
+	if IS_RACE and next(chases) then
+		return -- the one guardian is already out hunting someone
+	end
 
-	local trip = trips[player]
+	local trip = trips[countFor(player)]
 	if not trip then
 		return
 	end
@@ -260,13 +283,18 @@ function GuardianService.onTreeFelled(player: Player, treePosition: Vector3)
 	player:SetAttribute("Chased", true)
 
 	-- He has woken, so the count starts again for next time.
-	newTrip(player)
+	newTrip(countFor(player))
 end
 
 function GuardianService.start()
 	local function onPlayerAdded(player: Player)
 		player:SetAttribute("Chased", false)
-		newTrip(player)
+		if not IS_RACE then
+			newTrip(player)
+		end
+	end
+	if IS_RACE then
+		newTrip(SHARED)
 	end
 	Players.PlayerAdded:Connect(onPlayerAdded)
 	for _, player in Players:GetPlayers() do
