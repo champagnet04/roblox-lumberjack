@@ -113,7 +113,11 @@ RunService.RenderStepped:Connect(function()
 	end
 	updateZoom(camera)
 
-	local character = player.Character
+	-- Whoever the camera is following: the player, or in a race a racer being watched.
+	local subject = camera.CameraSubject
+	local character = if subject and subject:IsA("Humanoid")
+		then subject.Parent
+		else player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	if root and root:IsA("BasePart") then
 		updateGuardianVisibility(camera, root)

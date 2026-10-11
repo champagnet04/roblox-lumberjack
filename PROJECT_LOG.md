@@ -1045,3 +1045,19 @@ Not built yet: a caught racer can still walk about (they cannot chop or bank); w
 
 Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
 Not tested: nothing has been run in Studio. A full round, the early finish, the results screen and prize payment are all unseen. Solo mode should be unaffected but has not been re-run.
+
+### 2026-10-11 — Multiplayer step 3: caught racers are held at camp and can watch the others
+
+Why: the owner confirmed step 2 worked in Studio and asked for the next step.
+
+Changed:
+
+- `src/client/Spectate.client.luau` — new, Race mode only. While you are out and the round is running, a bar at the bottom of the screen shows who you are watching, with previous and next buttons (also the Q and E keys) and a "MY VIEW" button. The camera follows the chosen racer. If that racer is caught or leaves, it moves to the next one. When the round ends the camera returns to your own character.
+- `src/server/CampService.luau` — a caught racer who steps outside the stone ring is put back just inside it.
+- `src/client/ChaseCamera.client.luau` — the guardian is made see-through when it blocks the view of whoever the camera is following, not only your own character.
+- `src/client/Input.client.luau` — in Race mode the axe swing is only played while a round is running.
+
+Differs from what was proposed: the sprint control is not switched off while out. A caught racer cannot leave the ring, so sprinting inside it does no harm, and they cannot reach a tree to chop.
+
+Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
+Not tested: not run in Studio. Unseen: the watching camera, how well a distant racer can be seen in the dark, and being put back inside the ring.

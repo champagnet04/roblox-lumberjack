@@ -7,7 +7,7 @@ local Config = {}
 --   "Race"  the multiplayer race (see MULTIPLAYER.md): one shared camp, one guardian for
 --           everyone, and nothing saved. For now it is switched on here by hand, for
 --           testing in Studio with several players. A menu will choose it later.
-Config.Mode = "Solo"
+Config.Mode = "Race"
 
 Config.Race = {
 	CampBuilds = 7, -- the shared camp shows this many finished builds (7 = the whole lean-to stage)

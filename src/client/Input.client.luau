@@ -142,6 +142,10 @@ RunService.Heartbeat:Connect(function()
 	if not position then
 		return
 	end
+	-- In a race, swings only count while a round is running, so none are played otherwise.
+	if Config.Mode == "Race" and Workspace:GetAttribute("RacePhase") ~= "Running" then
+		return
+	end
 
 	local now = os.clock()
 	if now - lastSwing < Config.Tree.SwingCooldown then
