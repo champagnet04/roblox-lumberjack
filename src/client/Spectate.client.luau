@@ -2,6 +2,7 @@
 -- While you are out and the round is still running, a bar at the bottom of the screen lets
 -- you move the camera between the racers still standing, or back to yourself at camp.
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
@@ -20,7 +21,7 @@ local GOLD = Color3.fromRGB(255, 214, 120)
 local WHITE = Color3.fromRGB(255, 255, 255)
 local TICK = 0.2
 
-local watching: Player? = nil
+local watching: Instance? = nil -- a player, or a bot's character
 local ownView = false -- the player chose to look at themselves instead
 local wasActive = false
 
@@ -77,26 +78,39 @@ label.TextTruncate = Enum.TextTruncate.AtEnd
 label.Text = ""
 label.Parent = bar
 
-local function humanoidOf(target: Player): Humanoid?
-	local character = target.Character
+-- A racer is a player, or a bot's character (tagged "Bot").
+local function humanoidOf(racer: Instance): Humanoid?
+	local character = if racer:IsA("Player") then racer.Character else racer
 	return character and character:FindFirstChildOfClass("Humanoid")
 end
 
+local function nameOf(racer: Instance): string
+	return if racer:IsA("Player") then racer.DisplayName else racer.Name
+end
+
 -- Racers who can be watched: everyone else who is still standing, in name order.
-local function standing(): { Player }
-	local list = {}
+local function standing(): { Instance }
+	local list: { Instance } = {}
+	local function consider(racer: Instance)
+		if racer ~= player and racer:GetAttribute("RaceOut") ~= true and humanoidOf(racer) then
+			table.insert(list, racer)
+		end
+	end
 	for _, other in Players:GetPlayers() do
-		if other ~= player and other:GetAttribute("RaceOut") ~= true and humanoidOf(other) then
-			table.insert(list, other)
+		consider(other)
+	end
+	for _, bot in CollectionService:GetTagged("Bot") do
+		if bot:IsDescendantOf(Workspace) then
+			consider(bot)
 		end
 	end
 	table.sort(list, function(a, b)
-		return a.Name < b.Name
+		return nameOf(a) < nameOf(b)
 	end)
 	return list
 end
 
-local function lookAt(target: Player)
+local function lookAt(target: Instance)
 	local camera = Workspace.CurrentCamera
 	local humanoid = humanoidOf(target)
 	if camera and humanoid and camera.CameraSubject ~= humanoid then
@@ -143,7 +157,7 @@ local function update()
 		label.Text = if #list == 0 then "NO ONE LEFT TO WATCH" else "YOUR VIEW"
 	else
 		lookAt(watching)
-		label.Text = `WATCHING: {string.upper(watching.DisplayName)}`
+		label.Text = `WATCHING: {string.upper(nameOf(watching))}`
 	end
 end
 

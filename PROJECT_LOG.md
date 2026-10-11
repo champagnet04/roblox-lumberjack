@@ -1103,3 +1103,19 @@ Not built yet (parts 4b and 4c): the guardian ignores bots, they cannot be watch
 
 Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
 Not tested: nothing has been run in Studio. Most at risk: whether Roblox makes the bot characters as expected, whether their walking and arm animations play (they use Roblox's standard animations by number, from memory), their steering, and how eight torches affect smoothness. Solo shares the reworked chopping and gear code and needs a check.
+
+### 2026-10-11 — Multiplayer step 4b: the guardian hunts bots too
+
+Why: the owner tested step 4a. The bots appeared, animated, steered well, ran smoothly and kept a good pace (the owner won, but only by banking steadily). The owner then pointed out that no bot ever woke the guardian; it only woke for the player. That was the planned limit of 4a, and the owner asked for it to change.
+
+Changed:
+
+- `src/server/GuardianService.luau` — the guardian now deals with any racer, a player or a bot. A bot's felled trees add to the shared count, the guardian hunts a bot that wakes it, and a caught bot loses what it carries and is out for the round. Solo behaves as before.
+- `src/server/BotService.luau` — a bot tells the guardian when it fells a tree. A hunted bot freezes for one to two seconds, then runs for camp; if it gets there it banks and carries on. A caught bot is put back at its place by the fire for the rest of the round.
+- `src/shared/Config.luau` — `Bots.FleeSpeed` (20) and `Bots.ReactionMin`/`ReactionMax` (1 and 2 seconds).
+- `src/client/Spectate.client.luau` — a watcher can now follow bots as well as players.
+
+To watch for: with eight racers feeding one count of 1 to 10 trees, the guardian will be out hunting somebody most of the time, and while it is out nobody else's trees count. The player may be hunted less often than in step 3. The flee speed and reaction time are first guesses; whether bots are caught too often or too rarely is for part 4c.
+
+Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
+Not tested: not run in Studio, in either mode.

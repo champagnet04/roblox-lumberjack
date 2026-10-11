@@ -225,6 +225,10 @@ Config.Camp = {
 Config.Bots = {
 	TorchShadows = false, -- shadows from seven extra torches are costly to draw
 	WalkSpeed = 16,
+	FleeSpeed = 20, -- running from the guardian (which starts at 21 and reaches 24)
+	-- A bot freezes for a time between these two when the guardian rises for it.
+	ReactionMin = 1,
+	ReactionMax = 2,
 	SwingInterval = 0.45, -- seconds between a bot's swings
 	-- A bot heads home once it carries a number of wood picked between these two.
 	BankAtMin = 50,

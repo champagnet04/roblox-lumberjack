@@ -7,7 +7,10 @@
 -- model with the same names a player's have (Haul, RaceScore, RaceOut), so the scoreboard
 -- and results can treat players and bots alike.
 --
--- Not yet: the guardian ignores bots, and they all play the same way.
+-- The guardian treats bots like players: their felled trees add to its count, it hunts the
+-- one that woke it, and that bot runs for camp. A caught bot is out for the round.
+--
+-- Not yet: they all play the same way.
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,6 +19,7 @@ local Workspace = game:GetService("Workspace")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local BotModels = require(script.Parent.BotModels)
+local GuardianService = require(script.Parent.GuardianService)
 local MovementService = require(script.Parent.MovementService)
 local PlayerSetup = require(script.Parent.PlayerSetup)
 local TerrainBuilder = require(script.Parent.TerrainBuilder)
@@ -41,7 +45,9 @@ type Bot = {
 	Humanoid: Humanoid,
 	Root: BasePart,
 	Run: AnimationTrack?,
-	State: string, -- "Idle", "ToTree", "Chopping", "Resting" or "Home"
+	State: string, -- "Idle", "ToTree", "Chopping", "Resting", "Home", "Fleeing" or "Out"
+	Index: number, -- its place in the ring at camp
+	FleeAt: number, -- when it stops staring at the guardian and runs
 	Tree: Model?,
 	BankAt: number, -- heads home once it carries this much
 	NextSwingAt: number,
@@ -94,6 +100,7 @@ local function makeBot(look: BotModels.Look): Bot?
 	model:SetAttribute("Haul", 0)
 	model:SetAttribute("RaceScore", 0)
 	model:SetAttribute("RaceOut", false)
+	model:SetAttribute("Chased", false)
 	CollectionService:AddTag(model, "Bot")
 	model.Parent = folder
 	root:SetNetworkOwner(nil) -- the server moves it, not any player's game
@@ -116,6 +123,8 @@ local function makeBot(look: BotModels.Look): Bot?
 		Root = root,
 		Run = loadTrack(humanoid, RUN_ANIMATION, true),
 		State = "Idle",
+		Index = 1,
+		FleeAt = 0,
 		Tree = nil,
 		BankAt = 0,
 		NextSwingAt = 0,
@@ -146,7 +155,7 @@ end
 
 -- Walks towards a point, stepping aside from any trunk in the way. `ignore` is the tree the
 -- bot is walking up to, which is not an obstacle.
-local function walkToward(bot: Bot, target: Vector3, ignore: Instance?)
+local function walkToward(bot: Bot, target: Vector3, ignore: Instance?, baseSpeed: number?)
 	local position = bot.Root.Position
 	local toTarget = (target - position) * FLAT
 	if toTarget.Magnitude < 0.5 then
@@ -164,7 +173,8 @@ local function walkToward(bot: Bot, target: Vector3, ignore: Instance?)
 	end
 
 	local haul = bot.Model:GetAttribute("Haul") or 0
-	bot.Humanoid.WalkSpeed = Config.Bots.WalkSpeed * MovementService.carryMultiplier(haul)
+	bot.Humanoid.WalkSpeed = (baseSpeed or Config.Bots.WalkSpeed)
+		* MovementService.carryMultiplier(haul)
 	bot.Humanoid:MoveTo(position + direction * 8)
 	setRunning(bot, true)
 
@@ -222,6 +232,10 @@ local function swing(bot: Bot, tree: Model)
 		if wood > 0 then
 			local haul = (bot.Model:GetAttribute("Haul") or 0) + wood
 			bot.Model:SetAttribute("Haul", haul)
+			GuardianService.onTreeFelled(bot.Model, (TreeService.placeOf(tree)))
+			if bot.Model:GetAttribute("Chased") == true then
+				return -- this tree woke the guardian; step() takes over
+			end
 			if haul >= bot.BankAt then
 				bot.Tree = nil
 				bot.State = "Home"
@@ -232,9 +246,46 @@ local function swing(bot: Bot, tree: Model)
 	end)
 end
 
+local function bank(bot: Bot)
+	local haul = bot.Model:GetAttribute("Haul") or 0
+	bot.Model:SetAttribute("RaceScore", (bot.Model:GetAttribute("RaceScore") or 0) + haul)
+	bot.Model:SetAttribute("Haul", 0)
+	bot.BankAt = rng:NextInteger(Config.Bots.BankAtMin, Config.Bots.BankAtMax)
+end
+
 local function step(bot: Bot)
 	local now = os.clock()
 	local tree = bot.Tree
+	local model = bot.Model
+
+	-- The guardian comes first, whatever the bot was doing.
+	if model:GetAttribute("RaceOut") == true then
+		if bot.State ~= "Out" then
+			-- Caught: back to its place at camp for the rest of the round.
+			bot.State = "Out"
+			bot.Tree = nil
+			model:PivotTo(CFrame.new(spawnPoint(bot.Index, #bots)))
+			stop(bot)
+		end
+		return
+	end
+	if model:GetAttribute("Chased") == true then
+		if bot.State ~= "Fleeing" then
+			-- It freezes for a moment at the sight of the guardian, then runs.
+			bot.State = "Fleeing"
+			bot.Tree = nil
+			bot.FleeAt = now + rng:NextNumber(Config.Bots.ReactionMin, Config.Bots.ReactionMax)
+			stop(bot)
+		elseif now >= bot.FleeAt then
+			walkToward(bot, Vector3.zero, nil, Config.Bots.FleeSpeed)
+		end
+		return
+	elseif bot.State == "Fleeing" then
+		-- Made it into camp, and the guardian has gone: bank and carry on.
+		bank(bot)
+		rest(bot)
+		return
+	end
 
 	if bot.State == "Resting" then
 		if now >= bot.RestUntil then
@@ -265,10 +316,7 @@ local function step(bot: Bot)
 		local distance = (bot.Root.Position * FLAT).Magnitude
 		if distance <= Config.World.SafeZoneRadius - 4 then
 			-- Home: bank what it carries, then set off again.
-			local haul = bot.Model:GetAttribute("Haul") or 0
-			bot.Model:SetAttribute("RaceScore", (bot.Model:GetAttribute("RaceScore") or 0) + haul)
-			bot.Model:SetAttribute("Haul", 0)
-			bot.BankAt = rng:NextInteger(Config.Bots.BankAtMin, Config.Bots.BankAtMax)
+			bank(bot)
 			rest(bot)
 		else
 			walkToward(bot, Vector3.zero, nil)
@@ -307,7 +355,9 @@ function BotService.prepareRound(count: number)
 		bot.Model:SetAttribute("Haul", 0)
 		bot.Model:SetAttribute("RaceScore", 0)
 		bot.Model:SetAttribute("RaceOut", false)
+		bot.Model:SetAttribute("Chased", false)
 		bot.State = "Idle"
+		bot.Index = index
 		bot.Tree = nil
 		bot.BankAt = rng:NextInteger(Config.Bots.BankAtMin, Config.Bots.BankAtMax)
 		local at = spawnPoint(index, #bots)

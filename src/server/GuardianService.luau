@@ -6,7 +6,7 @@
 --
 -- Solo: each player has their own count and their own guardian.
 -- Race: there is one count and one guardian for the whole forest. Every tree anyone fells
--- adds to the count, and the guardian hunts whoever felled the tree that woke it.
+-- adds to the count, bots included, and the guardian hunts whoever felled the tree that woke it.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -16,7 +16,6 @@ local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
-local CampService = require(script.Parent.CampService)
 local PlayerState = require(script.Parent.PlayerState)
 local TerrainBuilder = require(script.Parent.TerrainBuilder)
 
@@ -46,12 +45,12 @@ local IS_RACE = Config.Mode == "Race"
 local SHARED = "Shared" -- the one count everybody adds to in a race
 
 local rng = Random.new()
-local chases: { [Player]: Chase } = {}
-local trips: { [Player | string]: Trip } = {}
+local chases: { [Instance]: Chase } = {}
+local trips: { [Instance | string]: Trip } = {}
 
 -- Whose count a player's felled trees add to.
-local function countFor(player: Player): Player | string
-	return if IS_RACE then SHARED else player
+local function countFor(racer: Instance): Instance | string
+	return if IS_RACE then SHARED else racer
 end
 
 -- How far through its round a race is, from 0 at the start to 1 at the end. Always 0 in solo.
@@ -69,7 +68,7 @@ end
 
 -- Starts a fresh count with a new hidden number. Happens each time the guardian wakes.
 -- In a race the top of the range comes down as the round goes on, so it wakes more easily.
-local function newTrip(owner: Player | string)
+local function newTrip(owner: Instance | string)
 	local cfg = Config.Guardian
 	local max = cfg.WakeAfterTreesMax
 	if IS_RACE then
@@ -175,13 +174,20 @@ local function buildGuardian(): Model
 	return model
 end
 
-local function rootOf(player: Player): BasePart?
-	local character = player.Character
+-- Who the guardian can hunt: a player, or in a race the character of a bot (see BotService).
+-- A bot keeps the same attributes on its character that a player has on their Player.
+local function rootOf(racer: Instance): BasePart?
+	local character = if racer:IsA("Player") then racer.Character else racer
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	if root and root:IsA("BasePart") then
 		return root
 	end
 	return nil
+end
+
+local function isInCamp(racer: Instance): boolean
+	local root = rootOf(racer)
+	return root ~= nil and (root.Position * FLAT).Magnitude <= Config.World.SafeZoneRadius
 end
 
 local function place(chase: Chase, facing: Vector3, heightOffset: number)
@@ -196,19 +202,29 @@ local function place(chase: Chase, facing: Vector3, heightOffset: number)
 	end
 end
 
-local function endChase(player: Player)
-	local chase = chases[player]
+local function endChase(racer: Instance)
+	local chase = chases[racer]
 	if not chase then
 		return
 	end
-	chases[player] = nil
+	chases[racer] = nil
 	chase.Model:Destroy()
-	if player.Parent then
-		player:SetAttribute("Chased", false)
+	if racer.Parent then
+		racer:SetAttribute("Chased", false)
 	end
 end
 
-local function capture(player: Player)
+local function capture(racer: Instance)
+	if not racer:IsA("Player") then
+		-- A caught bot loses what it carries and is out for the rest of the round.
+		-- BotService sees RaceOut and walks it off.
+		racer:SetAttribute("Haul", 0)
+		racer:SetAttribute("RaceOut", true)
+		endChase(racer)
+		return
+	end
+
+	local player = racer
 	if IS_RACE then
 		-- A caught racer loses what they carry and is out for the rest of the round.
 		PlayerState.loseHaul(player)
@@ -227,16 +243,18 @@ local function capture(player: Player)
 	end)
 end
 
-local function stepChase(player: Player, chase: Chase, dt: number)
-	local root = rootOf(player)
+local function stepChase(racer: Instance, chase: Chase, dt: number)
+	local root = rootOf(racer)
 	if not root then
-		endChase(player)
+		endChase(racer)
 		return
 	end
 
-	if CampService.isInCamp(player) then
-		endChase(player)
-		Remotes.Escaped:FireClient(player)
+	if isInCamp(racer) then
+		endChase(racer)
+		if racer:IsA("Player") then
+			Remotes.Escaped:FireClient(racer)
+		end
 		return
 	end
 
@@ -244,7 +262,7 @@ local function stepChase(player: Player, chase: Chase, dt: number)
 	local now = os.clock()
 
 	if now < chase.RisenAt then
-		-- It rises out of the stump, watching the player.
+		-- It rises out of the stump, watching its quarry.
 		local remaining = (chase.RisenAt - now) / cfg.RiseTime
 		place(chase, root.Position, -RISE_DEPTH * math.clamp(remaining, 0, 1))
 		return
@@ -254,10 +272,10 @@ local function stepChase(player: Player, chase: Chase, dt: number)
 		return
 	end
 
-	local toPlayer = (root.Position - chase.Position) * FLAT
-	local distance = toPlayer.Magnitude
+	local toQuarry = (root.Position - chase.Position) * FLAT
+	local distance = toQuarry.Magnitude
 	if distance <= cfg.CaptureRange then
-		capture(player)
+		capture(racer)
 		return
 	end
 
@@ -266,20 +284,21 @@ local function stepChase(player: Player, chase: Chase, dt: number)
 	if IS_RACE then
 		speed += (Config.Race.GuardianSpeedAtEnd - speed) * raceProgress()
 	end
-	chase.Position += toPlayer.Unit * math.min(speed * dt, distance)
+	chase.Position += toQuarry.Unit * math.min(speed * dt, distance)
 	place(chase, root.Position, math.sin(now * 4) * 0.35) -- slight bob as it glides
 end
 
--- Called when a player fells a tree. Wakes the guardian if this tree reaches the hidden number.
-function GuardianService.onTreeFelled(player: Player, treePosition: Vector3)
-	if chases[player] or CampService.isInCamp(player) then
+-- Called when a racer (a player, or a bot's character) fells a tree. Wakes the guardian if
+-- this tree reaches the hidden number.
+function GuardianService.onTreeFelled(racer: Instance, treePosition: Vector3)
+	if chases[racer] or isInCamp(racer) then
 		return
 	end
 	if IS_RACE and next(chases) then
 		return -- the one guardian is already out hunting someone
 	end
 
-	local trip = trips[countFor(player)]
+	local trip = trips[countFor(racer)]
 	if not trip then
 		return
 	end
@@ -289,7 +308,7 @@ function GuardianService.onTreeFelled(player: Player, treePosition: Vector3)
 	end
 
 	local cfg = Config.Guardian
-	local root = rootOf(player)
+	local root = rootOf(racer)
 	if not root then
 		return
 	end
@@ -300,14 +319,14 @@ function GuardianService.onTreeFelled(player: Player, treePosition: Vector3)
 		RisenAt = os.clock() + cfg.RiseTime,
 		StartsAt = os.clock() + cfg.RiseTime + cfg.WaitTime,
 	}
-	chases[player] = chase
+	chases[racer] = chase
 	place(chase, root.Position, -RISE_DEPTH)
 	CollectionService:AddTag(chase.Model, "Guardian") -- lets the client find it for the chase camera
 	chase.Model.Parent = Workspace
-	player:SetAttribute("Chased", true)
+	racer:SetAttribute("Chased", true)
 
 	-- He has woken, so the count starts again for next time.
-	newTrip(countFor(player))
+	newTrip(countFor(racer))
 end
 
 -- Sends the guardian back to sleep and starts the count again. Used between race rounds.
@@ -340,8 +359,8 @@ function GuardianService.start()
 	end)
 
 	RunService.Heartbeat:Connect(function(dt)
-		for player, chase in chases do
-			stepChase(player, chase, dt)
+		for racer, chase in chases do
+			stepChase(racer, chase, dt)
 		end
 	end)
 end
