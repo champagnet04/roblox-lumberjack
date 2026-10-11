@@ -91,7 +91,10 @@ end
 
 local function startSwing(root: BasePart, tree: Model)
 	faceTree(root, tree)
-	ChopAnimation.swing()
+	if player.Character then
+		ChopAnimation.swing(player.Character)
+	end
+	Remotes.Swing:FireServer(tree) -- so other players see the swing too
 
 	-- The hit counts when the axe lands, not when the swing starts.
 	task.delay(ChopAnimation.IMPACT_DELAY, function()
@@ -135,6 +138,28 @@ UserInputService.InputEnded:Connect(function(input)
 	if mouseReleased or input == heldInput then
 		heldInput = nil
 	end
+end)
+
+-- Another player has started a swing: draw it, and the tree's shake when it lands.
+Remotes.Swing.OnClientEvent:Connect(function(other: Player, tree: Model?)
+	local character = other and other.Character
+	if not character then
+		return
+	end
+	ChopAnimation.swing(character)
+
+	if not tree then
+		return
+	end
+	task.delay(ChopAnimation.IMPACT_DELAY, function()
+		local root = character:FindFirstChild("HumanoidRootPart")
+		if tree.Parent ~= treesFolder or not root or not root:IsA("BasePart") then
+			return
+		end
+		if (tree:GetAttribute("Health") or 0) > 1 then
+			ChopAnimation.shakeTree(tree, root.Position)
+		end
+	end)
 end)
 
 RunService.Heartbeat:Connect(function()

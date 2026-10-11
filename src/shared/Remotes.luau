@@ -5,6 +5,7 @@ local RunService = game:GetService("RunService")
 
 local NAMES = {
 	"ChopRequest", -- client -> server: player swung at a tree
+	"Swing", -- client -> server: a swing has started; server -> other clients: show that player's swing
 	"SetSprinting", -- client -> server: sprint key pressed or released
 	"Escaped", -- server -> client: player reached camp with the guardian behind them
 	"Notice", -- server -> client: a short message to show on screen

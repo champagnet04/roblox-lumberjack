@@ -1,5 +1,6 @@
--- Chopping visuals on the player's own screen: the axe swing, the raised torch arm,
--- and the tree's shake when a swing lands.
+-- Chopping visuals: the axe swing, the raised torch arm, and the tree's shake when a swing
+-- lands. They are drawn by each player's own game, for every character it can see, so each
+-- game has to be told when another player swings (see the Swing message).
 -- No animation assets are needed. The swing is made of two movements:
 --   1. the axe pivots in the hand (works on every avatar), and
 --   2. the right arm swings from the shoulder (R15 avatars only).
@@ -25,12 +26,14 @@ local TORCH_ARM = CFrame.Angles(math.rad(85), 0, 0)
 local AXE_WINDUP = 50
 local AXE_IMPACT = -65
 
-local player = Players.LocalPlayer
-local swingStart: number? = nil
+-- When each character's current swing began. Forgotten when the character is removed.
+local swingStarts: { [Model]: number } = setmetatable({}, { __mode = "k" }) :: any
 
--- The weld that holds the axe in the hand, and its position when not swinging.
-local axeGrip: JointInstance? = nil
-local axeGripRest = CFrame.new()
+-- For each character, the weld that holds the axe in the hand and its position when not swinging.
+local axeGrips: { [Model]: { Joint: JointInstance, Rest: CFrame } } = setmetatable(
+	{},
+	{ __mode = "k" }
+) :: any
 local warnedNoShoulder = false
 
 local function lerp(from: number, to: number, alpha: number): number
@@ -73,20 +76,21 @@ end
 
 local function poseAxe(character: Model, degrees: number)
 	local grip = findAxeGrip(character)
-	if grip ~= axeGrip then
-		-- A new axe was equipped (for example after respawning); remember its resting position.
-		axeGrip = grip
-		if grip then
-			axeGripRest = grip.C0
-		end
+	if not grip then
+		return
 	end
-	if grip then
-		grip.C0 = axeGripRest * CFrame.Angles(math.rad(degrees), 0, 0)
+	local known = axeGrips[character]
+	if not known or known.Joint ~= grip then
+		-- A new axe was equipped; remember its resting position.
+		known = { Joint = grip, Rest = grip.C0 }
+		axeGrips[character] = known
 	end
+	grip.C0 = known.Rest * CFrame.Angles(math.rad(degrees), 0, 0)
 end
 
-function ChopAnimation.swing()
-	swingStart = os.clock()
+-- Starts a swing for a character: the player's own, or another player's.
+function ChopAnimation.swing(character: Model)
+	swingStarts[character] = os.clock()
 end
 
 -- Quick wobble away from the player that settles back upright.
@@ -123,42 +127,50 @@ function ChopAnimation.shakeTree(tree: Model, from: Vector3)
 	end)
 end
 
--- Joint poses must be set here, after Roblox has applied its own animations for the frame.
-RunService.PreSimulation:Connect(function()
-	local character = player.Character
-	if not character then
-		return
-	end
-
+local function pose(character: Model)
 	local left = shoulder(character, "LeftUpperArm", "LeftShoulder")
 	if left then
 		left.Transform = TORCH_ARM
 	end
 
-	if swingStart then
-		local elapsed = os.clock() - swingStart
-		if elapsed >= SWING_TIME then
-			swingStart = nil
-			poseAxe(character, 0)
-		else
-			poseAxe(character, swingAngle(elapsed, 0, AXE_WINDUP, AXE_IMPACT))
+	local swingStart = swingStarts[character]
+	if not swingStart then
+		return
+	end
+	local elapsed = os.clock() - swingStart
+	if elapsed >= SWING_TIME then
+		swingStarts[character] = nil
+		poseAxe(character, 0)
+		return
+	end
 
-			local right = shoulder(character, "RightUpperArm", "RightShoulder")
-			if right then
-				local degrees = swingAngle(elapsed, ARM_REST, ARM_WINDUP, ARM_IMPACT)
-				right.Transform = CFrame.Angles(math.rad(degrees), 0, 0)
-			elseif not warnedNoShoulder then
-				warnedNoShoulder = true
-				local arm = character:FindFirstChild("RightUpperArm")
-				local found = arm and arm:FindFirstChild("RightShoulder")
-				warn(
-					"[ChopAnimation] No usable right shoulder joint, so the arm will not swing.",
-					"RightUpperArm:",
-					if arm then "found" else "missing",
-					"RightShoulder:",
-					if found then found.ClassName else "missing"
-				)
-			end
+	poseAxe(character, swingAngle(elapsed, 0, AXE_WINDUP, AXE_IMPACT))
+
+	local right = shoulder(character, "RightUpperArm", "RightShoulder")
+	if right then
+		local degrees = swingAngle(elapsed, ARM_REST, ARM_WINDUP, ARM_IMPACT)
+		right.Transform = CFrame.Angles(math.rad(degrees), 0, 0)
+	elseif not warnedNoShoulder then
+		warnedNoShoulder = true
+		local arm = character:FindFirstChild("RightUpperArm")
+		local found = arm and arm:FindFirstChild("RightShoulder")
+		warn(
+			"[ChopAnimation] No usable right shoulder joint, so the arm will not swing.",
+			"RightUpperArm:",
+			if arm then "found" else "missing",
+			"RightShoulder:",
+			if found then found.ClassName else "missing"
+		)
+	end
+end
+
+-- Joint poses must be set here, after Roblox has applied its own animations for the frame.
+-- Every player's character is posed, so other players' torch arms and swings show too.
+RunService.PreSimulation:Connect(function()
+	for _, other in Players:GetPlayers() do
+		local character = other.Character
+		if character then
+			pose(character)
 		end
 	end
 end)

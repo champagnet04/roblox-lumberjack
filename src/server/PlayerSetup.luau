@@ -146,11 +146,17 @@ local function onCharacterAdded(player: Player, character: Model)
 		character.AncestryChanged:Wait()
 	end
 
+	if player.Character ~= character or humanoid.Health <= 0 then
+		return -- already replaced by a newer character (a race puts everyone back at camp)
+	end
+
 	attachTorch(character)
 
+	-- Put straight into the character, which equips it. It used to go through the backpack,
+	-- but the backpack is thrown away and remade on every respawn, so two respawns close
+	-- together (as at the start of a race) could leave the newer character without an axe.
 	local axe = buildAxe()
-	axe.Parent = player:WaitForChild("Backpack")
-	humanoid:EquipTool(axe)
+	axe.Parent = character
 end
 
 local function onPlayerAdded(player: Player)

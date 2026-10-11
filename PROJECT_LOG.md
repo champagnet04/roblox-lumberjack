@@ -1061,3 +1061,23 @@ Differs from what was proposed: the sprint control is not switched off while out
 
 Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
 Not tested: not run in Studio. Unseen: the watching camera, how well a distant racer can be seen in the dark, and being put back inside the ring.
+
+### 2026-10-11 — Fix: missing axe at the start of a race; other players' swings now show
+
+Why: the owner tested step 3 with three players. Watching worked. Two problems: Player1 had no axe, and a watched racer's arm and axe did not move while chopping; they stood still until the tree fell.
+
+Causes:
+
+- Missing axe (likely, not confirmed): the axe was handed over through the player's backpack, which Roblox throws away and remakes on every respawn. A race puts everyone back at camp the moment it starts, so the first player to join respawns twice in quick succession, and the axe could land in a backpack that was about to be discarded.
+- Swings not showing (confirmed by reading the code): the swing, the raised torch arm and the tree's shake were drawn only by each player's own game, for their own character. Nothing told other players' games about them. This did not matter in solo.
+
+Changed:
+
+- `src/server/PlayerSetup.luau` — the axe is put straight into the character, which equips it, and a character that has already been replaced is skipped.
+- `src/shared/Remotes.luau` — new `Swing` message.
+- `src/client/Input.client.luau` — tells the server when a swing starts; draws other players' swings and the tree's shake when told of them.
+- `src/server/TreeService.luau` — passes the start of a swing on to the other players. It decides nothing; felling is still judged as before.
+- `src/client/ChopAnimation.luau` — swings and the raised torch arm are now drawn for every player's character, not only your own.
+
+Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
+Not tested: not run in Studio. Solo is affected too (the axe is now given a different way, and the animation code was reworked), so solo needs a quick check that the axe is in hand and swings as before.

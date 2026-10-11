@@ -33,6 +33,7 @@ local rng = Random.new()
 local treesFolder: Instance
 local states: { [Instance]: TreeState } = {}
 local lastSwing: { [Player]: number } = {}
+local lastSwingShown: { [Player]: number } = {}
 
 -- Tips the whole tree around its base, toward the given direction.
 local function tilt(tree: Model, state: TreeState, direction: Vector3, angle: number)
@@ -121,6 +122,23 @@ local function onChopRequest(player: Player, tree: any)
 	end
 end
 
+-- A swing is drawn by each player's own game, so other players would not see it. This passes
+-- the start of a swing on to everyone else, to draw on their screens. It decides nothing.
+local function onSwing(player: Player, tree: any)
+	local now = os.clock()
+	if now - (lastSwingShown[player] or 0) < Config.Tree.SwingCooldown * COOLDOWN_SLACK then
+		return
+	end
+	lastSwingShown[player] = now
+
+	local shownTree = if typeof(tree) == "Instance" and states[tree] then tree else nil
+	for _, other in Players:GetPlayers() do
+		if other ~= player then
+			Remotes.Swing:FireClient(other, player, shownTree)
+		end
+	end
+end
+
 -- Stands every felled tree back up. Used between race rounds.
 function TreeService.regrowAll()
 	for tree, state in states do
@@ -151,8 +169,10 @@ function TreeService.start()
 	PlayerState.GameEnded:Connect(TreeService.regrowAll)
 
 	Remotes.ChopRequest.OnServerEvent:Connect(onChopRequest)
+	Remotes.Swing.OnServerEvent:Connect(onSwing)
 	Players.PlayerRemoving:Connect(function(player)
 		lastSwing[player] = nil
+		lastSwingShown[player] = nil
 	end)
 end
 
