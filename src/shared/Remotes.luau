@@ -9,6 +9,7 @@ local NAMES = {
 	"Escaped", -- server -> client: player reached camp with the guardian behind them
 	"Notice", -- server -> client: a short message to show on screen
 	"GameOver", -- server -> client: player was caught, ending the game; carries the summary
+	"RaceResults", -- server -> everyone: a race round has ended; carries each racer's place and prize
 }
 
 local Remotes = {}

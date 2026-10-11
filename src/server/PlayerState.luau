@@ -11,7 +11,8 @@
 --   BuildsDone  how many camp builds are finished
 --   Mat_<Type>  banked materials of each type, waiting to be used in a build
 --   CarriedMaterial  the one material being carried this trip ("" for none); at risk like the haul
---   RaceScore   wood banked in a race (Config.Mode = "Race"); a score only, never saved
+--   RaceScore   wood banked this round of a race (Config.Mode = "Race"); a score only, never saved
+--   RaceOut     true once the guardian has caught the player this round
 --
 -- A game ends when the guardian captures the player.
 -- OverallBank, the three records, BuildsDone and banked materials are saved between
@@ -20,6 +21,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 
@@ -105,11 +107,12 @@ end
 function PlayerState.bankHaul(player: Player): number
 	local haul = get(player, "Haul")
 	if IS_RACE then
-		-- In a race, banked wood is only a score. Nothing permanent changes.
-		if haul > 0 then
-			player:SetAttribute("RaceScore", get(player, "RaceScore") + haul)
-			player:SetAttribute("Haul", 0)
+		-- In a race, banked wood is only a score, and only counts while the round is on.
+		if haul == 0 or not PlayerState.canRace(player) then
+			return 0
 		end
+		player:SetAttribute("RaceScore", get(player, "RaceScore") + haul)
+		player:SetAttribute("Haul", 0)
 		return haul
 	end
 	if haul > 0 then
@@ -132,6 +135,37 @@ function PlayerState.bankHaul(player: Player): number
 		player:SetAttribute("Haul", 0)
 	end
 	return haul
+end
+
+function PlayerState.getRaceScore(player: Player): number
+	return get(player, "RaceScore")
+end
+
+function PlayerState.isOut(player: Player): boolean
+	return player:GetAttribute("RaceOut") == true
+end
+
+function PlayerState.setOut(player: Player, out: boolean)
+	player:SetAttribute("RaceOut", out)
+end
+
+-- True while a race round is running and the guardian has not caught this player.
+-- Only then can they chop or bank.
+function PlayerState.canRace(player: Player): boolean
+	return Workspace:GetAttribute("RacePhase") == "Running" and not PlayerState.isOut(player)
+end
+
+-- Clears a racer for the start of a round.
+function PlayerState.startRound(player: Player)
+	player:SetAttribute("Haul", 0)
+	player:SetAttribute("RaceScore", 0)
+	player:SetAttribute("RaceOut", false)
+	tripFurthest[player] = nil
+end
+
+-- Pays a race prize into the camp fund.
+function PlayerState.addPrize(player: Player, amount: number)
+	player:SetAttribute("OverallBank", get(player, "OverallBank") + amount)
 end
 
 -- Throws away the whole haul and any carried material. Returns how much wood was lost.
@@ -234,6 +268,7 @@ local function onPlayerAdded(player: Player)
 		player:SetAttribute(name, 0)
 	end
 	player:SetAttribute("CarriedMaterial", "")
+	player:SetAttribute("RaceOut", false)
 	if PlayerState.isTesting() and not IS_RACE then
 		applyTestState(player)
 	end

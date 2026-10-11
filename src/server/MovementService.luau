@@ -4,6 +4,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
@@ -88,6 +89,9 @@ local function step(player: Player, state: MoveState, dt: number)
 	end
 
 	local baseSpeed = if sprinting then Config.Player.SprintSpeed else Config.Player.WalkSpeed
+	if Workspace:GetAttribute("RacePhase") == "Countdown" then
+		baseSpeed = 0 -- racers are held at camp until the round starts
+	end
 	humanoid.WalkSpeed = baseSpeed
 		* carryMultiplier(PlayerState.getHaul(player))
 		* tiredMultiplier(state.Stamina)

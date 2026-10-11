@@ -55,6 +55,10 @@ The owner expects few players at the start, so bots fill the empty places.
 These fill gaps the quiz did not cover. Each is a starting point to change.
 
 - **Rising danger numbers.** The guardian's hidden wake number starts at 1 to 10 trees, as in solo, and narrows to 1 to 3 by the last minute. Its speed starts at 21 and reaches 24, a sprinting player's top speed, by the end.
+- **No wood, no prize.** A racer who is still standing but banked nothing gets no prize. Otherwise standing at camp for a whole round would pay out. Added when rounds were built (2026-10-11).
+- **Unbanked wood at the end.** Wood still being carried when the timer runs out does not count.
+- **Joining partway through.** A player who joins during a round watches until the next one.
+- **Ties.** Racers level on wood are placed in name order. Not yet thought through.
 - **After a catch.** The guardian goes back to sleep and a new hidden number is picked, as in solo.
 - **Camp materials.** None appear in a race. Materials for camp builds are found in solo only.
 - **A round with one real player left.** If every real player has been caught and only bots remain, the round ends at once and goes to results, so nobody waits for bots to finish.

@@ -11,6 +11,21 @@ Config.Mode = "Solo"
 
 Config.Race = {
 	CampBuilds = 7, -- the shared camp shows this many finished builds (7 = the whole lean-to stage)
+
+	MinPlayers = 1, -- a round starts once this many players are in the server
+	CountdownTime = 10, -- everyone is held at camp this long before the round starts
+	RoundTime = 360, -- length of a round; lower it to test the end of a round quickly
+	ResultsTime = 12, -- the results stay up this long before the next countdown
+
+	-- Wood paid into the camp fund, by place among the racers still standing at the end.
+	-- A caught racer gets nothing, and so does anyone who banked no wood at all.
+	Prizes = { 300, 200, 100 },
+	SurvivorPrize = 50, -- for fourth place and below
+
+	-- Rising danger: over the round the guardian's hidden wake number and its speed move
+	-- from the usual values in Config.Guardian to these.
+	WakeAfterTreesMaxAtEnd = 3,
+	GuardianSpeedAtEnd = 24, -- a sprinting player's top speed
 }
 
 Config.World = {

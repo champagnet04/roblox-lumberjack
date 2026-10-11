@@ -3,6 +3,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
@@ -15,6 +16,7 @@ local TITLE_COLOR = Color3.fromRGB(214, 190, 150)
 local GOLD = Color3.fromRGB(255, 214, 120)
 local DANGER = Color3.fromRGB(255, 96, 80)
 local WHITE = Color3.fromRGB(255, 255, 255)
+local MUTED = Color3.fromRGB(150, 150, 150)
 local GUARDIAN_NAME = string.upper(Config.Guardian.DisplayName)
 local IS_RACE = Config.Mode == "Race"
 -- The banked-wood number in the corner: this game's bank in solo, the race score in a race.
@@ -222,6 +224,61 @@ local function scoreRow(index: number): { Name: TextLabel, Score: TextLabel }
 	end
 	return row
 end
+
+-- Top centre during a race: the countdown, then the time left in the round.
+local raceClock = makeLabel({
+	Name = "RaceClock",
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.new(0.5, 0, 0, 10),
+	Size = UDim2.fromOffset(500, 34),
+	Font = Enum.Font.GothamBlack,
+	TextSize = 28,
+	TextStrokeTransparency = 0.4,
+	Text = "",
+	Visible = IS_RACE,
+}, gui)
+
+-- Shown in the middle of the screen between rounds: every racer's place, wood and prize.
+local resultsPanel = Instance.new("Frame")
+resultsPanel.Name = "RaceResults"
+resultsPanel.AnchorPoint = Vector2.new(0.5, 0.5)
+resultsPanel.Position = UDim2.fromScale(0.5, 0.45)
+resultsPanel.Size = UDim2.fromOffset(460, 200)
+resultsPanel.BackgroundColor3 = PANEL_COLOR
+resultsPanel.BackgroundTransparency = 0.15
+resultsPanel.BorderSizePixel = 0
+resultsPanel.Visible = false
+resultsPanel.Parent = gui
+roundCorners(resultsPanel, UDim.new(0, 12))
+
+makeLabel({
+	Name = "Title",
+	Position = UDim2.fromOffset(0, 14),
+	Size = UDim2.new(1, 0, 0, 30),
+	Font = Enum.Font.GothamBlack,
+	TextSize = 26,
+	TextColor3 = GOLD,
+	Text = "RACE OVER",
+}, resultsPanel)
+
+local resultsList = makeLabel({
+	Name = "Places",
+	Position = UDim2.fromOffset(24, 56),
+	Size = UDim2.new(1, -48, 1, -110),
+	TextSize = 16,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextYAlignment = Enum.TextYAlignment.Top,
+}, resultsPanel)
+
+local resultsPrize = makeLabel({
+	Name = "Prize",
+	AnchorPoint = Vector2.new(0, 1),
+	Position = UDim2.new(0, 0, 1, -14),
+	Size = UDim2.new(1, 0, 0, 26),
+	Font = Enum.Font.GothamBlack,
+	TextSize = 20,
+	TextColor3 = GOLD,
+}, resultsPanel)
 
 -- Shown for as long as the guardian is hunting the player.
 local chaseBanner = makeLabel({
@@ -637,10 +694,16 @@ refreshBuild()
 player:GetAttributeChangedSignal("SaveStatus"):Connect(refreshSaveStatus)
 refreshSaveStatus()
 
--- You are shown in gold; whoever the guardian is hunting is shown in red.
+-- You are shown in gold, whoever the guardian is hunting in red, and anyone it has caught
+-- this round in grey at the bottom.
 local function refreshScoreboard()
 	local racers = Players:GetPlayers()
 	table.sort(racers, function(a, b)
+		local outA = a:GetAttribute("RaceOut") == true
+		local outB = b:GetAttribute("RaceOut") == true
+		if outA ~= outB then
+			return outB
+		end
 		local scoreA = a:GetAttribute("RaceScore") or 0
 		local scoreB = b:GetAttribute("RaceScore") or 0
 		if scoreA ~= scoreB then
@@ -652,8 +715,14 @@ local function refreshScoreboard()
 	for index, racer in racers do
 		local row = scoreRow(index)
 		local hunted = racer:GetAttribute("Chased") == true
-		local color = if hunted then DANGER elseif racer == player then GOLD else WHITE
-		row.Name.Text = `{index}. {racer.DisplayName}{if hunted then " (HUNTED)" else ""}`
+		local out = racer:GetAttribute("RaceOut") == true
+		local color = if out
+			then MUTED
+			elseif hunted then DANGER
+			elseif racer == player then GOLD
+			else WHITE
+		local note = if out then " (OUT)" elseif hunted then " (HUNTED)" else ""
+		row.Name.Text = `{index}. {racer.DisplayName}{note}`
 		row.Name.TextColor3 = color
 		row.Name.Visible = true
 		row.Score.Text = tostring(racer:GetAttribute("RaceScore") or 0)
@@ -667,12 +736,60 @@ local function refreshScoreboard()
 	scorePanel.Size = UDim2.fromOffset(240, 38 + #racers * SCORE_ROW_HEIGHT)
 end
 
+local function refreshRaceClock()
+	local phase = Workspace:GetAttribute("RacePhase")
+	local endsAt = Workspace:GetAttribute("RacePhaseEndsAt") or 0
+	local left = math.ceil(math.max(endsAt - Workspace:GetServerTimeNow(), 0))
+
+	raceClock.TextColor3 = WHITE
+	if phase == "Countdown" then
+		raceClock.Text = `RACE STARTS IN {left}`
+	elseif phase == "Running" then
+		raceClock.Text = string.format("%d:%02d", left // 60, left % 60)
+		if left <= 30 then
+			raceClock.TextColor3 = DANGER
+		end
+	elseif phase == "Results" then
+		raceClock.Text = `NEXT RACE IN {left}`
+	else
+		raceClock.Text = "WAITING FOR PLAYERS"
+	end
+
+	if phase ~= "Results" then
+		resultsPanel.Visible = false
+	end
+end
+
+Remotes.RaceResults.OnClientEvent:Connect(function(results)
+	local lines = {}
+	local ownLine = ""
+	for _, result in results do
+		local place = if result.Out then "OUT" else `{result.Place}.`
+		local prize = if result.Prize > 0 then `   +{result.Prize}` else ""
+		table.insert(lines, `{place}  {result.Name}  -  {result.Score} WOOD{prize}`)
+		if result.UserId == player.UserId then
+			if result.Prize > 0 then
+				ownLine = `+{result.Prize} WOOD FOR YOUR CAMP`
+			elseif result.Out then
+				ownLine = "THE GUARDIAN GOT YOU - NO PRIZE"
+			else
+				ownLine = "BANK SOME WOOD TO WIN A PRIZE"
+			end
+		end
+	end
+	resultsList.Text = table.concat(lines, "\n")
+	resultsPrize.Text = ownLine
+	resultsPanel.Size = UDim2.fromOffset(460, 110 + #lines * 20)
+	resultsPanel.Visible = true
+end)
+
 if IS_RACE then
 	-- Redrawn on a timer: simpler and safer than listening to every racer for changes.
 	task.spawn(function()
 		while true do
 			refreshScoreboard()
-			task.wait(0.5)
+			refreshRaceClock()
+			task.wait(0.25)
 		end
 	end)
 end

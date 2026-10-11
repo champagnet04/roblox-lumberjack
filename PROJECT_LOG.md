@@ -1023,3 +1023,25 @@ Changed:
 
 Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
 Not tested: not run in Studio. To confirm the camp cause, the Output window prints "Ground under ... is at height ..." for each build; before this change those would have read 0.00 in Race mode.
+
+### 2026-10-11 — Multiplayer step 2: rounds, being out, results and prizes
+
+Why: the owner tested step 1 and the two fixes ("looks good") and asked for step 2.
+
+Changed:
+
+- `src/server/RaceService.luau` — new. Loops through the phases of a race: waiting for players, a 10-second countdown, the 6-minute round, 12 seconds of results. At each countdown the forest regrows, the guardian goes back to sleep, and everyone is put back at camp with no score. The round ends early when one racer is left standing (or none). It then places the racers still standing by wood banked and pays the prizes.
+- `src/shared/Config.luau` — the `Race` section gains the phase lengths, the minimum players (1), the prizes (300, 200, 100, then 50) and the rising-danger targets.
+- `src/server/PlayerState.luau` — a racer can be marked out for the round; chopping and banking only count while a round is running and the racer is not out; prizes are added to the saved camp fund.
+- `src/server/GuardianService.luau` — a caught racer is now out for the round. Rising danger: over the round the top of the hidden wake number falls from 10 to 3 and the guardian's speed rises from 21 to 24. New `reset`, used between rounds.
+- `src/server/TreeService.luau` — chopping is refused between rounds and for racers who are out. New `regrowAll`.
+- `src/server/MovementService.luau` — racers cannot move during the countdown.
+- `src/server/Main.server.luau` — Race mode now starts the round service, and saving is on in Race mode so prizes are kept.
+- `src/shared/Remotes.luau` — new `RaceResults` message.
+- `src/client/Hud.client.luau` — a clock at the top centre (countdown, time left, turning red for the last 30 seconds, then time to the next race); a results screen listing places, wood and prizes; caught racers shown in grey with "(OUT)" at the bottom of the scoreboard.
+- `MULTIPLAYER.md` — Claude's draft details gain the rules added while building: no prize without banking some wood, unbanked wood does not count at the end, late joiners watch, ties go by name.
+
+Not built yet: a caught racer can still walk about (they cannot chop or bank); watching other racers is step 3. Prizes are not multiplied by wood-worth, because wood-worth does not exist in the game yet. No bots, no menu.
+
+Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
+Not tested: nothing has been run in Studio. A full round, the early finish, the results screen and prize payment are all unseen. Solo mode should be unaffected but has not been re-run.

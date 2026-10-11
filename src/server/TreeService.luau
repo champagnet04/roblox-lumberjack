@@ -15,6 +15,8 @@ local PlayerState = require(script.Parent.PlayerState)
 
 local TreeService = {}
 
+local IS_RACE = Config.Mode == "Race"
+
 type TreeState = {
 	Health: number,
 	Felled: boolean,
@@ -78,6 +80,9 @@ local function onChopRequest(player: Player, tree: any)
 	if not state or state.Felled then
 		return
 	end
+	if IS_RACE and not PlayerState.canRace(player) then
+		return -- between rounds, or the guardian has caught them
+	end
 
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")
@@ -116,6 +121,13 @@ local function onChopRequest(player: Player, tree: any)
 	end
 end
 
+-- Stands every felled tree back up. Used between race rounds.
+function TreeService.regrowAll()
+	for tree, state in states do
+		regrow(tree :: Model, state)
+	end
+end
+
 -- Call after the world has been built.
 function TreeService.start()
 	treesFolder = Workspace:WaitForChild("World"):WaitForChild("Trees")
@@ -136,11 +148,7 @@ function TreeService.start()
 	end
 
 	-- When a game ends, the whole forest grows back for the next one.
-	PlayerState.GameEnded:Connect(function()
-		for tree, state in states do
-			regrow(tree :: Model, state)
-		end
-	end)
+	PlayerState.GameEnded:Connect(TreeService.regrowAll)
 
 	Remotes.ChopRequest.OnServerEvent:Connect(onChopRequest)
 	Players.PlayerRemoving:Connect(function(player)

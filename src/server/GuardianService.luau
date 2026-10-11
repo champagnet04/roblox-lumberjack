@@ -54,12 +54,31 @@ local function countFor(player: Player): Player | string
 	return if IS_RACE then SHARED else player
 end
 
+-- How far through its round a race is, from 0 at the start to 1 at the end. Always 0 in solo.
+local function raceProgress(): number
+	if not IS_RACE or Workspace:GetAttribute("RacePhase") ~= "Running" then
+		return 0
+	end
+	local startedAt = Workspace:GetAttribute("RacePhaseStartedAt") or 0
+	local endsAt = Workspace:GetAttribute("RacePhaseEndsAt") or 0
+	if endsAt <= startedAt then
+		return 0
+	end
+	return math.clamp((Workspace:GetServerTimeNow() - startedAt) / (endsAt - startedAt), 0, 1)
+end
+
 -- Starts a fresh count with a new hidden number. Happens each time the guardian wakes.
+-- In a race the top of the range comes down as the round goes on, so it wakes more easily.
 local function newTrip(owner: Player | string)
 	local cfg = Config.Guardian
+	local max = cfg.WakeAfterTreesMax
+	if IS_RACE then
+		local atEnd = Config.Race.WakeAfterTreesMaxAtEnd
+		max = math.round(max + (atEnd - max) * raceProgress())
+	end
 	trips[owner] = {
 		Felled = 0,
-		WakesAt = rng:NextInteger(cfg.WakeAfterTreesMin, cfg.WakeAfterTreesMax),
+		WakesAt = rng:NextInteger(cfg.WakeAfterTreesMin, math.max(max, cfg.WakeAfterTreesMin)),
 	}
 end
 
@@ -191,11 +210,11 @@ end
 
 local function capture(player: Player)
 	if IS_RACE then
-		-- For now a caught racer loses what they carry and restarts at camp, keeping
-		-- their score. Being out for the round arrives with rounds.
-		local lost = PlayerState.loseHaul(player)
+		-- A caught racer loses what they carry and is out for the rest of the round.
+		PlayerState.loseHaul(player)
+		PlayerState.setOut(player, true)
 		endChase(player)
-		Remotes.Notice:FireClient(player, `CAUGHT! {lost} WOOD LOST`)
+		Remotes.Notice:FireClient(player, "CAUGHT! YOU ARE OUT THIS ROUND")
 	else
 		-- Being caught ends the game.
 		local summary = PlayerState.endGame(player)
@@ -242,7 +261,12 @@ local function stepChase(player: Player, chase: Chase, dt: number)
 		return
 	end
 
-	chase.Position += toPlayer.Unit * math.min(cfg.Speed * dt, distance)
+	-- In a race it gets faster as the round goes on.
+	local speed = cfg.Speed
+	if IS_RACE then
+		speed += (Config.Race.GuardianSpeedAtEnd - speed) * raceProgress()
+	end
+	chase.Position += toPlayer.Unit * math.min(speed * dt, distance)
 	place(chase, root.Position, math.sin(now * 4) * 0.35) -- slight bob as it glides
 end
 
@@ -284,6 +308,16 @@ function GuardianService.onTreeFelled(player: Player, treePosition: Vector3)
 
 	-- He has woken, so the count starts again for next time.
 	newTrip(countFor(player))
+end
+
+-- Sends the guardian back to sleep and starts the count again. Used between race rounds.
+function GuardianService.reset()
+	for player in table.clone(chases) do
+		endChase(player)
+	end
+	if IS_RACE then
+		newTrip(SHARED)
+	end
 end
 
 function GuardianService.start()
