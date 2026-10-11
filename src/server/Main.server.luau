@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local BotService = require(script.Parent.BotService)
 local CampBuildService = require(script.Parent.CampBuildService)
 local CampService = require(script.Parent.CampService)
 local GuardianService = require(script.Parent.GuardianService)
@@ -27,6 +28,7 @@ if Config.Mode == "Race" then
 	-- One finished camp for everyone, and rounds.
 	CampBuildService.startShared(Config.Race.CampBuilds)
 	GuardianService.start()
+	BotService.start()
 	RaceService.start()
 else
 	CampBuildService.start()

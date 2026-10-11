@@ -60,7 +60,7 @@ local function buildAxe(): Tool
 	return axe
 end
 
-local function buildTorch(): (Model, Part)
+local function buildTorch(castShadows: boolean): (Model, Part)
 	local torch = Instance.new("Model")
 	torch.Name = "Torch"
 
@@ -109,7 +109,7 @@ local function buildTorch(): (Model, Part)
 	light.Color = Config.Lighting.WarmLight
 	light.Brightness = Config.Lighting.TorchBrightness
 	light.Range = Config.Lighting.TorchRange
-	light.Shadows = true
+	light.Shadows = castShadows
 	light.Parent = head
 
 	torch.PrimaryPart = handle
@@ -118,13 +118,13 @@ end
 
 -- Tools only go in the right hand, so the torch is welded to the left hand directly.
 -- The client holds the left arm up (see ChopAnimation).
-local function attachTorch(character: Model)
+local function attachTorch(character: Model, castShadows: boolean)
 	local hand = character:WaitForChild("LeftHand", 5) or character:FindFirstChild("Left Arm")
 	if not hand or not hand:IsA("BasePart") then
 		return
 	end
 
-	local torch, handle = buildTorch()
+	local torch, handle = buildTorch(castShadows)
 	local grip = hand:FindFirstChild("LeftGripAttachment")
 
 	local weld = Instance.new("Weld")
@@ -140,6 +140,18 @@ local function attachTorch(character: Model)
 	torch.Parent = character
 end
 
+-- Gives a character its torch and axe. Used for players and for the bots in a race.
+-- Shadows from a torch's light are costly to draw, so bots go without them.
+function PlayerSetup.equip(character: Model, torchShadows: boolean)
+	attachTorch(character, torchShadows)
+
+	-- Put straight into the character, which equips it. It used to go through the backpack,
+	-- but the backpack is thrown away and remade on every respawn, so two respawns close
+	-- together (as at the start of a race) could leave the newer character without an axe.
+	local axe = buildAxe()
+	axe.Parent = character
+end
+
 local function onCharacterAdded(player: Player, character: Model)
 	local humanoid = character:WaitForChild("Humanoid") :: Humanoid
 	if not character:IsDescendantOf(Workspace) then
@@ -150,13 +162,7 @@ local function onCharacterAdded(player: Player, character: Model)
 		return -- already replaced by a newer character (a race puts everyone back at camp)
 	end
 
-	attachTorch(character)
-
-	-- Put straight into the character, which equips it. It used to go through the backpack,
-	-- but the backpack is thrown away and remade on every respawn, so two respawns close
-	-- together (as at the start of a race) could leave the newer character without an axe.
-	local axe = buildAxe()
-	axe.Parent = character
+	PlayerSetup.equip(character, true)
 end
 
 local function onPlayerAdded(player: Player)

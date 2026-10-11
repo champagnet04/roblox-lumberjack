@@ -28,7 +28,7 @@ local function publish(player: Player, state: MoveState)
 end
 
 -- Speed multiplier from carried wood, interpolated between the points in Config.Carry.
-local function carryMultiplier(haul: number): number
+function MovementService.carryMultiplier(haul: number): number
 	local points = Config.Carry
 	for i = 2, #points do
 		local low, high = points[i - 1], points[i]
@@ -93,7 +93,7 @@ local function step(player: Player, state: MoveState, dt: number)
 		baseSpeed = 0 -- racers are held at camp until the round starts
 	end
 	humanoid.WalkSpeed = baseSpeed
-		* carryMultiplier(PlayerState.getHaul(player))
+		* MovementService.carryMultiplier(PlayerState.getHaul(player))
 		* tiredMultiplier(state.Stamina)
 
 	publish(player, state)

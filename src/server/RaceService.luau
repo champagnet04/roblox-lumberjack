@@ -2,7 +2,8 @@
 --
 -- A server loops through these phases for as long as it is up:
 --   Waiting    too few players to start
---   Countdown  everyone is put back at camp and held there; the forest regrows
+--   Countdown  everyone is put back at camp and held there; the forest regrows; bots join
+--              to fill the round (see BotService)
 --   Running    the timed round; ends early when one racer is left standing
 --   Results    places and prizes are shown, then the next countdown starts
 --
@@ -16,6 +17,7 @@ local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local BotService = require(script.Parent.BotService)
 local GuardianService = require(script.Parent.GuardianService)
 local PlayerState = require(script.Parent.PlayerState)
 local TreeService = require(script.Parent.TreeService)
@@ -40,14 +42,40 @@ local function setPhase(phase: string, duration: number?)
 	Workspace:SetAttribute("RacePhaseEndsAt", if duration then now + duration else now)
 end
 
-local function standingCount(): number
-	local count = 0
-	for _, player in Players:GetPlayers() do
-		if not PlayerState.isOut(player) then
-			count += 1
+-- Everyone racing: the players and the bots. Both keep their score in a RaceScore attribute
+-- and whether the guardian has caught them in a RaceOut attribute.
+local function allRacers(): { Instance }
+	local list: { Instance } = Players:GetPlayers()
+	for _, bot in BotService.getBots() do
+		table.insert(list, bot)
+	end
+	return list
+end
+
+local function isOut(racer: Instance): boolean
+	return racer:GetAttribute("RaceOut") == true
+end
+
+local function scoreOf(racer: Instance): number
+	return racer:GetAttribute("RaceScore") or 0
+end
+
+local function nameOf(racer: Instance): string
+	return if racer:IsA("Player") then racer.DisplayName else racer.Name
+end
+
+-- How many racers are still standing, and how many of those are real players.
+local function standingCount(): (number, number)
+	local total, players = 0, 0
+	for _, racer in allRacers() do
+		if not isOut(racer) then
+			total += 1
+			if racer:IsA("Player") then
+				players += 1
+			end
 		end
 	end
-	return count
+	return total, players
 end
 
 -- Waits out a phase. Returns early if `finished` says the phase is over.
@@ -73,37 +101,38 @@ end
 
 -- Works out the places and pays the prizes. Only racers still standing are placed, by wood
 -- banked. A prize needs at least some wood banked, so standing still at camp earns nothing.
+-- Bots take places like anyone, but prizes are only paid to players.
 local function scoreRound(): { Result }
 	local cfg = Config.Race
-	local racers = Players:GetPlayers()
+	local racers = allRacers()
 	table.sort(racers, function(a, b)
-		local outA, outB = PlayerState.isOut(a), PlayerState.isOut(b)
+		local outA, outB = isOut(a), isOut(b)
 		if outA ~= outB then
 			return outB
 		end
-		local scoreA, scoreB = PlayerState.getRaceScore(a), PlayerState.getRaceScore(b)
+		local scoreA, scoreB = scoreOf(a), scoreOf(b)
 		if scoreA ~= scoreB then
 			return scoreA > scoreB
 		end
-		return a.Name < b.Name
+		return nameOf(a) < nameOf(b)
 	end)
 
 	local results: { Result } = {}
 	local place = 0
-	for _, player in racers do
-		local out = PlayerState.isOut(player)
-		local score = PlayerState.getRaceScore(player)
+	for _, racer in racers do
+		local out = isOut(racer)
+		local score = scoreOf(racer)
 		local prize = 0
 		if not out then
 			place += 1
-			if score > 0 then
+			if score > 0 and racer:IsA("Player") then
 				prize = cfg.Prizes[place] or cfg.SurvivorPrize
-				PlayerState.addPrize(player, prize)
+				PlayerState.addPrize(racer, prize)
 			end
 		end
 		table.insert(results, {
-			Name = player.DisplayName,
-			UserId = player.UserId,
+			Name = nameOf(racer),
+			UserId = if racer:IsA("Player") then racer.UserId else 0,
 			Score = score,
 			Out = out,
 			Place = if out then 0 else place,
@@ -126,22 +155,26 @@ local function run()
 		GuardianService.reset()
 		TreeService.regrowAll()
 		resetRacers()
+		BotService.prepareRound(math.max(cfg.FillTo - #Players:GetPlayers(), 0))
 		setPhase("Countdown", cfg.CountdownTime)
 		waitFor(cfg.CountdownTime)
 
-		local startedWith = standingCount()
-		if startedWith == 0 then
+		local startedWith, playersAtStart = standingCount()
+		if playersAtStart == 0 then
 			continue -- everyone left during the countdown
 		end
 		GuardianService.reset() -- a fresh hidden number for the round
 		setPhase("Running", cfg.RoundTime)
+		BotService.setRacing(true)
 		waitFor(cfg.RoundTime, function()
-			local left = standingCount()
-			return left == 0 or (left == 1 and startedWith >= 2)
+			-- Over when one racer is left, or when no real player is: nobody waits for bots.
+			local left, playersLeft = standingCount()
+			return playersLeft == 0 or (left == 1 and startedWith >= 2)
 		end)
 
 		-- Change phase first, so nothing more can be chopped or banked while the round is scored.
 		setPhase("Results", cfg.ResultsTime)
+		BotService.setRacing(false)
 		GuardianService.reset()
 		Remotes.RaceResults:FireAllClients(scoreRound())
 		waitFor(cfg.ResultsTime)

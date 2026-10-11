@@ -1081,3 +1081,25 @@ Changed:
 
 Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
 Not tested: not run in Studio. Solo is affected too (the axe is now given a different way, and the animation code was reworked), so solo needs a quick check that the axe is in hand and swings as before.
+
+### 2026-10-11 — Multiplayer step 4a: bots that race
+
+Why: the owner asked for the next step, answered a quiz on the bots (folksy names, flannel in different colours, a set style for each, steering round trees), approved part 4a, and asked for shadows on bot torches to be off from the start so the game does not stutter.
+
+Changed:
+
+- `src/server/BotModels.luau` — new. Builds a bot's character: a standard Roblox shape coloured as flannel and jeans, with a beanie, a beard or both.
+- `src/server/BotService.luau` — new. Bots join at each countdown to bring the round up to 8 racers. Each walks to a tree (one of the few nearest, not one another bot has chosen), steps aside from trunks in its way, chops with the swing animation, pauses a few seconds between trees, and walks home to bank once it carries 50 to 110 wood. A bot that makes no progress for 1.5 seconds is moved past whatever blocks it.
+- `src/shared/Config.luau` — `Race.FillTo` (8) and a new `Bots` section: the ten named bots with their colours, their pace, and `TorchShadows = false`.
+- `src/server/RaceService.luau` — rounds, places and results now count bots as racers. Bots take places but prizes are paid only to players. A round also ends as soon as no real player is left standing.
+- `src/server/TreeService.luau` — chopping reworked so a bot can land a hit; new helpers for finding a tree and for spotting a trunk in the way.
+- `src/server/PlayerSetup.luau` — giving the axe and torch is now one step that bots use too, with torch shadows optional.
+- `src/server/MovementService.luau` — the carry slowdown can be used for bots.
+- `src/server/Main.server.luau` — starts the bot service in Race mode.
+- `src/client/Hud.client.luau`, `src/client/Input.client.luau`, `src/client/ChopAnimation.luau` — the scoreboard lists bots; swings and raised torch arms are drawn for bots.
+- `MULTIPLAYER.md` — the bot quiz answers.
+
+Not built yet (parts 4b and 4c): the guardian ignores bots, they cannot be watched, and they all play the same way. They walk; they do not sprint.
+
+Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
+Not tested: nothing has been run in Studio. Most at risk: whether Roblox makes the bot characters as expected, whether their walking and arm animations play (they use Roblox's standard animations by number, from memory), their steering, and how eight torches affect smoothness. Solo shares the reworked chopping and gear code and needs a check.

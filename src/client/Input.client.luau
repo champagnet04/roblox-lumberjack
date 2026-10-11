@@ -140,10 +140,16 @@ UserInputService.InputEnded:Connect(function(input)
 	end
 end)
 
--- Another player has started a swing: draw it, and the tree's shake when it lands.
-Remotes.Swing.OnClientEvent:Connect(function(other: Player, tree: Model?)
-	local character = other and other.Character
-	if not character then
+-- Another racer has started a swing: draw it, and the tree's shake when it lands.
+-- `swinger` is a player, or in a race it may be a bot's character.
+Remotes.Swing.OnClientEvent:Connect(function(swinger: Instance?, tree: Model?)
+	local character: Instance? = nil
+	if swinger and swinger:IsA("Player") then
+		character = swinger.Character
+	elseif swinger and swinger:IsA("Model") then
+		character = swinger
+	end
+	if not character or not character:IsA("Model") then
 		return
 	end
 	ChopAnimation.swing(character)

@@ -5,6 +5,7 @@
 --   1. the axe pivots in the hand (works on every avatar), and
 --   2. the right arm swings from the shoulder (R15 avatars only).
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
@@ -171,6 +172,12 @@ RunService.PreSimulation:Connect(function()
 		local character = other.Character
 		if character then
 			pose(character)
+		end
+	end
+	-- The bots in a race are characters too.
+	for _, bot in CollectionService:GetTagged("Bot") do
+		if bot:IsA("Model") and bot.Parent then
+			pose(bot)
 		end
 	end
 end)

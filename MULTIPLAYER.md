@@ -48,6 +48,10 @@ The owner expects few players at the start, so bots fill the empty places.
 
 - Bots are named lumberjack characters with a set look, for example Big Hank or Old Maple. They are presented as characters in the game's world, not as real accounts.
 - They play by the same rules: they fell trees, carry wood, bank it, wake the guardian, get chased and get caught.
+- Names (owner, 2026-10-11): Big Hank, Old Maple, Sawdust Sam, Birch Betty, Knotty Pete, Granny Oak, Whittlin' Joe, Splinter, Timber Tess, Mossy Mae.
+- Look: standard Roblox-shaped characters, each in their own colour of flannel with jeans and a beanie or beard, built in code. Each carries an axe and a torch. Their torches cast no shadows, to keep the game running smoothly.
+- Each named bot always plays the same way, careful or greedy, so players learn who to watch out for.
+- They steer round tree trunks. If one is stuck for a moment it slips past whatever blocks it.
 - Their skill is mixed. Some are cautious and bank often; some are greedy and go deep. They can win. A decent player should usually place in the top three.
 
 ## Claude's draft details (not reviewed by the owner)

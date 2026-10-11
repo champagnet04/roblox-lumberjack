@@ -28,6 +28,7 @@ type TreeState = {
 -- The client paces its own swings; the server accepts them slightly early so that
 -- network delay never throws away a swing the player saw land.
 local COOLDOWN_SLACK = 0.8
+local FLAT = Vector3.new(1, 0, 1)
 
 local rng = Random.new()
 local treesFolder: Instance
@@ -73,6 +74,26 @@ local function fell(tree: Model, state: TreeState, direction: Vector3)
 	end
 end
 
+-- Takes one swing off a tree's health. `offset` is the flat line from the chopper to the tree.
+-- Returns the wood gained: 0 unless this hit felled the tree.
+local function landHit(tree: Model, state: TreeState, offset: Vector3): number
+	state.Health -= 1
+	tree:SetAttribute("Health", state.Health)
+	if state.Health > 0 then
+		return 0
+	end
+
+	-- Deeper trees are worth more.
+	local cfg = Config.Tree
+	local multiplier = 1 + (cfg.DeepWoodMultiplier - 1) * Forest.depthAt(state.Base)
+	local wood = math.round(rng:NextInteger(cfg.WoodMin, cfg.WoodMax) * multiplier)
+
+	-- The tree falls away from whoever felled it. (The shake on earlier hits is played by the client.)
+	local direction = if offset.Magnitude > 0.01 then offset.Unit else Vector3.xAxis
+	task.spawn(fell, tree, state, direction)
+	return wood
+end
+
 local function onChopRequest(player: Player, tree: any)
 	if typeof(tree) ~= "Instance" then
 		return
@@ -91,7 +112,7 @@ local function onChopRequest(player: Player, tree: any)
 		return
 	end
 
-	local offset = (state.Base - root.Position) * Vector3.new(1, 0, 1)
+	local offset = (state.Base - root.Position) * FLAT
 	if offset.Magnitude > Config.Tree.ChopRange + state.TrunkRadius then
 		return
 	end
@@ -105,21 +126,94 @@ local function onChopRequest(player: Player, tree: any)
 	end
 	lastSwing[player] = now
 
-	-- The tree falls away from whoever felled it. (The shake on earlier hits is played by the client.)
-	local direction = if offset.Magnitude > 0.01 then offset.Unit else Vector3.xAxis
-
-	state.Health -= 1
-	tree:SetAttribute("Health", state.Health)
-	if state.Health <= 0 then
-		-- Deeper trees are worth more.
-		local cfg = Config.Tree
-		local multiplier = 1 + (cfg.DeepWoodMultiplier - 1) * Forest.depthAt(state.Base)
-		local wood = math.round(rng:NextInteger(cfg.WoodMin, cfg.WoodMax) * multiplier)
+	local wood = landHit(tree, state, offset)
+	if wood > 0 then
 		PlayerState.addHaul(player, wood)
-		PlayerState.recordTreeDistance(player, (state.Base * Vector3.new(1, 0, 1)).Magnitude)
-		task.spawn(fell, tree, state, direction)
+		PlayerState.recordTreeDistance(player, (state.Base * FLAT).Magnitude)
 		GuardianService.onTreeFelled(player, state.Base)
 	end
+end
+
+-- The rest of this section is for the bots in a race, which are not players.
+
+function TreeService.isStanding(tree: Instance): boolean
+	local state = states[tree]
+	return state ~= nil and not state.Felled
+end
+
+-- Where a tree stands and how thick its trunk is.
+function TreeService.placeOf(tree: Instance): (Vector3, number)
+	local state = states[tree]
+	if not state then
+		return Vector3.zero, 0
+	end
+	return state.Base, state.TrunkRadius
+end
+
+-- Picks a standing tree for a bot: one of the few nearest to `near`, at random, leaving
+-- out any in `taken` (trees other bots are already heading for).
+function TreeService.findTree(near: Vector3, taken: { [Instance]: boolean }): Model?
+	local CHOICES = 4
+	local nearest: { { Tree: Instance, Distance: number } } = {}
+	for tree, state in states do
+		if not state.Felled and not taken[tree] then
+			local distance = ((state.Base - near) * FLAT).Magnitude
+			if #nearest < CHOICES or distance < nearest[#nearest].Distance then
+				table.insert(nearest, { Tree = tree, Distance = distance })
+				table.sort(nearest, function(a, b)
+					return a.Distance < b.Distance
+				end)
+				if #nearest > CHOICES then
+					table.remove(nearest)
+				end
+			end
+		end
+	end
+	if #nearest == 0 then
+		return nil
+	end
+	return nearest[rng:NextInteger(1, #nearest)].Tree :: Model
+end
+
+-- The nearest standing trunk in the way of something at `from` heading in `direction`
+-- (flat, unit length), within `lookahead` studs. Returns where it stands, or nil.
+function TreeService.trunkAhead(
+	from: Vector3,
+	direction: Vector3,
+	lookahead: number,
+	clearance: number,
+	ignore: Instance?
+): Vector3?
+	local best: Vector3? = nil
+	local bestAhead = lookahead
+	for tree, state in states do
+		if not state.Felled and tree ~= ignore then
+			local offset = (state.Base - from) * FLAT
+			local ahead = offset:Dot(direction)
+			if ahead > 0 and ahead < bestAhead then
+				local aside = (offset - direction * ahead).Magnitude
+				if aside < state.TrunkRadius + clearance then
+					best = state.Base
+					bestAhead = ahead
+				end
+			end
+		end
+	end
+	return best
+end
+
+-- One axe hit from a bot standing at `from`. Returns the wood gained: 0 unless this hit
+-- felled the tree. Does nothing if the tree is down or out of reach.
+function TreeService.botHit(tree: Instance, from: Vector3): number
+	local state = states[tree]
+	if not state or state.Felled then
+		return 0
+	end
+	local offset = (state.Base - from) * FLAT
+	if offset.Magnitude > Config.Tree.ChopRange + state.TrunkRadius then
+		return 0
+	end
+	return landHit(tree :: Model, state, offset)
 end
 
 -- A swing is drawn by each player's own game, so other players would not see it. This passes

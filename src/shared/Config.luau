@@ -13,6 +13,7 @@ Config.Race = {
 	CampBuilds = 7, -- the shared camp shows this many finished builds (7 = the whole lean-to stage)
 
 	MinPlayers = 1, -- a round starts once this many players are in the server
+	FillTo = 8, -- bots join until a round has this many racers (0 = no bots)
 	CountdownTime = 10, -- everyone is held at camp this long before the round starts
 	RoundTime = 360, -- length of a round; lower it to test the end of a round quickly
 	ResultsTime = 12, -- the results stay up this long before the next countdown
@@ -218,6 +219,83 @@ Config.Camp = {
 	PromptHeight = 5, -- the build prompt floats this far above the outline, so it does not cover it
 	BuildHoldTime = 1, -- seconds the build prompt must be held
 	GhostTransparency = 0.8, -- how faint the glowing outline of the next build is (1 = invisible)
+}
+
+-- The bot lumberjacks that fill out a race. See MULTIPLAYER.md.
+Config.Bots = {
+	TorchShadows = false, -- shadows from seven extra torches are costly to draw
+	WalkSpeed = 16,
+	SwingInterval = 0.45, -- seconds between a bot's swings
+	-- A bot heads home once it carries a number of wood picked between these two.
+	BankAtMin = 50,
+	BankAtMax = 110,
+	-- It pauses for a time between these two after each tree, standing in for stamina.
+	RestMin = 2,
+	RestMax = 4.5,
+
+	-- Hat is "Beanie", "Beard" or "Both"; Trim is the colour of the beanie or beard.
+	Roster = {
+		{
+			Name = "Big Hank",
+			Flannel = Color3.fromRGB(176, 40, 40),
+			Hat = "Beard",
+			Trim = Color3.fromRGB(70, 44, 28),
+		},
+		{
+			Name = "Old Maple",
+			Flannel = Color3.fromRGB(196, 110, 36),
+			Hat = "Beard",
+			Trim = Color3.fromRGB(214, 214, 210),
+		},
+		{
+			Name = "Sawdust Sam",
+			Flannel = Color3.fromRGB(206, 176, 70),
+			Hat = "Beanie",
+			Trim = Color3.fromRGB(60, 60, 70),
+		},
+		{
+			Name = "Birch Betty",
+			Flannel = Color3.fromRGB(60, 120, 170),
+			Hat = "Beanie",
+			Trim = Color3.fromRGB(230, 226, 214),
+		},
+		{
+			Name = "Knotty Pete",
+			Flannel = Color3.fromRGB(58, 122, 72),
+			Hat = "Both",
+			Trim = Color3.fromRGB(150, 40, 40),
+		},
+		{
+			Name = "Granny Oak",
+			Flannel = Color3.fromRGB(128, 84, 150),
+			Hat = "Beanie",
+			Trim = Color3.fromRGB(200, 200, 204),
+		},
+		{
+			Name = "Whittlin' Joe",
+			Flannel = Color3.fromRGB(40, 60, 110),
+			Hat = "Beard",
+			Trim = Color3.fromRGB(150, 96, 50),
+		},
+		{
+			Name = "Splinter",
+			Flannel = Color3.fromRGB(70, 70, 76),
+			Hat = "Beanie",
+			Trim = Color3.fromRGB(210, 120, 40),
+		},
+		{
+			Name = "Timber Tess",
+			Flannel = Color3.fromRGB(190, 70, 110),
+			Hat = "Beanie",
+			Trim = Color3.fromRGB(46, 84, 50),
+		},
+		{
+			Name = "Mossy Mae",
+			Flannel = Color3.fromRGB(96, 140, 60),
+			Hat = "Beanie",
+			Trim = Color3.fromRGB(110, 78, 52),
+		},
+	},
 }
 
 -- The creature that hunts the player. An original design; the name is a placeholder.

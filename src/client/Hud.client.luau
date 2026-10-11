@@ -1,5 +1,6 @@
 -- On-screen display. Reads the player's state attributes, which the server owns.
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
@@ -697,7 +698,16 @@ refreshSaveStatus()
 -- You are shown in gold, whoever the guardian is hunting in red, and anyone it has caught
 -- this round in grey at the bottom.
 local function refreshScoreboard()
-	local racers = Players:GetPlayers()
+	-- Racers are the players plus the bots, which are characters tagged "Bot".
+	local racers: { Instance } = Players:GetPlayers()
+	for _, bot in CollectionService:GetTagged("Bot") do
+		if bot:IsDescendantOf(Workspace) then
+			table.insert(racers, bot)
+		end
+	end
+	local function nameOf(racer: Instance): string
+		return if racer:IsA("Player") then racer.DisplayName else racer.Name
+	end
 	table.sort(racers, function(a, b)
 		local outA = a:GetAttribute("RaceOut") == true
 		local outB = b:GetAttribute("RaceOut") == true
@@ -709,7 +719,7 @@ local function refreshScoreboard()
 		if scoreA ~= scoreB then
 			return scoreA > scoreB
 		end
-		return a.Name < b.Name
+		return nameOf(a) < nameOf(b)
 	end)
 
 	for index, racer in racers do
@@ -722,7 +732,7 @@ local function refreshScoreboard()
 			elseif racer == player then GOLD
 			else WHITE
 		local note = if out then " (OUT)" elseif hunted then " (HUNTED)" else ""
-		row.Name.Text = `{index}. {racer.DisplayName}{note}`
+		row.Name.Text = `{index}. {nameOf(racer)}{note}`
 		row.Name.TextColor3 = color
 		row.Name.Visible = true
 		row.Score.Text = tostring(racer:GetAttribute("RaceScore") or 0)
