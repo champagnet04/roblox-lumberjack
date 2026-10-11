@@ -48,6 +48,8 @@ type Bot = {
 	State: string, -- "Idle", "ToTree", "Chopping", "Resting", "Home", "Fleeing" or "Out"
 	Index: number, -- its place in the ring at camp
 	FleeAt: number, -- when it stops staring at the guardian and runs
+	Stamina: number, -- spent on swings and sprinting, by the same rules as a player
+	LastEffortAt: number, -- stamina refills a short while after the last swing or sprint
 	Tree: Model?,
 	BankAt: number, -- heads home once it carries this much
 	NextSwingAt: number,
@@ -125,6 +127,8 @@ local function makeBot(look: BotModels.Look): Bot?
 		State = "Idle",
 		Index = 1,
 		FleeAt = 0,
+		Stamina = Config.Stamina.Max,
+		LastEffortAt = 0,
 		Tree = nil,
 		BankAt = 0,
 		NextSwingAt = 0,
@@ -155,7 +159,7 @@ end
 
 -- Walks towards a point, stepping aside from any trunk in the way. `ignore` is the tree the
 -- bot is walking up to, which is not an obstacle.
-local function walkToward(bot: Bot, target: Vector3, ignore: Instance?, baseSpeed: number?)
+local function walkToward(bot: Bot, target: Vector3, ignore: Instance?, sprint: boolean?)
 	local position = bot.Root.Position
 	local toTarget = (target - position) * FLAT
 	if toTarget.Magnitude < 0.5 then
@@ -173,8 +177,17 @@ local function walkToward(bot: Bot, target: Vector3, ignore: Instance?, baseSpee
 	end
 
 	local haul = bot.Model:GetAttribute("Haul") or 0
-	bot.Humanoid.WalkSpeed = (baseSpeed or Config.Bots.WalkSpeed)
+	-- Sprinting drains stamina; once it is gone the bot can only walk, and tired at that.
+	local sprinting = sprint == true and bot.Stamina > 0
+	if sprinting then
+		bot.Stamina = math.max(bot.Stamina - Config.Stamina.SprintDrainPerSecond * TICK, 0)
+		bot.LastEffortAt = os.clock()
+	end
+	bot.Humanoid.WalkSpeed = (
+		if sprinting then Config.Player.SprintSpeed else Config.Player.WalkSpeed
+	)
 		* MovementService.carryMultiplier(haul)
+		* MovementService.tiredMultiplier(bot.Stamina)
 	bot.Humanoid:MoveTo(position + direction * 8)
 	setRunning(bot, true)
 
@@ -258,6 +271,11 @@ local function step(bot: Bot)
 	local tree = bot.Tree
 	local model = bot.Model
 
+	if now - bot.LastEffortAt >= Config.Stamina.RegenDelay then
+		bot.Stamina =
+			math.min(bot.Stamina + Config.Stamina.RegenPerSecond * TICK, Config.Stamina.Max)
+	end
+
 	-- The guardian comes first, whatever the bot was doing.
 	if model:GetAttribute("RaceOut") == true then
 		if bot.State ~= "Out" then
@@ -277,7 +295,7 @@ local function step(bot: Bot)
 			bot.FleeAt = now + rng:NextNumber(Config.Bots.ReactionMin, Config.Bots.ReactionMax)
 			stop(bot)
 		elseif now >= bot.FleeAt then
-			walkToward(bot, Vector3.zero, nil, Config.Bots.FleeSpeed)
+			walkToward(bot, Vector3.zero, nil, true)
 		end
 		return
 	elseif bot.State == "Fleeing" then
@@ -308,8 +326,10 @@ local function step(bot: Bot)
 	elseif bot.State == "Chopping" then
 		if not tree or not TreeService.isStanding(tree) then
 			chooseTree(bot)
-		elseif now >= bot.NextSwingAt then
+		elseif now >= bot.NextSwingAt and bot.Stamina >= Config.Stamina.SwingCost then
 			bot.NextSwingAt = now + Config.Bots.SwingInterval
+			bot.Stamina -= Config.Stamina.SwingCost
+			bot.LastEffortAt = now
 			swing(bot, tree)
 		end
 	elseif bot.State == "Home" then
@@ -356,6 +376,7 @@ function BotService.prepareRound(count: number)
 		bot.Model:SetAttribute("RaceScore", 0)
 		bot.Model:SetAttribute("RaceOut", false)
 		bot.Model:SetAttribute("Chased", false)
+		bot.Stamina = Config.Stamina.Max
 		bot.State = "Idle"
 		bot.Index = index
 		bot.Tree = nil

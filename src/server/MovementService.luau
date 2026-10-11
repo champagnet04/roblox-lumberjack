@@ -41,7 +41,7 @@ function MovementService.carryMultiplier(haul: number): number
 end
 
 -- Full speed above the low threshold, easing down to the minimum at zero stamina.
-local function tiredMultiplier(stamina: number): number
+function MovementService.tiredMultiplier(stamina: number): number
 	local cfg = Config.Stamina
 	if stamina >= cfg.LowThreshold then
 		return 1
@@ -94,7 +94,7 @@ local function step(player: Player, state: MoveState, dt: number)
 	end
 	humanoid.WalkSpeed = baseSpeed
 		* MovementService.carryMultiplier(PlayerState.getHaul(player))
-		* tiredMultiplier(state.Stamina)
+		* MovementService.tiredMultiplier(state.Stamina)
 
 	publish(player, state)
 end

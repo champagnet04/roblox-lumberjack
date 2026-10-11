@@ -1119,3 +1119,20 @@ To watch for: with eight racers feeding one count of 1 to 10 trees, the guardian
 
 Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
 Not tested: not run in Studio, in either mode.
+
+### 2026-10-11 — Bots can sprint; they tire by the player's rules
+
+Why: the owner tested step 4b. The guardian now hunts bots, but they died too easily: every bot was caught (Knotty Pete lasted longest) and the owner won by being the last one standing. The owner asked for bots to be able to sprint.
+
+Cause: a hunted bot ran at a fixed 20, slower than the guardian (21 rising to 24), after freezing for one to two seconds. It could never outrun it.
+
+Changed:
+
+- `src/server/BotService.luau` — bots now have stamina that works as a player's does: a swing costs 4, sprinting drains 12 a second, and it refills at 6 a second after a 1.5 second pause. A hunted bot sprints at 24 until its stamina runs out, then walks, slowed further when tired. They walk at 16 otherwise.
+- `src/shared/Config.luau` — the bots' fixed flee speed and walk speed are removed (they use the player's numbers). Reaction time is 0.4 to 1 second (was 1 to 2).
+- `src/server/MovementService.luau` — the tired slowdown can be used for bots.
+
+Also raised by the owner in the same message: winning should depend on getting as much wood as possible, not only on surviving longest. Asked whether to change the winner rule, the owner chose to keep it as it is (most wood among those still standing; a round ends when one racer is left). The aim is instead that bots survive well enough that outlasting them is not an easy win. Bot survival is the thing to tune.
+
+Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
+Not tested: not run in Studio.
