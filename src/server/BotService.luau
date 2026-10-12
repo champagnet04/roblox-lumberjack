@@ -10,7 +10,7 @@
 -- The guardian treats bots like players: their felled trees add to its count, it hunts the
 -- one that woke it, and that bot runs for camp. A caught bot is out for the round.
 --
--- Not yet: they all play the same way.
+-- Each bot always plays the same way, careful, steady or greedy (Config.Bots.Styles).
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -40,8 +40,12 @@ local RUN_ANIMATION = "rbxassetid://507767714"
 local IDLE_ANIMATION = "rbxassetid://507766666"
 local HOLD_ANIMATION = "rbxassetid://507768375" -- arm out, holding a tool
 
+type Style = typeof(Config.Bots.Styles.Steady)
+
 type Bot = {
 	Model: Model,
+	Style: Style,
+	Outward: Vector3, -- the direction from camp it sets out in, so bots spread round the forest
 	Humanoid: Humanoid,
 	Root: BasePart,
 	Run: AnimationTrack?,
@@ -124,6 +128,8 @@ local function makeBot(look: BotModels.Look): Bot?
 		Humanoid = humanoid,
 		Root = root,
 		Run = loadTrack(humanoid, RUN_ANIMATION, true),
+		Style = (Config.Bots.Styles :: any)[look.Style] or Config.Bots.Styles.Steady,
+		Outward = Vector3.xAxis,
 		State = "Idle",
 		Index = 1,
 		FleeAt = 0,
@@ -214,16 +220,27 @@ local function takenTrees(except: Bot): { [Instance]: boolean }
 	return taken
 end
 
+local function between(range: { number }): number
+	return rng:NextNumber(range[1], range[2])
+end
+
 local function chooseTree(bot: Bot)
-	bot.Tree = TreeService.findTree(bot.Root.Position, takenTrees(bot))
+	-- Look a little farther out than where it stands, until it is as deep as its style goes.
+	local position = bot.Root.Position
+	local flat = position * FLAT
+	local near = position
+	if flat.Magnitude < bot.Style.MaxDepth then
+		local outward = if flat.Magnitude > SPAWN_RING + 4 then flat.Unit else bot.Outward
+		near = position + outward * bot.Style.Push
+	end
+	bot.Tree = TreeService.findTree(near, takenTrees(bot))
 	bot.State = if bot.Tree then "ToTree" else "Home" -- no trees left: take home what it has
 end
 
 local function rest(bot: Bot)
-	local cfg = Config.Bots
 	stop(bot)
 	bot.Tree = nil
-	bot.RestUntil = os.clock() + rng:NextNumber(cfg.RestMin, cfg.RestMax)
+	bot.RestUntil = os.clock() + between(bot.Style.Rest)
 	bot.State = "Resting"
 end
 
@@ -263,7 +280,7 @@ local function bank(bot: Bot)
 	local haul = bot.Model:GetAttribute("Haul") or 0
 	bot.Model:SetAttribute("RaceScore", (bot.Model:GetAttribute("RaceScore") or 0) + haul)
 	bot.Model:SetAttribute("Haul", 0)
-	bot.BankAt = rng:NextInteger(Config.Bots.BankAtMin, Config.Bots.BankAtMax)
+	bot.BankAt = math.round(between(bot.Style.BankAt))
 end
 
 local function step(bot: Bot)
@@ -292,7 +309,7 @@ local function step(bot: Bot)
 			-- It freezes for a moment at the sight of the guardian, then runs.
 			bot.State = "Fleeing"
 			bot.Tree = nil
-			bot.FleeAt = now + rng:NextNumber(Config.Bots.ReactionMin, Config.Bots.ReactionMax)
+			bot.FleeAt = now + between(bot.Style.Reaction)
 			stop(bot)
 		elseif now >= bot.FleeAt then
 			walkToward(bot, Vector3.zero, nil, true)
@@ -326,7 +343,10 @@ local function step(bot: Bot)
 	elseif bot.State == "Chopping" then
 		if not tree or not TreeService.isStanding(tree) then
 			chooseTree(bot)
-		elseif now >= bot.NextSwingAt and bot.Stamina >= Config.Stamina.SwingCost then
+		elseif
+			now >= bot.NextSwingAt
+			and bot.Stamina >= Config.Stamina.SwingCost + bot.Style.Reserve
+		then
 			bot.NextSwingAt = now + Config.Bots.SwingInterval
 			bot.Stamina -= Config.Stamina.SwingCost
 			bot.LastEffortAt = now
@@ -380,8 +400,9 @@ function BotService.prepareRound(count: number)
 		bot.State = "Idle"
 		bot.Index = index
 		bot.Tree = nil
-		bot.BankAt = rng:NextInteger(Config.Bots.BankAtMin, Config.Bots.BankAtMax)
+		bot.BankAt = math.round(between(bot.Style.BankAt))
 		local at = spawnPoint(index, #bots)
+		bot.Outward = (at * FLAT).Unit
 		bot.Model:PivotTo(CFrame.lookAt(at, Vector3.new(at.X * 2, at.Y, at.Z * 2))) -- facing outwards
 		stop(bot)
 	end

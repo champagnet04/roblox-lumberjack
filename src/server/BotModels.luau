@@ -11,6 +11,7 @@ local SKIN = Color3.fromRGB(236, 190, 146)
 
 export type Look = {
 	Name: string,
+	Style: string, -- how it plays; one of Config.Bots.Styles
 	Flannel: Color3,
 	Hat: string, -- "Beanie", "Beard" or "Both"
 	Trim: Color3, -- colour of the beanie or beard

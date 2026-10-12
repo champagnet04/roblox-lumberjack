@@ -63,6 +63,8 @@ These fill gaps the quiz did not cover. Each is a starting point to change.
 - **Unbanked wood at the end.** Wood still being carried when the timer runs out does not count.
 - **Joining partway through.** A player who joins during a round watches until the next one.
 - **Ties.** Racers level on wood are placed in name order. Not yet thought through.
+- **The guardian's count in a race.** The owner wants the guardian to appear often, because that is what makes a race hard when real people play (2026-10-12). The hidden number is only slightly larger than in solo: multiplied by 1.5. Claude had first stretched it by the number of racers (four times with 8); the owner rejected that.
+- **Bot styles.** Careful: Old Maple, Birch Betty, Granny Oak. Steady: Sawdust Sam, Knotty Pete, Whittlin' Joe, Mossy Mae. Greedy: Big Hank, Splinter, Timber Tess. The numbers behind each style are in the config and are first guesses.
 - **After a catch.** The guardian goes back to sleep and a new hidden number is picked, as in solo.
 - **Camp materials.** None appear in a race. Materials for camp builds are found in solo only.
 - **A round with one real player left.** If every real player has been caught and only bots remain, the round ends at once and goes to results, so nobody waits for bots to finish.

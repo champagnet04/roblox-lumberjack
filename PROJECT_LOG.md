@@ -1136,3 +1136,42 @@ Also raised by the owner in the same message: winning should depend on getting a
 
 Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
 Not tested: not run in Studio.
+
+### 2026-10-12 — Multiplayer step 4c: bot styles, and the guardian's count shared out among racers
+
+Why: the owner tested bots with sprint. In the round shown, all seven bots were caught, and the owner won with 876 wood against 258 to 681 for the bots. The owner's view: the deaths are probably fine, but it is too easy to get the most wood and beat them all.
+
+Likely causes (worked out from the rules, not measured):
+
+- Every racer's trees fed one hidden count of 1 to 10, narrowing to 1 to 3 late in the round. With eight racers that count was reached almost at once, so the guardian was out nearly all the time, and seven hunts in eight were for a bot. Over a round each bot was hunted several times, the later times against a faster guardian.
+- Bots paused 2 to 4.5 seconds after every tree and only took the nearest, smallest trees, so none could keep up with a player banking steadily.
+
+Changed:
+
+- `src/shared/Config.luau` — three bot styles, Careful, Steady and Greedy, replace the single set of bot numbers. Each sets how much a bot carries before heading home, how long it pauses between trees, how fast it reacts to the guardian, how much stamina it keeps back for sprinting, and how deep it goes. Each bot in the roster has a style: Old Maple, Birch Betty and Granny Oak are careful; Sawdust Sam, Knotty Pete, Whittlin' Joe and Mossy Mae are steady; Big Hank, Splinter and Timber Tess are greedy. New `Race.WakeSharedBy` (2).
+- `src/server/BotService.luau` — bots play by their style. They head outward from camp in their own direction, so they spread round the forest, and greedy ones push deeper for the bigger trees. A bot stops chopping to recover when its stamina falls to its reserve.
+- `src/server/GuardianService.luau` — in a race the hidden wake number is multiplied by the racers still standing divided by `WakeSharedBy`: four times with eight racers, less as racers are caught.
+- `src/server/BotModels.luau` — a bot's look now records its style.
+- `MULTIPLAYER.md` — the two additions above, under Claude's draft details.
+
+Aim: careful bots usually survive with modest scores; greedy bots score more than a steady player when they live and are caught more often; a decent player usually places in the top three.
+
+Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
+Not tested: not run in Studio. Every number here is a first guess, and the guardian change also makes the round safer for the player, which may need pulling back.
+
+### 2026-10-12 — Guardian's race count pulled back to a slight increase
+
+Why: the owner rejected stretching the guardian's count by the number of racers: "I like him popping up often. That makes the game actually have some difficulty when real people are playing." A slight increase is acceptable, "but not by a lot". (The owner's words were "expand the bank number"; the owner confirmed afterwards that this was a mistype for the guardian's number, and that 1.5 is a good ratio.)
+
+Changed:
+
+- `src/shared/Config.luau` — `Race.WakeSharedBy` is removed. New `Race.WakeCountScale` (1.5): in a race the hidden number is multiplied by 1.5 and rounded up, whatever the number of racers. 1 to 10 becomes 2 to 15; late in a round 1 to 3 becomes 2 to 5.
+- `src/server/GuardianService.luau` — uses it.
+- `MULTIPLAYER.md` — records the owner's reason and the new rule.
+
+The bot styles from the previous entry are unchanged.
+
+Consequence: the guardian will again be out most of the time with eight racers, so bots will be caught far more often than the previous entry aimed for. Whether enough of them survive now rests on the styles alone.
+
+Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
+Not tested: not run in Studio.

@@ -26,6 +26,10 @@ Config.Race = {
 	-- Rising danger: over the round the guardian's hidden wake number and its speed move
 	-- from the usual values in Config.Guardian to these.
 	WakeAfterTreesMaxAtEnd = 3,
+	-- Everyone's trees add to one count, so in a race the hidden number is made slightly
+	-- larger: it is multiplied by this and rounded up (1.5 turns 1-10 into 2-15).
+	-- The guardian is meant to appear often; keep this small. 1 = same as solo.
+	WakeCountScale = 1.5,
 	GuardianSpeedAtEnd = 24, -- a sprinting player's top speed
 }
 
@@ -226,75 +230,114 @@ Config.Bots = {
 	TorchShadows = false, -- shadows from seven extra torches are costly to draw
 	-- Bots walk, sprint and tire by the same numbers as a player (Config.Player and
 	-- Config.Stamina). They sprint only when the guardian is after them.
-	-- A bot freezes for a time between these two when the guardian rises for it.
-	ReactionMin = 0.4,
-	ReactionMax = 1,
 	SwingInterval = 0.45, -- seconds between a bot's swings
-	-- A bot heads home once it carries a number of wood picked between these two.
-	BankAtMin = 50,
-	BankAtMax = 110,
-	-- It pauses for a time between these two after each tree, standing in for stamina.
-	RestMin = 2,
-	RestMax = 4.5,
 
-	-- Hat is "Beanie", "Beard" or "Both"; Trim is the colour of the beanie or beard.
+	-- Each bot always plays one of these ways. Careful bots stay near camp, bank small
+	-- loads and are rarely caught. Greedy bots go deep for the big trees and carry a lot:
+	-- they score the most when they live, and are caught the most.
+	--   BankAt     heads home once it carries a number of wood picked between these two
+	--   Rest       pauses for a time between these two after each tree
+	--   Reaction   freezes for a time between these two when the guardian rises for it
+	--   Reserve    stops chopping to catch its breath below this much stamina (out of 100),
+	--              so it has some left to sprint with
+	--   Push       looks for its next tree this far farther out than where it stands
+	--   MaxDepth   ...until it is this far from camp, after which it works where it is
+	Styles = {
+		Careful = {
+			BankAt = { 45, 80 },
+			Rest = { 1.8, 3.2 },
+			Reaction = { 0.3, 0.6 },
+			Reserve = 55,
+			Push = 0,
+			MaxDepth = 110,
+		},
+		Steady = {
+			BankAt = { 80, 130 },
+			Rest = { 1.3, 2.6 },
+			Reaction = { 0.4, 0.9 },
+			Reserve = 40,
+			Push = 25,
+			MaxDepth = 170,
+		},
+		Greedy = {
+			BankAt = { 130, 210 },
+			Rest = { 0.8, 1.8 },
+			Reaction = { 0.6, 1.1 },
+			Reserve = 25,
+			Push = 55,
+			MaxDepth = 250,
+		},
+	},
+
+	-- Style is one of the Styles above. Hat is "Beanie", "Beard" or "Both"; Trim is the colour
+	-- of the beanie or beard.
 	Roster = {
 		{
 			Name = "Big Hank",
+			Style = "Greedy",
 			Flannel = Color3.fromRGB(176, 40, 40),
 			Hat = "Beard",
 			Trim = Color3.fromRGB(70, 44, 28),
 		},
 		{
 			Name = "Old Maple",
+			Style = "Careful",
 			Flannel = Color3.fromRGB(196, 110, 36),
 			Hat = "Beard",
 			Trim = Color3.fromRGB(214, 214, 210),
 		},
 		{
 			Name = "Sawdust Sam",
+			Style = "Steady",
 			Flannel = Color3.fromRGB(206, 176, 70),
 			Hat = "Beanie",
 			Trim = Color3.fromRGB(60, 60, 70),
 		},
 		{
 			Name = "Birch Betty",
+			Style = "Careful",
 			Flannel = Color3.fromRGB(60, 120, 170),
 			Hat = "Beanie",
 			Trim = Color3.fromRGB(230, 226, 214),
 		},
 		{
 			Name = "Knotty Pete",
+			Style = "Steady",
 			Flannel = Color3.fromRGB(58, 122, 72),
 			Hat = "Both",
 			Trim = Color3.fromRGB(150, 40, 40),
 		},
 		{
 			Name = "Granny Oak",
+			Style = "Careful",
 			Flannel = Color3.fromRGB(128, 84, 150),
 			Hat = "Beanie",
 			Trim = Color3.fromRGB(200, 200, 204),
 		},
 		{
 			Name = "Whittlin' Joe",
+			Style = "Steady",
 			Flannel = Color3.fromRGB(40, 60, 110),
 			Hat = "Beard",
 			Trim = Color3.fromRGB(150, 96, 50),
 		},
 		{
 			Name = "Splinter",
+			Style = "Greedy",
 			Flannel = Color3.fromRGB(70, 70, 76),
 			Hat = "Beanie",
 			Trim = Color3.fromRGB(210, 120, 40),
 		},
 		{
 			Name = "Timber Tess",
+			Style = "Greedy",
 			Flannel = Color3.fromRGB(190, 70, 110),
 			Hat = "Beanie",
 			Trim = Color3.fromRGB(46, 84, 50),
 		},
 		{
 			Name = "Mossy Mae",
+			Style = "Steady",
 			Flannel = Color3.fromRGB(96, 140, 60),
 			Hat = "Beanie",
 			Trim = Color3.fromRGB(110, 78, 52),

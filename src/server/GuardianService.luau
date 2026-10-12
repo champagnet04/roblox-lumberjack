@@ -75,9 +75,14 @@ local function newTrip(owner: Instance | string)
 		local atEnd = Config.Race.WakeAfterTreesMaxAtEnd
 		max = math.round(max + (atEnd - max) * raceProgress())
 	end
+	local wakesAt = rng:NextInteger(cfg.WakeAfterTreesMin, math.max(max, cfg.WakeAfterTreesMin))
+	if IS_RACE then
+		-- One count is shared by every racer, so it is made slightly larger.
+		wakesAt = math.ceil(wakesAt * Config.Race.WakeCountScale)
+	end
 	trips[owner] = {
 		Felled = 0,
-		WakesAt = rng:NextInteger(cfg.WakeAfterTreesMin, math.max(max, cfg.WakeAfterTreesMin)),
+		WakesAt = wakesAt,
 	}
 end
 
