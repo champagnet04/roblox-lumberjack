@@ -12,7 +12,7 @@ The plan for how the camp grows, agreed with the owner on 2026-10-08. Only the l
 - Finishing a stage makes wood worth more when it is banked, and unlocks one other perk. The multiplier is applied at banking, so what the player carries, the carry slowdown and the chase do not change.
 - Other builds are visual only.
 - The chase must stay tricky but not impossible. Every perk has to pass that test. Carrying more wood was left out for this reason.
-- What is replaced: the tent replaces the lean-to, the cot replaces the bedroll. From the hut on nothing is removed. The tent stays as storage and the hut as the workshop.
+- What is replaced: the tent replaces the lean-to, the cot replaces the bedroll, and the hut replaces the tent (owner, 2026-10-12; the earlier plan had the tent staying). Whether the cabin replaces the hut is to be decided when the cabin is planned.
 - The clearing grows as the camp does, and the forest grows in proportion with it. Sizes per stage are not yet decided (see "Still open").
 
 ## Summary
@@ -50,7 +50,7 @@ Starts rough. Fire in the centre, stools on the spawn side, lean-to on the far s
 
 ## Stage 2: Tent camp
 
-Built on 2026-10-12, awaiting the owner's review of how it looks. Decided by quiz that day: weathered cream canvas with patches; the pot replaces the meat on the spit; fish on the drying rack; a red flannel shirt, socks and a blanket on the clothesline; the tent on the lean-to's spot with the cot inside and the crate beside it, the lantern post on the spawn side, and the rack and clothesline on the two open sides of the clearing.
+Built on 2026-10-12. The owner saw the finished stage in Studio the same day and approved it ("I like this"). Decided by quiz that day: weathered cream canvas with patches; the pot replaces the meat on the spit; fish on the drying rack; a red flannel shirt, socks and a blanket on the clothesline; the tent on the lean-to's spot with the cot inside and the crate beside it, the lantern post on the spawn side, and the rack and clothesline on the two open sides of the clearing.
 
 A canvas A-frame tent: two upright poles, a ridge pole, canvas pegged to the ground on both sides. It goes up in the middle of the stage.
 
@@ -69,6 +69,8 @@ A canvas A-frame tent: two upright poles, a ridge pole, canvas pegged to the gro
 New materials: iron pot, chain, old lantern, canvas, tent peg, plank, nails.
 
 ## Stage 3: Hut
+
+Built on 2026-10-12, awaiting the owner's review. Changed from the plan below by the owner that day: **the hut replaces the tent** (the plan had the tent staying beside it as storage). The stone footing takes the tent down; the cot stays and ends up inside the hut, against a side wall; the supply crate stays beside it. Also decided: the door stands open and the player can walk in; the roof is two slopes of bark meeting at a ridge; the chopping block and sawhorse stand by the woodpile, the picnic table between the fire and the clothesline, the rain barrel at the hut's front corner, and the stone path from the fire to the door.
 
 A small one-room log hut on a stone footing with a bark roof and a plank door. The tent stays beside it as storage.
 

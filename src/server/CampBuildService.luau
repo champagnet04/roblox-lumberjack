@@ -103,7 +103,8 @@ local function tryBuild(player: Player)
 	local done = PlayerState.getBuildsDone(player)
 	local worth = Camp.woodWorth(done)
 	if worth > worthBefore then
-		local _, _, _, stageName = Camp.stageOf(done)
+		local stageIndex, _, _, stageName = Camp.stageOf(done)
+		local perk = (Config.Camp.Stages[stageIndex] :: any).Perk
 		task.delay(3, function()
 			if player.Parent then
 				Remotes.Notice:FireClient(
@@ -112,6 +113,16 @@ local function tryBuild(player: Player)
 				)
 			end
 		end)
+		if perk == "BetterAxe" then
+			task.delay(7, function()
+				if player.Parent then
+					Remotes.Notice:FireClient(
+						player,
+						`BETTER AXE! TREES FALL IN {Config.Tree.BetterAxeSwings} SWINGS`
+					)
+				end
+			end)
+		end
 	end
 end
 
@@ -135,10 +146,18 @@ local function syncCamp(player: Player)
 		end
 	end
 
+	-- The builds standing now. Some pieces sit differently depending on what else is there.
+	local standing: { [string]: boolean } = {}
+	for index, build in Config.Camp.Builds do
+		if index <= done and not replaced[build.Id] then
+			standing[build.Id] = true
+		end
+	end
+
 	for index, build in Config.Camp.Builds do
 		if index <= done then
 			if not replaced[build.Id] then
-				local model = CampModels.build(build.Id, buildsFolder)
+				local model = CampModels.build(build.Id, buildsFolder, standing)
 				local piece = stripped[build.Id]
 				if piece then
 					for _, item in model:GetDescendants() do
@@ -149,7 +168,7 @@ local function syncCamp(player: Player)
 				end
 			end
 		elseif index == done + 1 then
-			local ghost = CampModels.build(build.Id, buildsFolder)
+			local ghost = CampModels.build(build.Id, buildsFolder, standing)
 			CampModels.makeGhost(ghost)
 
 			local firstPart = ghost:FindFirstChildWhichIsA("BasePart")

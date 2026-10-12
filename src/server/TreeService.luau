@@ -6,6 +6,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
+local Camp = require(ReplicatedStorage.Shared.Camp)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Forest = require(ReplicatedStorage.Shared.Forest)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
@@ -75,9 +76,13 @@ local function fell(tree: Model, state: TreeState, direction: Vector3)
 end
 
 -- Takes one swing off a tree's health. `offset` is the flat line from the chopper to the tree.
+-- `damage` is how much health the swing takes; 1 unless the chopper has a better axe.
 -- Returns the wood gained: 0 unless this hit felled the tree.
-local function landHit(tree: Model, state: TreeState, offset: Vector3): number
-	state.Health -= 1
+local function landHit(tree: Model, state: TreeState, offset: Vector3, damage: number): number
+	state.Health -= damage
+	if state.Health < 0.01 then
+		state.Health = 0 -- a better axe takes fractions, which do not always add up exactly
+	end
 	tree:SetAttribute("Health", state.Health)
 	if state.Health > 0 then
 		return 0
@@ -126,7 +131,12 @@ local function onChopRequest(player: Player, tree: any)
 	end
 	lastSwing[player] = now
 
-	local wood = landHit(tree, state, offset)
+	-- The better axe fells a tree in fewer swings. Not in a race, where everyone is equal.
+	local damage = 1
+	if not IS_RACE and Camp.hasPerk(PlayerState.getBuildsDone(player), "BetterAxe") then
+		damage = Config.Tree.SwingsToFell / Config.Tree.BetterAxeSwings
+	end
+	local wood = landHit(tree, state, offset, damage)
 	if wood > 0 then
 		PlayerState.addHaul(player, wood)
 		PlayerState.recordTreeDistance(player, (state.Base * FLAT).Magnitude)
@@ -213,7 +223,7 @@ function TreeService.botHit(tree: Instance, from: Vector3): number
 	if offset.Magnitude > Config.Tree.ChopRange + state.TrunkRadius then
 		return 0
 	end
-	return landHit(tree :: Model, state, offset)
+	return landHit(tree :: Model, state, offset, 1)
 end
 
 -- A swing is drawn by each player's own game, so other players would not see it. This passes

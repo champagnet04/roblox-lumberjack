@@ -39,6 +39,9 @@ local FLANNEL = Color3.fromRGB(176, 40, 40)
 local FLANNEL_DARK = Color3.fromRGB(104, 22, 26)
 local SOCK = Color3.fromRGB(206, 204, 196)
 local FISH = Color3.fromRGB(150, 160, 166)
+local BARK = Color3.fromRGB(74, 54, 40)
+local BARK_LIGHT = Color3.fromRGB(92, 68, 48)
+local WATER = Color3.fromRGB(40, 62, 78)
 
 local KIT_MODEL = "CampKit"
 
@@ -294,7 +297,10 @@ local function leanToPoint(x: number, y: number, z: number): Vector3
 	return LEAN_TO:PointToWorldSpace(Vector3.new(x, y, z))
 end
 
-local builders: { [string]: (model: Model) -> () } = {}
+-- `standing` says which other builds are there, by Id, for the few pieces that sit
+-- differently depending on what is around them.
+type Standing = { [string]: boolean }
+local builders: { [string]: (model: Model, standing: Standing) -> () } = {}
 
 -- A ring of rough rocks around a small stack of burning logs.
 function builders.FirePit(model: Model)
@@ -799,8 +805,10 @@ function builders.TentPegs(model: Model)
 end
 
 -- A low canvas bed on a pole frame, inside the tent. (The bedroll goes when this is built.)
-function builders.Cot(model: Model)
-	local x = -1.5 -- to one side, leaving room to walk in
+function builders.Cot(model: Model, standing: Standing)
+	-- In the tent it sits to one side, leaving room to walk in. Once the hut's walls are up
+	-- there is more room, and it goes against the side wall, clear of the doorway.
+	local x = if standing.LogWalls then -2.9 else -1.5
 	local height = 1.25
 	local halfLength = 2.9
 	local halfWidth = 1.1
@@ -858,7 +866,7 @@ end
 -- A plank crate with corner battens, a lid left ajar and a rope handle at each end.
 function builders.SupplyCrate(model: Model)
 	local size = Vector3.new(3.2, 2.1, 2.3)
-	local crate = CFrame.new(-11.5, 0, 8.4) * turn(20)
+	local crate = CFrame.new(-15.5, 0, 8.3) * turn(8)
 
 	makePart({
 		Name = "Crate",
@@ -894,7 +902,7 @@ end
 
 -- Two forked sticks and a pole, with a row of fish hung up to dry.
 function builders.DryingRack(model: Model)
-	local centre = Vector3.new(3, 0, -14)
+	local centre = Vector3.new(8.5, 0, -12.5)
 	local half = 3.3
 	for _, side in { -1, 1 } do
 		local origin = CFrame.new(centre + Vector3.new(side * half, -FORK_BURIED, 0))
@@ -944,7 +952,7 @@ end
 
 -- A sagging rope between two poles, with a flannel shirt, a pair of socks and a blanket.
 function builders.Clothesline(model: Model)
-	local centre = Vector3.new(3, 0, 14)
+	local centre = Vector3.new(3.5, 0, 16)
 	local half = 4.6
 	local high, low = 5.8, 5.3
 
@@ -1009,6 +1017,489 @@ function builders.Clothesline(model: Model)
 	end
 end
 
+-- Stage 3: the hut. See CAMP_PROGRESSION.md.
+
+-- The hut stands where the tent stood, its door toward the fire. The tent and the hut share
+-- one space, so the cot ends up inside. X runs across the front, -Z is the front.
+local HUT = TENT
+local HUT_HALF_WIDTH = 5
+local HUT_HALF_DEPTH = 4
+local HUT_FLOOR = 0.3 -- top of the stone floor
+local LOG_DIAMETER = 1.15
+local LOG_COURSES = 6
+local COURSE_STEP = 1.05
+local DOOR_HALF_WIDTH = 1.45
+local WALL_TOP = HUT_FLOOR + 0.6 + LOG_COURSES * COURSE_STEP
+local ROOF_PEAK = WALL_TOP + 3
+
+local function hutPoint(x: number, y: number, z: number): Vector3
+	return HUT:PointToWorldSpace(Vector3.new(x, y, z))
+end
+
+-- A round log from one point to another (must not be exactly vertical), with a sawn face
+-- at each end.
+local function beam(from: Vector3, to: Vector3, diameter: number, parent: Instance, bark: Color3?)
+	local length = (to - from).Magnitude
+	local along = CFrame.lookAt((from + to) / 2, to) * CFrame.Angles(0, math.rad(90), 0)
+	local thickness = diameter / KIT.Log.Size.Y
+	local scale = Vector3.new(length / KIT.Log.Size.X, thickness, thickness)
+	local part = kitPart("Log", along, scale, { Color = bark or WOOD }, parent)
+		or pole(from, to, diameter, parent, bark or WOOD)
+	part.Name = "WallLog"
+	for _, side in { -1, 1 } do
+		slice(along * CFrame.new(side * length / 2, 0, 0), diameter * 0.8, PALE_WOOD, parent).Name =
+			"LogEnd"
+	end
+end
+
+-- A flat board with its middle at `at`.
+local function board(name: string, at: CFrame, size: Vector3, color: Color3, parent: Instance): Part
+	return makePart({
+		Name = name,
+		Size = size,
+		CFrame = at,
+		Material = Enum.Material.WoodPlanks,
+		Color = color,
+	}, parent)
+end
+
+-- A plank table with a bench down each side, between the fire and the clothesline.
+function builders.PicnicTable(model: Model)
+	local table_ = CFrame.new(1.5, 0, 9.5)
+	board("TableTop", table_ * CFrame.new(0, 2.9, 0), Vector3.new(6.4, 0.3, 2.6), CRATE, model)
+	for _, side in { -1, 1 } do
+		board(
+			"Bench",
+			table_ * CFrame.new(0, 1.7, side * 2.25),
+			Vector3.new(6.4, 0.25, 1),
+			CRATE,
+			model
+		)
+	end
+	-- A pair of splayed legs at each end, joined by a rail that also carries the benches.
+	for _, endSide in { -1, 1 } do
+		local x = endSide * 2.4
+		for _, side in { -1, 1 } do
+			pole(
+				table_:PointToWorldSpace(Vector3.new(x, 2.8, side * 0.7)),
+				table_:PointToWorldSpace(Vector3.new(x, -0.1, side * 2.3)),
+				0.34,
+				model,
+				DARK_WOOD
+			).Name =
+				"TableLeg"
+		end
+		pole(
+			table_:PointToWorldSpace(Vector3.new(x, 1.55, -2.7)),
+			table_:PointToWorldSpace(Vector3.new(x, 1.56, 2.7)),
+			0.3,
+			model,
+			DARK_WOOD
+		).Name =
+			"TableRail"
+	end
+end
+
+-- A wide stump with an axe stuck in it and split logs lying round it, by the woodpile.
+function builders.ChoppingBlock(model: Model)
+	local block = CFrame.new(-6.5, 0, -11.5)
+	stump(block, Vector3.new(1.25, 0.7, 1.25), model)
+	local top = KIT.Stump.Size.Y * 0.7
+
+	-- The axe: its head buried in the block, the handle leaning out.
+	local headAt = block:PointToWorldSpace(Vector3.new(0.2, top + 0.25, 0))
+	local handleEnd = block:PointToWorldSpace(Vector3.new(-1.5, top + 2.5, 0.4))
+	pole(headAt, handleEnd, 0.22, model, PALE_WOOD).Name = "AxeHandle"
+	makePart({
+		Name = "AxeHead",
+		Size = Vector3.new(0.9, 0.7, 0.22),
+		CFrame = CFrame.lookAt(headAt, handleEnd) * CFrame.new(0, -0.1, 0.1),
+		Material = Enum.Material.Metal,
+		Color = FLINT,
+	}, model)
+
+	-- Two short split logs, laid together on one side.
+	for _, place in { { 2.3, 0.5, 12 }, { 2.5, -0.5, 24 } } do
+		local origin = block * CFrame.new(place[1], 0.24, place[2]) * turn(place[3])
+		log(origin, 0.32, WOOD, PALE_WOOD, model)
+	end
+end
+
+-- A sawhorse with a log across it, and a stack of sawn planks a few steps away.
+function builders.Sawhorse(model: Model)
+	local horse = CFrame.new(3.8, 0, -16.6) * turn(6)
+	local height = 2.5
+	for _, endSide in { -1, 1 } do
+		for _, side in { -1, 1 } do
+			pole(
+				horse:PointToWorldSpace(Vector3.new(endSide * 1.5, height + 0.5, -side * 0.35)),
+				horse:PointToWorldSpace(Vector3.new(endSide * 1.5, -0.1, side * 1.3)),
+				0.3,
+				model,
+				WOOD
+			).Name =
+				"SawhorseLeg"
+		end
+	end
+	pole(
+		horse:PointToWorldSpace(Vector3.new(-2.1, height, 0)),
+		horse:PointToWorldSpace(Vector3.new(2.1, height + 0.01, 0)),
+		0.36,
+		model,
+		WOOD
+	).Name =
+		"SawhorseBeam"
+
+	log(horse * CFrame.new(0.3, height + 0.75, 0), 0.75, WOOD, PALE_WOOD, model)
+	-- Planks stacked on two bearers, none quite square to the next.
+	local stack = CFrame.new(-2.4, 0, -16.8) * turn(4)
+	for _, x in { -1.6, 1.6 } do
+		board("Bearer", stack * CFrame.new(x, 0.2, 0), Vector3.new(0.4, 0.4, 2.2), DARK_WOOD, model)
+	end
+	local rng = Random.new(21)
+	for i = 1, 5 do
+		local at = stack
+			* CFrame.new(
+				rng:NextNumber(-0.2, 0.2),
+				0.4 + i * 0.2 - 0.1,
+				rng:NextNumber(-0.25, 0.25)
+			)
+			* turn(rng:NextNumber(-4, 4))
+		board("Plank", at, Vector3.new(5.2, 0.18, 0.8), PALE_WOOD, model)
+	end
+end
+
+-- A floor of packed stone edged with rough rocks, where the tent stood. (The tent is taken
+-- down when this is built; see Replaces in Config.)
+function builders.StoneFooting(model: Model)
+	makePart({
+		Name = "Floor",
+		Size = Vector3.new(HUT_HALF_WIDTH * 2 + 0.6, HUT_FLOOR + 0.3, HUT_HALF_DEPTH * 2 + 0.6),
+		CFrame = HUT * CFrame.new(0, HUT_FLOOR / 2 - 0.15, 0),
+		Material = Enum.Material.Slate,
+		Color = STONE:Lerp(Color3.new(0, 0, 0), 0.25),
+	}, model)
+
+	local rng = Random.new(13)
+	local rocks = { "RockA", "RockB", "RockC" }
+	local count = 0
+	local function edge(fromX: number, fromZ: number, toX: number, toZ: number)
+		local length = math.max(math.abs(toX - fromX), math.abs(toZ - fromZ))
+		local steps = math.floor(length / 1.5)
+		for i = 0, steps - 1 do
+			local t = (i + 0.5) / steps
+			local x, z = fromX + (toX - fromX) * t, fromZ + (toZ - fromZ) * t
+			count += 1
+			-- Leave the doorway clear: nothing to step over on the way in.
+			if z < 0 and math.abs(z) > HUT_HALF_DEPTH and math.abs(x) < DOOR_HALF_WIDTH + 0.8 then
+				continue
+			end
+			rock(
+				rocks[count % 3 + 1],
+				HUT * CFrame.new(x, -0.1, z) * turn(rng:NextNumber(0, 360)),
+				rng:NextNumber(0.62, 0.8),
+				model
+			)
+		end
+	end
+	local w, d = HUT_HALF_WIDTH + 0.4, HUT_HALF_DEPTH + 0.4
+	edge(-w, -d, w, -d)
+	edge(w, -d, w, d)
+	edge(w, d, -w, d)
+	edge(-w, d, -w, -d)
+end
+
+-- Logs stacked six high on the footing, crossing at the corners, with a doorway in the
+-- front wall.
+function builders.LogWalls(model: Model)
+	local w, d = HUT_HALF_WIDTH, HUT_HALF_DEPTH
+	local over = 0.7 -- how far each log runs past the corner
+	for course = 0, LOG_COURSES - 1 do
+		local y = HUT_FLOOR + 0.6 + course * COURSE_STEP
+		-- Side walls on the course, front and back half a log higher, so they lock together.
+		for _, side in { -1, 1 } do
+			beam(
+				hutPoint(side * w, y, -d - over),
+				hutPoint(side * w, y + 0.01, d + over),
+				LOG_DIAMETER,
+				model
+			)
+		end
+		local crossY = y + COURSE_STEP / 2
+		beam(
+			hutPoint(-w - over, crossY, d),
+			hutPoint(w + over, crossY + 0.01, d),
+			LOG_DIAMETER,
+			model
+		)
+		if course == LOG_COURSES - 1 then
+			-- The lintel: one log right across, over the doorway.
+			beam(
+				hutPoint(-w - over, crossY, -d),
+				hutPoint(w + over, crossY + 0.01, -d),
+				LOG_DIAMETER,
+				model
+			)
+		else
+			for _, side in { -1, 1 } do
+				beam(
+					hutPoint(side * (w + over), crossY, -d),
+					hutPoint(side * DOOR_HALF_WIDTH, crossY + 0.01, -d),
+					LOG_DIAMETER,
+					model
+				)
+			end
+		end
+	end
+	-- An upright each side of the doorway, to tidy the cut ends.
+	for _, side in { -1, 1 } do
+		board(
+			"DoorPost",
+			HUT * CFrame.new(side * (DOOR_HALF_WIDTH + 0.05), (HUT_FLOOR + WALL_TOP) / 2, -d),
+			Vector3.new(0.35, WALL_TOP - HUT_FLOOR, LOG_DIAMETER + 0.1),
+			DARK_WOOD,
+			model
+		)
+	end
+end
+
+-- Two slopes of overlapping bark sheets meeting at a ridge that runs front to back, with a
+-- boarded triangle closing each end.
+function builders.BarkRoof(model: Model)
+	local top = Vector3.new(0, ROOF_PEAK, 0)
+	local eaveX = HUT_HALF_WIDTH + 1.3
+	local halfLength = HUT_HALF_DEPTH + 1.4
+	local sheets = 4
+	local sheetLength = halfLength * 2 / sheets
+	local along = Vector3.new(0, 0, 1)
+	local rng = Random.new(17)
+
+	for _, side in { -1, 1 } do
+		local foot = Vector3.new(side * eaveX, WALL_TOP - 0.9, 0)
+		local slope = (foot - top).Unit
+		local slopeLength = (foot - top).Magnitude
+		local out = along:Cross(slope) * side -- pointing up and away from the roof
+		for i = 1, sheets do
+			local z = (i - (sheets + 1) / 2) * sheetLength
+			local run = slopeLength + rng:NextNumber(-0.1, 0.5)
+			local middle = top + slope * (run / 2) + along * z + out * ((i % 2) * 0.12)
+			makePart({
+				Name = "BarkSheet",
+				Size = Vector3.new(run, 0.28, sheetLength + 0.25),
+				CFrame = HUT * CFrame.fromMatrix(middle, slope, along:Cross(slope), along),
+				Color = if (i + side) % 2 == 0 then BARK else BARK_LIGHT,
+			}, model)
+		end
+
+		-- Half of each end's triangle, from the middle out to this side.
+		for _, z in { -HUT_HALF_DEPTH, HUT_HALF_DEPTH } do
+			local gable = Instance.new("WedgePart")
+			gable.Name = "Gable"
+			gable.Anchored = true
+			gable.Size = Vector3.new(0.4, ROOF_PEAK - WALL_TOP + 0.3, HUT_HALF_WIDTH + 0.3)
+			gable.CFrame = HUT
+				* CFrame.fromMatrix(
+					Vector3.new(
+						side * (HUT_HALF_WIDTH + 0.3) / 2,
+						(ROOF_PEAK + WALL_TOP) / 2 - 0.25,
+						z
+					),
+					Vector3.new(0, 0, side),
+					Vector3.new(0, 1, 0),
+					Vector3.new(-side, 0, 0)
+				)
+			gable.Material = Enum.Material.WoodPlanks
+			gable.Color = WOOD
+			gable.TopSurface = Enum.SurfaceType.Smooth
+			gable.BottomSurface = Enum.SurfaceType.Smooth
+			gable.Parent = model
+		end
+	end
+
+	crookedPole(
+		hutPoint(0, ROOF_PEAK + 0.1, -halfLength - 0.3),
+		hutPoint(0, ROOF_PEAK + 0.14, halfLength + 0.3),
+		0.45,
+		model,
+		DARK_WOOD
+	).Name =
+		"RoofRidge"
+end
+
+-- A plank door on two iron hinges, standing open.
+function builders.Door(model: Model)
+	local height = WALL_TOP - HUT_FLOOR - 1.2
+	local width = DOOR_HALF_WIDTH * 2 - 0.2
+	-- Hinged on one side of the doorway and swung out towards the fire.
+	local hinge = HUT
+		* CFrame.new(DOOR_HALF_WIDTH - 0.1, HUT_FLOOR + height / 2 + 0.1, -HUT_HALF_DEPTH - 0.7)
+		* turn(72)
+	local door = hinge * CFrame.new(width / 2, 0, 0)
+
+	board("Door", door, Vector3.new(width, height, 0.22), CRATE, model)
+	for _, y in { -height * 0.3, height * 0.3 } do
+		board(
+			"DoorBrace",
+			door * CFrame.new(0, y, 0.14),
+			Vector3.new(width - 0.1, 0.4, 0.1),
+			DARK_WOOD,
+			model
+		).CanCollide =
+			false
+		makePart({
+			Name = "Hinge",
+			Size = Vector3.new(0.8, 0.22, 0.34),
+			CFrame = hinge * CFrame.new(0.3, y, 0),
+			Material = Enum.Material.Metal,
+			Color = IRON,
+			CanCollide = false,
+		}, model)
+	end
+	makePart({
+		Name = "DoorHandle",
+		Size = Vector3.new(0.2, 0.7, 0.3),
+		CFrame = door * CFrame.new(width / 2 - 0.35, 0, 0.2),
+		Material = Enum.Material.Metal,
+		Color = IRON,
+		CanCollide = false,
+	}, model)
+end
+
+-- A work bench against the inside of the hut's side wall, with tools hung on a board above.
+function builders.Workbench(model: Model)
+	local inner = HUT_HALF_WIDTH - LOG_DIAMETER / 2 -- the inside face of the side wall
+	local bench = HUT * CFrame.new(inner - 1.0, HUT_FLOOR, 0)
+	local length = 5
+
+	board("BenchTop", bench * CFrame.new(0, 2.8, 0), Vector3.new(1.8, 0.28, length), CRATE, model)
+	board(
+		"BenchShelf",
+		bench * CFrame.new(0, 1, 0),
+		Vector3.new(1.5, 0.18, length - 0.5),
+		CRATE,
+		model
+	)
+	for _, x in { -0.7, 0.7 } do
+		for _, z in { -length / 2 + 0.3, length / 2 - 0.3 } do
+			board(
+				"BenchLeg",
+				bench * CFrame.new(x, 1.4, z),
+				Vector3.new(0.3, 2.8, 0.3),
+				DARK_WOOD,
+				model
+			)
+		end
+	end
+	-- Work in progress on the bench.
+	board(
+		"Offcut",
+		bench * CFrame.new(-0.1, 3.03, 1.1) * turn(12),
+		Vector3.new(0.7, 0.18, 2.2),
+		PALE_WOOD,
+		model
+	)
+	board(
+		"Plane",
+		bench * CFrame.new(0.2, 3.1, -1.2) * turn(-20),
+		Vector3.new(0.45, 0.35, 1.1),
+		DARK_WOOD,
+		model
+	)
+
+	-- The tool board, flat against the wall, and what hangs on it.
+	local rack = HUT * CFrame.new(inner - 0.12, HUT_FLOOR + 4.6, 0)
+	board("ToolBoard", rack, Vector3.new(0.16, 1.9, length - 0.4), DARK_WOOD, model)
+	local function tool(z: number, handleLength: number, headSize: Vector3, headColor: Color3)
+		-- Hung head up: a handle, and a head across the top of it.
+		makePart({
+			Name = "ToolHandle",
+			Size = Vector3.new(0.16, handleLength, 0.16),
+			CFrame = rack * CFrame.new(-0.16, 0.3 - handleLength / 2, z),
+			Color = PALE_WOOD,
+			CanCollide = false,
+		}, model)
+		makePart({
+			Name = "ToolHead",
+			Size = headSize,
+			CFrame = rack * CFrame.new(-0.16, 0.4, z),
+			Material = Enum.Material.Metal,
+			Color = headColor,
+			CanCollide = false,
+		}, model)
+	end
+	tool(-1.6, 1.3, Vector3.new(0.3, 0.34, 0.8), IRON) -- hammer
+	tool(-0.5, 1.5, Vector3.new(0.14, 0.6, 0.9), FLINT) -- hatchet
+	tool(0.6, 1.0, Vector3.new(0.14, 0.3, 0.3), IRON) -- chisel
+	makePart({
+		Name = "HandSaw",
+		Size = Vector3.new(0.06, 0.7, 1.5),
+		CFrame = rack * CFrame.new(-0.14, -0.1, 1.6) * CFrame.Angles(math.rad(8), 0, 0),
+		Material = Enum.Material.Metal,
+		Color = RUST,
+		CanCollide = false,
+	}, model)
+end
+
+-- A barrel at the hut's front corner, hooped with iron and full of rainwater.
+function builders.RainBarrel(model: Model)
+	local at = HUT * CFrame.new(HUT_HALF_WIDTH + 1.9, 0, -HUT_HALF_DEPTH - 0.4)
+	local height, diameter = 3.1, 2.5
+	local upright = CFrame.Angles(0, 0, math.rad(90))
+	makePart({
+		Name = "Barrel",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(height, diameter, diameter),
+		CFrame = at * CFrame.new(0, height / 2, 0) * upright,
+		Material = Enum.Material.WoodPlanks,
+		Color = CRATE,
+	}, model)
+	for _, y in { 0.55, height / 2, height - 0.55 } do
+		makePart({
+			Name = "Hoop",
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.18, diameter + 0.12, diameter + 0.12),
+			CFrame = at * CFrame.new(0, y, 0) * upright,
+			Material = Enum.Material.Metal,
+			Color = IRON,
+			CanCollide = false,
+		}, model)
+	end
+	makePart({
+		Name = "Water",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.06, diameter - 0.3, diameter - 0.3),
+		CFrame = at * CFrame.new(0, height + 0.02, 0) * upright,
+		Material = Enum.Material.Glass,
+		Color = WATER,
+		CanCollide = false,
+	}, model)
+end
+
+-- Flat stones set in the dirt from the fire to the hut's door.
+function builders.StonePath(model: Model)
+	local rng = Random.new(29)
+	-- The hut's own Z axis runs through the fire, so the path is a line of Z values: from
+	-- just clear of the fire's ring of rocks to just outside the door.
+	local start = HUT:PointToObjectSpace(Vector3.new(-3.9, 0, 0)).Z
+	local to = -HUT_HALF_DEPTH - 1.4
+	local steps = 6
+	for i = 0, steps - 1 do
+		local z = start + (to - start) * (i / (steps - 1))
+		local diameter = rng:NextNumber(1.7, 2.3)
+		makePart({
+			Name = "PathStone",
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.3, diameter, diameter * rng:NextNumber(0.75, 0.95)),
+			CFrame = HUT * CFrame.new(rng:NextNumber(-0.45, 0.45), 0, z) * turn(
+				rng:NextNumber(0, 360)
+			) * CFrame.Angles(0, 0, math.rad(90)),
+			Material = Enum.Material.Slate,
+			Color = STONE,
+			CanCollide = false,
+		}, model)
+	end
+end
+
 -- Where each build stands, for measuring the ground under it.
 local BUILD_SPOTS: { [string]: Vector3 } = {
 	FirePit = Vector3.new(0, 0, 0),
@@ -1024,9 +1515,19 @@ local BUILD_SPOTS: { [string]: Vector3 } = {
 	TentCanvas = Vector3.new(-14, 0, 0),
 	TentPegs = Vector3.new(-14, 0, 0),
 	Cot = Vector3.new(-14, 0, 0),
-	SupplyCrate = Vector3.new(-11.5, 0, 8.4),
-	DryingRack = Vector3.new(3, 0, -14),
-	Clothesline = Vector3.new(3, 0, 14),
+	SupplyCrate = Vector3.new(-15.5, 0, 8.3),
+	DryingRack = Vector3.new(8.5, 0, -12.5),
+	Clothesline = Vector3.new(3.5, 0, 16),
+	PicnicTable = Vector3.new(1.5, 0, 9.5),
+	ChoppingBlock = Vector3.new(-6.5, 0, -11.5),
+	Sawhorse = Vector3.new(3.8, 0, -16.6),
+	StoneFooting = Vector3.new(-14, 0, 0),
+	LogWalls = Vector3.new(-14, 0, 0),
+	BarkRoof = Vector3.new(-14, 0, 0),
+	Door = Vector3.new(-14, 0, 0),
+	Workbench = Vector3.new(-14, 0, 0),
+	RainBarrel = Vector3.new(-14, 0, 0),
+	StonePath = Vector3.new(-7, 0, 0),
 }
 local reportedGround: { [string]: boolean } = {}
 
@@ -1050,12 +1551,13 @@ function CampModels.groundIsReady(): boolean
 end
 
 -- Builds one camp structure, in place, by its Id from Config.Camp.Builds.
-function CampModels.build(id: string, parent: Instance): Model
+-- `standing` is the set of builds standing in the camp (by Id); leave it out for none.
+function CampModels.build(id: string, parent: Instance, standing: { [string]: boolean }?): Model
 	local model = Instance.new("Model")
 	model.Name = id
 	local builder = builders[id]
 	if builder then
-		builder(model)
+		builder(model, standing or {})
 		-- The builders work from Y = 0; lift the result onto the real ground.
 		local ground = groundHeightAt(BUILD_SPOTS[id] or Vector3.zero)
 		if not reportedGround[id] then
@@ -1304,6 +1806,120 @@ function materialBuilders.Nails(model: Model, at: Vector3)
 		local foot = at + Vector3.new((i - 2.5) * 0.18, 0.4, (i % 2 - 0.5) * 0.2)
 		local nail = pole(foot, foot + Vector3.new(0.04, 0.42, 0.02), 0.07, model, RUST)
 		nail.Material = Enum.Material.Metal
+	end
+end
+
+-- The hut's materials.
+
+-- Two flat stones, one on the other.
+function materialBuilders.FlatStone(model: Model, at: Vector3)
+	for i, size in { 1.5, 1.1 } do
+		makePart({
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.26, size, size * 0.85),
+			CFrame = CFrame.new(at + Vector3.new((i - 1) * 0.15, 0.13 + (i - 1) * 0.27, 0)) * turn(
+				i * 40
+			) * CFrame.Angles(0, 0, math.rad(90)),
+			Material = Enum.Material.Slate,
+			Color = STONE,
+		}, model)
+	end
+end
+
+-- An axe head with no handle: a wedge of steel with a hole for the haft.
+function materialBuilders.AxeHead(model: Model, at: Vector3)
+	makePart({
+		Size = Vector3.new(1.3, 0.9, 0.28),
+		CFrame = CFrame.new(at + Vector3.new(0, 0.5, 0)) * CFrame.Angles(0, 0, math.rad(12)),
+		Material = Enum.Material.Metal,
+		Color = FLINT,
+	}, model)
+	makePart({
+		Size = Vector3.new(0.4, 0.95, 0.4),
+		CFrame = CFrame.new(at + Vector3.new(-0.55, 0.42, 0)) * CFrame.Angles(0, 0, math.rad(12)),
+		Material = Enum.Material.Metal,
+		Color = IRON,
+	}, model)
+end
+
+-- A curl of bark peeled from a tree.
+function materialBuilders.BarkSheet(model: Model, at: Vector3)
+	for _, side in { -1, 1 } do
+		makePart({
+			Size = Vector3.new(2.2, 0.14, 0.8),
+			CFrame = CFrame.new(at + Vector3.new(0, 0.32, side * 0.34))
+				* CFrame.Angles(math.rad(side * 28), 0, 0),
+			Color = if side == 1 then BARK else BARK_LIGHT,
+		}, model)
+	end
+end
+
+-- An iron door hinge: two leaves and the pin between them.
+function materialBuilders.Hinge(model: Model, at: Vector3)
+	for _, side in { -1, 1 } do
+		makePart({
+			Size = Vector3.new(0.7, 0.1, 0.9),
+			CFrame = CFrame.new(at + Vector3.new(side * 0.4, 0.2, 0))
+				* CFrame.Angles(0, 0, math.rad(side * -14)),
+			Material = Enum.Material.Metal,
+			Color = IRON,
+		}, model)
+	end
+	local pin =
+		pole(at + Vector3.new(0, 0.28, -0.5), at + Vector3.new(0.01, 0.28, 0.5), 0.2, model, RUST)
+	pin.Material = Enum.Material.Metal
+end
+
+-- A hammer and a chisel, crossed.
+function materialBuilders.OldTools(model: Model, at: Vector3)
+	pole(
+		at + Vector3.new(-0.9, 0.18, -0.3),
+		at + Vector3.new(0.7, 0.2, 0.3),
+		0.18,
+		model,
+		PALE_WOOD
+	)
+	makePart({
+		Size = Vector3.new(0.34, 0.36, 0.9),
+		CFrame = CFrame.new(at + Vector3.new(0.75, 0.22, 0.32)) * turn(-20),
+		Material = Enum.Material.Metal,
+		Color = IRON,
+	}, model)
+	pole(
+		at + Vector3.new(-0.7, 0.3, 0.45),
+		at + Vector3.new(0.1, 0.32, -0.25),
+		0.2,
+		model,
+		DARK_WOOD
+	)
+	local blade = pole(
+		at + Vector3.new(0.1, 0.32, -0.25),
+		at + Vector3.new(0.75, 0.33, -0.8),
+		0.12,
+		model,
+		FLINT
+	)
+	blade.Material = Enum.Material.Metal
+end
+
+-- A small barrel.
+function materialBuilders.Barrel(model: Model, at: Vector3)
+	local upright = CFrame.Angles(0, 0, math.rad(90))
+	makePart({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(1.3, 1.05, 1.05),
+		CFrame = CFrame.new(at + Vector3.new(0, 0.65, 0)) * upright,
+		Material = Enum.Material.WoodPlanks,
+		Color = CRATE,
+	}, model)
+	for _, y in { 0.3, 1.0 } do
+		makePart({
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.1, 1.12, 1.12),
+			CFrame = CFrame.new(at + Vector3.new(0, y, 0)) * upright,
+			Material = Enum.Material.Metal,
+			Color = IRON,
+		}, model)
 	end
 end
 

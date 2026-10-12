@@ -1350,3 +1350,72 @@ Effect on existing players: anyone who has finished the lean-to stage now banks 
 
 Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
 Not tested: nothing has been run. None of the nine models or seven materials has been seen. Most at risk: the tent canvas and its back wall (angled pieces placed by calculation), ropes and pegs, and whether anything sits inside something else.
+
+### 2026-10-12 — Log only: tent camp approved
+
+The owner ran the finished tent camp in Studio (test settings at 16 builds) and approved its look: "I like this, I think I can see everything." The screenshot showed the pot over the fire, the lantern post, the tent, the woodpile, the drying rack and the clothesline, and "WOOD WORTH x3" in the corner panel. No code changed. Next is stage 3, the hut.
+
+### 2026-10-12 — Camp stage 3: the hut, and the better axe
+
+Why: the owner approved the tent camp and answered the quiz for the hut, changing one earlier decision: the hut replaces the tent instead of standing beside it.
+
+Changed:
+
+- `src/shared/Config.luau` — ten new builds (17 to 26) with the agreed prices, 5,900 rising to 11,300, and materials. Six new materials: flat stone, axe head, bark sheet, hinge, old tools, barrel. A third stage, Hut, ending at build 26, with the perk "BetterAxe". `Tree.BetterAxeSwings` (4). The stone footing replaces the tent's poles, canvas and pegs.
+- `src/server/CampModels.luau` — models for the ten builds and six materials, from plain parts and the sculpted pieces already imported. A build's model can now be told which other builds are standing: the cot moves against the hut's side wall once the walls are up.
+  - Picnic table with two benches. Chopping block with an axe in it and split logs. Sawhorse with a log, a saw and a plank stack. Stone footing: a stone floor edged with rocks, with the doorway left clear. Log walls: six courses crossing at the corners, a doorway in the front. Bark roof: two slopes of overlapping sheets, boarded triangles at each end, a ridge pole. Door: planks on two hinges, standing open. Workbench with a shelf and a tool board inside. Rain barrel with hoops at the front corner. Stone path of six flat stones from the fire to the door.
+- `src/server/TreeService.luau` — with the better axe a swing takes a quarter of a tree's health instead of a fifth, so trees fall in four swings. Solo only; in a race every swing counts the same for everyone.
+- `src/server/CampBuildService.luau` — tells each model what else is standing; a message announces the better axe when the hut stage is finished.
+- `src/shared/Camp.luau` — can say whether a stage's perk has been earned.
+- `CAMP_PROGRESSION.md` — the hut's look, and the change that the hut replaces the tent.
+
+Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
+Not tested: nothing has been run. None of the models has been seen. Most at risk: the roof (angled sheets and end triangles placed by calculation, and how they meet the walls), the log walls at the corners and the doorway, walking in on a phone where there is no jump, and the camera inside.
+
+### 2026-10-12 — Hut stage approved; the wood-working corner spread out
+
+Why: the owner ran the finished hut stage and likes it, but found the wood piles crowded: the woodpile, chopping block, plank stack and sawhorse sat on top of one another. The owner suggested moving the fish rack forward to make room, and said things can be shifted round camp as more space is needed.
+
+Changed, in `src/server/CampModels.luau`:
+
+- Drying rack: moved forward, towards the spawn side, from (3, -14) to (8.5, -12.5).
+- Sawhorse: moved into the room the rack left, from (-7, -15) to (1, -15.5).
+- Plank stack: now off to the sawhorse's side, at about (-4.5, -16), instead of between the sawhorse and the chopping block.
+- Chopping block: moved a little clear of the woodpile, from (-8.5, -10.5) to (-6.5, -11.5).
+
+The woodpile has not moved. This also moves the drying rack for players still in the tent camp stage.
+
+Tested: `stylua`, `selene` and `rojo build` pass.
+Not tested: not run. The new positions are judged from one screenshot and the numbers.
+
+### 2026-10-12 — The other side of camp spread out too
+
+Why: the owner sent a second screenshot, of the clothesline side of camp, saying it looks a little shoved together. The rain barrel stood half inside the supply crate at the hut's front corner, with the picnic table and clothesline close behind.
+
+Cause: the crate was placed for the tent, which was narrower than the hut. The barrel was then put at the hut's front corner, on the same spot.
+
+Changed, in `src/server/CampModels.luau`:
+
+- Supply crate: moved back along the hut's side wall, from (-11.5, 8.4) to (-15.5, 8.3), leaving the front corner to the barrel.
+- Picnic table: moved a little out from the hut, from (0.5, 9) to (1.5, 9.5).
+- Clothesline: moved out towards the tree line, from (3, 14) to (3.5, 16), clear of the table's bench.
+
+The rain barrel has not moved. The crate and clothesline also move for players still in the tent camp stage.
+
+Tested: `stylua`, `selene` and `rojo build` pass.
+Not tested: not run.
+
+### 2026-10-12 — Wood-working corner tidied; the stray brown rectangle removed
+
+Why: the owner confirmed the clothesline side of camp now looks good, but found the wood-working corner still cluttered, and asked what the "random brown rectangle in the log" on the sawhorse was.
+
+The rectangle was meant to be a saw left in the cut: a thin rust-coloured slab. It did not read as a saw.
+
+Changed, in `src/server/CampModels.luau`:
+
+- Sawhorse: the saw is removed. The sawhorse moves from (1, -15.5) to (3.8, -16.6).
+- Plank stack: moved out from behind the chopping block to stand on its own between the block and the sawhorse, at (-2.4, -16.8).
+- Chopping block: two short split logs laid together on one side, in place of three longer ones scattered round it.
+
+Tested: `stylua`, `selene` and `rojo build` pass.
+Not tested: not run.

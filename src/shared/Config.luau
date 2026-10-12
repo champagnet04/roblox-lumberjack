@@ -83,8 +83,8 @@ Config.Lighting = {
 -- Test settings. They only ever apply inside Roblox Studio, never in the published game.
 -- While Enabled is true, every Play starts from the state below and nothing is loaded or saved.
 Config.Testing = {
-	Enabled = false,
-	BuildsDone = 7, -- start with this many camp builds already finished (7 = lean-to stage, 16 = tent camp)
+	Enabled = true,
+	BuildsDone = 26, -- start with this many camp builds already finished (7 = lean-to stage, 16 = tent camp, 26 = hut)
 	Wood = 1000, -- start with this much wood in the overall bank
 	GiveNextMaterials = true, -- start with every material the next build needs
 }
@@ -126,6 +126,7 @@ Config.Carry = {
 
 Config.Tree = {
 	SwingsToFell = 5,
+	BetterAxeSwings = 4, -- with the better axe from finishing the hut (solo only; races stay equal)
 	SwingCooldown = 0.35, -- time between swings while the button is held
 	WoodMin = 10, -- wood from a tree beside camp
 	WoodMax = 20,
@@ -158,12 +159,14 @@ Config.Tree = {
 --   Replaces  builds that are taken down when this one goes up
 --   Strips    pieces removed from an earlier build when this one goes up (build -> piece name)
 Config.Camp = {
+	-- A stage may also give a perk when it is finished (Perk, below).
 	-- The builds come in stages. Finishing a stage makes banked wood worth one more to the
 	-- camp fund: 2 times after the first stage, 3 times after the second, and so on.
 	-- LastBuild is the number of the stage's last build in the list below.
 	Stages = {
 		{ Name = "Lean-to", LastBuild = 7 },
 		{ Name = "Tent camp", LastBuild = 16 },
+		{ Name = "Hut", LastBuild = 26, Perk = "BetterAxe" }, -- see Config.Tree.BetterAxeSwings
 	},
 
 	Builds = {
@@ -288,6 +291,89 @@ Config.Camp = {
 				{ Type = "Cloth", Count = 1 },
 			},
 		},
+
+		-- Stage 3: the hut. It stands where the tent stood.
+		{
+			Id = "PicnicTable",
+			Name = "Picnic table",
+			Wood = 5900,
+			Materials = { { Type = "Plank", Count = 3 }, { Type = "Nails", Count = 1 } },
+		},
+		{
+			Id = "ChoppingBlock",
+			Name = "Chopping block",
+			Wood = 6500,
+			Materials = {
+				{ Type = "AxeHead", Count = 1 },
+				{ Type = "Saw", Count = 1 },
+				{ Type = "Rope", Count = 1 },
+			},
+		},
+		{
+			Id = "Sawhorse",
+			Name = "Sawhorse and plank stack",
+			Wood = 7100,
+			Materials = {
+				{ Type = "Pole", Count = 2 },
+				{ Type = "Saw", Count = 1 },
+				{ Type = "Nails", Count = 1 },
+			},
+		},
+		{
+			Id = "StoneFooting",
+			Name = "Stone footing",
+			Wood = 7700,
+			Materials = { { Type = "FlatStone", Count = 4 } },
+			Replaces = { "TentPoles", "TentCanvas", "TentPegs" },
+		},
+		{
+			Id = "LogWalls",
+			Name = "Log walls",
+			Wood = 8300,
+			Materials = { { Type = "Pole", Count = 2 }, { Type = "Moss", Count = 2 } },
+		},
+		{
+			Id = "BarkRoof",
+			Name = "Bark roof",
+			Wood = 8900,
+			Materials = { { Type = "BarkSheet", Count = 3 }, { Type = "Rope", Count = 1 } },
+		},
+		{
+			Id = "Door",
+			Name = "Door",
+			Wood = 9500,
+			Materials = {
+				{ Type = "Plank", Count = 2 },
+				{ Type = "Hinge", Count = 1 },
+				{ Type = "Nails", Count = 1 },
+			},
+		},
+		{
+			Id = "Workbench",
+			Name = "Workbench and tool rack",
+			Wood = 10100,
+			Materials = {
+				{ Type = "Plank", Count = 2 },
+				{ Type = "OldTools", Count = 1 },
+				{ Type = "Nails", Count = 1 },
+			},
+		},
+		{
+			Id = "RainBarrel",
+			Name = "Rain barrel",
+			Wood = 10700,
+			Materials = {
+				{ Type = "Barrel", Count = 1 },
+				{ Type = "Plank", Count = 2 },
+				{ Type = "Rope", Count = 1 },
+			},
+		},
+		{
+			Id = "StonePath",
+			Name = "Stone path",
+			Wood = 11300,
+			Materials = { { Type = "FlatStone", Count = 4 } },
+		},
 	},
 
 	-- Every material type, in a fixed order (used for saving and the on-screen list).
@@ -308,6 +394,12 @@ Config.Camp = {
 		"TentPeg",
 		"Plank",
 		"Nails",
+		"FlatStone",
+		"AxeHead",
+		"BarkSheet",
+		"Hinge",
+		"OldTools",
+		"Barrel",
 	},
 	Materials = {
 		Sticks = { Name = "sticks" },
@@ -325,6 +417,12 @@ Config.Camp = {
 		TentPeg = { Name = "tent peg" },
 		Plank = { Name = "plank" },
 		Nails = { Name = "nails" },
+		FlatStone = { Name = "flat stone" },
+		AxeHead = { Name = "axe head" },
+		BarkSheet = { Name = "bark sheet" },
+		Hinge = { Name = "hinge" },
+		OldTools = { Name = "old tools" },
+		Barrel = { Name = "barrel" },
 	},
 
 	-- Where a material appears: between these two distances from camp for the first build

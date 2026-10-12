@@ -31,6 +31,16 @@ function Camp.stagesFinished(buildsDone: number): number
 	return finished
 end
 
+-- Whether the perk with this name has been earned: its stage is finished.
+function Camp.hasPerk(buildsDone: number, perk: string): boolean
+	for _, stage in Config.Camp.Stages do
+		if (stage :: any).Perk == perk and buildsDone >= stage.LastBuild then
+			return true
+		end
+	end
+	return false
+end
+
 -- What each piece of banked wood is worth to the camp fund: 1 at the start, and one more
 -- for every stage finished.
 function Camp.woodWorth(buildsDone: number): number
