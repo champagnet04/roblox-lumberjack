@@ -788,7 +788,10 @@ local function refreshRaceClock()
 	local left = math.ceil(math.max(endsAt - Workspace:GetServerTimeNow(), 0))
 
 	raceClock.TextColor3 = WHITE
-	if phase == "Countdown" then
+	if phase == "Gathering" then
+		local here = #Players:GetPlayers()
+		raceClock.Text = `GATHERING RACERS  {left}   ({here} HERE)`
+	elseif phase == "Countdown" then
 		raceClock.Text = `RACE STARTS IN {left}`
 	elseif phase == "Running" then
 		raceClock.Text = string.format("%d:%02d", left // 60, left % 60)

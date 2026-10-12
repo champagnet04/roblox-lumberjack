@@ -1210,3 +1210,25 @@ Needed by hand when this is published: on the Roblox website, set the place's Ma
 
 Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
 Not tested: nothing has been run. Studio can show the menu and start either game in place. The real path, being moved to a private server and back, works only in the published game and is completely untried. Known soft spot: saving relies on the old server finishing its save before the next one loads; passing through the menu gives it several seconds, which should be enough but is not guaranteed.
+
+### 2026-10-12 — Multiplayer step 5, part 2: Quick Race in the published game
+
+Why: the owner published part 1 and found everything working (the menu, Solo on a private server, saved progress), then asked for Quick Race to work in the published game so it can be play-tested there. The owner's game is private, so publishing does not affect other players.
+
+Changed:
+
+- `src/server/RaceDirectory.luau` — new. A list, shared between servers, of races that have not started and have room. A race server keeps its own entry up to date; the menu reads the list.
+- `src/server/MenuService.luau` — Quick Race now works in the published game. It looks for a listed race that starts at least 10 seconds off and has room, and sends the player there; if there is none it makes a new race server. It tries three times before reporting failure.
+- `src/server/RaceService.luau` — new Gathering phase: a new race waits 30 seconds for more players before its first countdown, or starts at once if the server is full. The server is listed as open while gathering, during the countdown, and during results (so players can join for the next round). It is taken off the list the moment a round starts, so nobody is sent into the middle of one.
+- `src/shared/Config.luau` — `Race.GatherTime` (30) and `Race.MinJoinTime` (10).
+- `src/client/Hud.client.luau` — the clock shows "GATHERING RACERS", the time left and how many players are there.
+
+Notes:
+
+- From pressing Quick Race alone to the race starting is about 40 seconds plus loading: 30 of gathering, then the 10-second countdown.
+- In Studio the gathering wait is skipped, since nobody else can join there.
+- If the shared list cannot be reached, each player simply gets a new race of their own with bots.
+- Race with Friends still says "COMING SOON" (part 3).
+
+Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
+Not tested: nothing has been run. Finding and joining a race across servers works only in the published game and is completely untried. Two players landing in the same race needs a second person or account to check.

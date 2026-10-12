@@ -15,6 +15,10 @@ Config.Race = {
 
 	MinPlayers = 1, -- a round starts once this many players are in the server
 	FillTo = 8, -- bots join until a round has this many racers (0 = no bots)
+	-- Quick Race: a new race waits this long for more players before its first countdown.
+	-- It starts sooner if the server fills. Skipped in Studio, where nobody else can join.
+	GatherTime = 30,
+	MinJoinTime = 10, -- Quick Race only sends a player to a race that starts at least this far off
 	CountdownTime = 10, -- everyone is held at camp this long before the round starts
 	RoundTime = 360, -- length of a round; lower it to test the end of a round quickly
 	ResultsTime = 12, -- the results stay up this long before the next countdown

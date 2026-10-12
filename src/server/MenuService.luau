@@ -8,7 +8,10 @@
 -- In Studio players cannot be moved between servers, so the choice is handed back to
 -- Main, which starts that game in the same server.
 --
--- Not built yet: Quick Race and Race with Friends in the published game (MULTIPLAYER.md).
+-- Quick Race works the same way, except that it first looks for a race that is still
+-- gathering players (see RaceDirectory) and only makes a new server if there is none.
+--
+-- Not built yet: Race with Friends (MULTIPLAYER.md).
 
 local MemoryStoreService = game:GetService("MemoryStoreService")
 local Players = game:GetService("Players")
@@ -20,12 +23,14 @@ local Workspace = game:GetService("Workspace")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local CampModels = require(script.Parent.CampModels)
+local RaceDirectory = require(script.Parent.RaceDirectory)
 
 local MenuService = {}
 
 local ROLE_NOTES = "ServerRoles"
 local NOTE_LIFETIME = 600 -- seconds a note is kept; the new server reads it within a few
 local MOVE_ATTEMPTS = 3
+local FAILED = "COULD NOT GET THERE. PLEASE TRY AGAIN."
 
 local busy: { [Player]: boolean } = {}
 
@@ -62,18 +67,32 @@ local function tell(player: Player, text: string)
 	end
 end
 
--- Makes a private server for the player's own camp and sends them there.
-local function sendToSolo(player: Player)
-	tell(player, "HEADING TO YOUR CAMP...")
+-- Makes a private server for a game and leaves a note saying what it is for.
+-- Returns the code needed to send players there.
+local function makeServer(mode: string): string
+	local accessCode, serverId = TeleportService:ReserveServer(game.PlaceId)
+	roleNotes():SetAsync(serverId, mode, NOTE_LIFETIME)
+	if mode == "Race" then
+		RaceDirectory.register(serverId, accessCode)
+	end
+	return accessCode
+end
+
+-- Sends the player to their own camp ("Solo"), or to a race that is gathering players,
+-- making a new one if there is none ("Race").
+local function send(player: Player, mode: string)
+	tell(player, if mode == "Race" then "FINDING A RACE..." else "HEADING TO YOUR CAMP...")
 	local lastError
 	for attempt = 1, MOVE_ATTEMPTS do
 		local ok, result = pcall(function()
-			local accessCode, serverId = TeleportService:ReserveServer(game.PlaceId)
-			roleNotes():SetAsync(serverId, "Solo", NOTE_LIFETIME)
+			local accessCode = if mode == "Race" then RaceDirectory.findOpen() else nil
+			if not accessCode then
+				accessCode = makeServer(mode)
+			end
 
 			local options = Instance.new("TeleportOptions")
 			options.ReservedServerAccessCode = accessCode
-			options:SetTeleportData({ Mode = "Solo" })
+			options:SetTeleportData({ Mode = mode })
 			TeleportService:TeleportAsync(game.PlaceId, { player }, options)
 		end)
 		if ok or not player.Parent then
@@ -82,8 +101,8 @@ local function sendToSolo(player: Player)
 		lastError = result
 		task.wait(attempt)
 	end
-	warn("[MenuService] Could not send", player.Name, "to a solo server:", lastError)
-	tell(player, "COULD NOT REACH YOUR CAMP. PLEASE TRY AGAIN.")
+	warn("[MenuService] Could not send", player.Name, "to a", mode, "server:", lastError)
+	tell(player, FAILED)
 end
 
 -- The camp shown behind the menu: the finished lean-to stage.
@@ -111,8 +130,7 @@ function MenuService.start(startHere: ((mode: string) -> ())?)
 	local backdrop = buildBackdrop()
 	local started = false
 
-	-- In the published game the race buttons do nothing yet; the menu shows them as coming soon.
-	Workspace:SetAttribute("MenuRaceOpen", startHere ~= nil)
+	Workspace:SetAttribute("MenuRaceOpen", true) -- Quick Race works; the menu shows it as open
 
 	Remotes.ChooseMode.OnServerEvent:Connect(function(player, choice)
 		if started or busy[player] then
@@ -131,12 +149,12 @@ function MenuService.start(startHere: ((mode: string) -> ())?)
 			return
 		end
 
-		if choice == "Solo" then
+		if choice == "Solo" or choice == "QuickRace" then
 			busy[player] = true
-			sendToSolo(player)
+			send(player, if choice == "Solo" then "Solo" else "Race")
 			busy[player] = nil
 		else
-			tell(player, "RACES ARE COMING SOON")
+			tell(player, "RACING WITH FRIENDS IS COMING SOON")
 		end
 	end)
 
@@ -159,7 +177,7 @@ function MenuService.start(startHere: ((mode: string) -> ())?)
 	-- If Roblox reports that a move failed after it began, say so and free the buttons.
 	TeleportService.TeleportInitFailed:Connect(function(player)
 		busy[player] = nil
-		tell(player, "COULD NOT REACH YOUR CAMP. PLEASE TRY AGAIN.")
+		tell(player, FAILED)
 	end)
 end
 

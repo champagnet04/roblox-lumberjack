@@ -2,6 +2,7 @@
 --
 -- A server loops through these phases for as long as it is up:
 --   Waiting    too few players to start
+--   Gathering  a new race waits a while for more players to arrive (not in Studio)
 --   Countdown  everyone is put back at camp and held there; the forest regrows; bots join
 --              to fill the round (see BotService)
 --   Running    the timed round; ends early when one racer is left standing
@@ -13,6 +14,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -20,11 +22,13 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local BotService = require(script.Parent.BotService)
 local GuardianService = require(script.Parent.GuardianService)
 local PlayerState = require(script.Parent.PlayerState)
+local RaceDirectory = require(script.Parent.RaceDirectory)
 local TreeService = require(script.Parent.TreeService)
 
 local RaceService = {}
 
 local TICK = 0.25
+local LIST_EVERY = 3 -- seconds between updates to this server's entry in the list of open races
 
 export type Result = {
 	Name: string,
@@ -142,14 +146,54 @@ local function scoreRound(): { Result }
 	return results
 end
 
+-- Seconds until the current phase ends.
+local function phaseTimeLeft(): number
+	local endsAt = Workspace:GetAttribute("RacePhaseEndsAt") or 0
+	return math.max(endsAt - Workspace:GetServerTimeNow(), 0)
+end
+
+-- While a round has not started, the server is listed so Quick Race can send players
+-- here. Returns a function to call every tick of the wait; `extra` is how long after the
+-- current phase the round starts.
+local function keepListed(extra: number): () -> boolean
+	local nextAt = 0
+	return function()
+		if os.clock() >= nextAt then
+			nextAt = os.clock() + LIST_EVERY
+			task.spawn(RaceDirectory.announce, phaseTimeLeft() + extra)
+		end
+		return false
+	end
+end
+
+-- A new race waits a while for more players to arrive. Not in Studio: nobody can join there.
+local function gather()
+	local cfg = Config.Race
+	if RunService:IsStudio() or cfg.GatherTime <= 0 then
+		return
+	end
+	setPhase("Gathering", cfg.GatherTime)
+	local listed = keepListed(cfg.CountdownTime)
+	waitFor(cfg.GatherTime, function()
+		listed()
+		return #Players:GetPlayers() >= Players.MaxPlayers -- full: no need to wait
+	end)
+end
+
 local function run()
 	local cfg = Config.Race
+	local gathered = false
 	while true do
 		if #Players:GetPlayers() < cfg.MinPlayers then
 			setPhase("Waiting")
+			gathered = false
 			repeat
 				task.wait(TICK)
 			until #Players:GetPlayers() >= cfg.MinPlayers
+		end
+		if not gathered then
+			gathered = true
+			gather()
 		end
 
 		GuardianService.reset()
@@ -157,7 +201,7 @@ local function run()
 		resetRacers()
 		BotService.prepareRound(math.max(cfg.FillTo - #Players:GetPlayers(), 0))
 		setPhase("Countdown", cfg.CountdownTime)
-		waitFor(cfg.CountdownTime)
+		waitFor(cfg.CountdownTime, keepListed(0))
 
 		local startedWith, playersAtStart = standingCount()
 		if playersAtStart == 0 then
@@ -165,6 +209,7 @@ local function run()
 		end
 		GuardianService.reset() -- a fresh hidden number for the round
 		setPhase("Running", cfg.RoundTime)
+		task.spawn(RaceDirectory.close) -- nobody is sent into the middle of a round
 		BotService.setRacing(true)
 		waitFor(cfg.RoundTime, function()
 			-- Over when one racer is left, or when no real player is: nobody waits for bots.
@@ -177,7 +222,7 @@ local function run()
 		BotService.setRacing(false)
 		GuardianService.reset()
 		Remotes.RaceResults:FireAllClients(scoreRound())
-		waitFor(cfg.ResultsTime)
+		waitFor(cfg.ResultsTime, keepListed(cfg.CountdownTime)) -- open again for the next round
 	end
 end
 
