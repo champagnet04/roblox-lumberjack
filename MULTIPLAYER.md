@@ -80,7 +80,7 @@ These fill gaps the quiz did not cover. Each is a starting point to change.
 - **No wood, no prize.** A racer who is still standing but banked nothing gets no prize. Otherwise standing at camp for a whole round would pay out. Added when rounds were built (2026-10-11).
 - **Unbanked wood at the end.** Wood still being carried when the timer runs out does not count.
 - **Joining partway through.** A player who joins during a round watches until the next one.
-- **Ties.** Racers level on wood are placed in name order. Not yet thought through.
+- **Ties.** Decided by the owner on 2026-10-12: racers level on wood are placed by who reached that score first. A chop-off, where the tied racers race to fell a thick tree, is an idea for later; the owner wants to keep it simple for now.
 - **The guardian's count in a race.** The owner wants the guardian to appear often, because that is what makes a race hard when real people play (2026-10-12). The hidden number is only slightly larger than in solo: multiplied by 1.5. Claude had first stretched it by the number of racers (four times with 8); the owner rejected that.
 - **Bot styles.** Careful: Old Maple, Birch Betty, Granny Oak. Steady: Sawdust Sam, Knotty Pete, Whittlin' Joe, Mossy Mae. Greedy: Big Hank, Splinter, Timber Tess. The numbers behind each style are in the config and are first guesses.
 - **After a catch.** The guardian goes back to sleep and a new hidden number is picked, as in solo.

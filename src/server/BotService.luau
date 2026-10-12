@@ -282,7 +282,10 @@ end
 
 local function bank(bot: Bot)
 	local haul = bot.Model:GetAttribute("Haul") or 0
-	bot.Model:SetAttribute("RaceScore", (bot.Model:GetAttribute("RaceScore") or 0) + haul)
+	if haul > 0 then
+		bot.Model:SetAttribute("RaceScore", (bot.Model:GetAttribute("RaceScore") or 0) + haul)
+		bot.Model:SetAttribute("RaceScoreAt", Workspace:GetServerTimeNow())
+	end
 	bot.Model:SetAttribute("Haul", 0)
 	bot.BankAt = math.round(between(bot.Style.BankAt))
 end
@@ -400,6 +403,7 @@ function BotService.prepareRound(count: number, playerCount: number)
 	for index, bot in bots do
 		bot.Model:SetAttribute("Haul", 0)
 		bot.Model:SetAttribute("RaceScore", 0)
+		bot.Model:SetAttribute("RaceScoreAt", 0)
 		bot.Model:SetAttribute("RaceOut", false)
 		bot.Model:SetAttribute("Chased", false)
 		bot.Stamina = Config.Stamina.Max

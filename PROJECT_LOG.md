@@ -1266,3 +1266,19 @@ In Studio: Race with Friends starts a friends race in the same server with the c
 
 Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
 Not tested: nothing has been run. Completely untried and only possible in the published game with a second person: sending an invite, a friend being brought to the race, and an opened race receiving Quick Race players.
+
+### 2026-10-12 — Ties in a race go to whoever reached the score first
+
+Why: the owner could not test Race with Friends (no friends online) and moved on. On ties the owner decided: whoever banked that much wood soonest in the round wins. A chop-off on a thick tree was floated as an idea, but "keep it simple for now".
+
+Changed:
+
+- `src/server/PlayerState.luau`, `src/server/BotService.luau` — each racer records when their score last went up.
+- `src/server/RaceService.luau` — racers level on wood are placed by who reached that score first. Name order is now only the last resort, for racers who never banked.
+- `src/client/Hud.client.luau` — the scoreboard orders ties the same way, so it matches the results.
+- `MULTIPLAYER.md` — the rule, and the chop-off idea noted for later.
+
+Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
+Not tested: not run. A tie is rare, so this is unlikely to be seen by chance.
+
+Still untested from earlier entries: Race with Friends (invites, a friend arriving, an opened race taking Quick Race players) and the shared starting places round the fire.

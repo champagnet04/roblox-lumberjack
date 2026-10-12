@@ -13,6 +13,7 @@
 --   CarriedMaterial  the one material being carried this trip ("" for none); at risk like the haul
 --   RaceScore   wood banked this round of a race (Config.Mode = "Race"); a score only, never saved
 --   RaceOut     true once the guardian has caught the player this round
+--   RaceScoreAt when RaceScore last went up (server clock); on a tie, the earlier wins
 --
 -- A game ends when the guardian captures the player.
 -- OverallBank, the three records, BuildsDone and banked materials are saved between
@@ -112,6 +113,7 @@ function PlayerState.bankHaul(player: Player): number
 			return 0
 		end
 		player:SetAttribute("RaceScore", get(player, "RaceScore") + haul)
+		player:SetAttribute("RaceScoreAt", Workspace:GetServerTimeNow())
 		player:SetAttribute("Haul", 0)
 		return haul
 	end
@@ -159,6 +161,7 @@ end
 function PlayerState.startRound(player: Player)
 	player:SetAttribute("Haul", 0)
 	player:SetAttribute("RaceScore", 0)
+	player:SetAttribute("RaceScoreAt", 0)
 	player:SetAttribute("RaceOut", false)
 	tripFurthest[player] = nil
 end

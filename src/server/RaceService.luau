@@ -120,7 +120,8 @@ local function resetRacers(places: number)
 end
 
 -- Works out the places and pays the prizes. Only racers still standing are placed, by wood
--- banked. A prize needs at least some wood banked, so standing still at camp earns nothing.
+-- banked; on a tie, whoever reached that score first is placed higher.
+-- A prize needs at least some wood banked, so standing still at camp earns nothing.
 -- Bots take places like anyone, but prizes are only paid to players.
 local function scoreRound(): { Result }
 	local cfg = Config.Race
@@ -133,6 +134,11 @@ local function scoreRound(): { Result }
 		local scoreA, scoreB = scoreOf(a), scoreOf(b)
 		if scoreA ~= scoreB then
 			return scoreA > scoreB
+		end
+		-- A tie goes to whoever reached that score first.
+		local atA, atB = a:GetAttribute("RaceScoreAt") or 0, b:GetAttribute("RaceScoreAt") or 0
+		if atA ~= atB then
+			return atA < atB
 		end
 		return nameOf(a) < nameOf(b)
 	end)

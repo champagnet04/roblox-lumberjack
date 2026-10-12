@@ -756,6 +756,12 @@ local function refreshScoreboard()
 		if scoreA ~= scoreB then
 			return scoreA > scoreB
 		end
+		-- A tie goes to whoever reached that score first, as in the results.
+		local atA = a:GetAttribute("RaceScoreAt") or 0
+		local atB = b:GetAttribute("RaceScoreAt") or 0
+		if atA ~= atB then
+			return atA < atB
+		end
 		return nameOf(a) < nameOf(b)
 	end)
 
