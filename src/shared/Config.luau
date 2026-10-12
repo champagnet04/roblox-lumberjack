@@ -1,13 +1,14 @@
 -- Every tuning number for the game lives here. Distances are in studs, times in seconds.
 
+local RunService = game:GetService("RunService")
+
+local GameMode = require(script.Parent.GameMode)
+
 local Config = {}
 
--- Which game this server runs.
---   "Solo"  the single-player game: your own camp, saved between sessions.
---   "Race"  the multiplayer race (see MULTIPLAYER.md): one shared camp, one guardian for
---           everyone, and nothing saved. For now it is switched on here by hand, for
---           testing in Studio with several players. A menu will choose it later.
-Config.Mode = "Race"
+-- Config.Mode is "Solo" or "Race": which game is being played. It is not set here. The
+-- player chooses on the menu, and it is filled in when the game starts (see GameMode and
+-- the end of this file). Code that reads it is only loaded after that.
 
 Config.Race = {
 	CampBuilds = 7, -- the shared camp shows this many finished builds (7 = the whole lean-to stage)
@@ -361,5 +362,11 @@ Config.Guardian = {
 	SeeThroughDistance = 6,
 	SeeThroughAmount = 0.7, -- 0 = solid, 1 = invisible
 }
+
+-- A player's game learns the mode from the server. Loading this file there waits at the
+-- menu until a game is chosen, so the display and controls only start once one is.
+if RunService:IsClient() then
+	Config.Mode = GameMode.waitForPlay()
+end
 
 return Config

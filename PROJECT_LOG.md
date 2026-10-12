@@ -1186,3 +1186,27 @@ The owner asked for a way to invite friends to a race, to start immediately, or 
 - In a friends lobby the host chooses whether bots fill the empty places and whether players who were not invited can join.
 
 No game code changed. This is the design for step 5.
+
+### 2026-10-12 — Multiplayer step 5, part 1: the menu, and Solo on a private server
+
+Why: the owner tested the bot styles and the solo game and found no bugs, then approved part 1 of step 5, adding that the config should no longer decide which game is played, because the menu's buttons do.
+
+Changed:
+
+- `src/shared/GameMode.luau` — new. Holds which game a server is running: "Menu", "Solo" or "Race". The server decides and every player's game reads it.
+- `src/shared/Config.luau` — the hand-set `Mode` line is gone. `Config.Mode` is now filled in when a game starts. On a player's game, loading the config waits at the menu until a game is chosen, so the display and controls start only then.
+- `src/server/Main.server.luau` — rewritten. A server anyone can join is a menu server. A private server made by the menu runs the game it was made for. Gameplay code is loaded only once the mode is known. At the menu nobody has a character.
+- `src/server/MenuService.luau` — new. In the published game, Solo makes a private server for the player, leaves a note saying what it is for, and sends them there, trying three times before reporting failure. A MENU request from a game sends the player back to a menu server. The camp behind the menu shows the finished lean-to stage.
+- `src/client/Menu.client.luau` — new. The menu: the game's name, three buttons, a status line, and a slow turn of the camera round the campfire. It shrinks on small screens like the rest of the display.
+- `src/client/Hud.client.luau` — a MENU button in the top-left during a game. It asks for a second tap before leaving.
+- `src/shared/Remotes.luau` — three new messages for the menu.
+
+How the buttons behave:
+
+- Published game: Solo works. Quick Race and Race with Friends are greyed and say "COMING SOON" (parts 2 and 3).
+- Studio: players cannot be moved between servers there, so Solo and Quick Race start that game in the same server, for everyone in it. To choose again, stop and press Play. The MENU button only shows a message.
+
+Needed by hand when this is published: on the Roblox website, set the place's Maximum Visitor Count from 1 back to 15. Solo servers stay private through code.
+
+Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
+Not tested: nothing has been run. Studio can show the menu and start either game in place. The real path, being moved to a private server and back, works only in the published game and is completely untried. Known soft spot: saving relies on the old server finishing its save before the next one loads; passing through the menu gives it several seconds, which should be enough but is not guaranteed.

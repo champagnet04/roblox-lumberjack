@@ -281,6 +281,42 @@ local resultsPrize = makeLabel({
 	TextColor3 = GOLD,
 }, resultsPanel)
 
+-- Leaves the game for the menu. It asks twice, because leaving loses whatever is carried.
+local menuButton = Instance.new("TextButton")
+menuButton.Name = "MenuButton"
+menuButton.Position = UDim2.fromOffset(16, 22)
+menuButton.Size = UDim2.fromOffset(150, 34)
+menuButton.BackgroundColor3 = PANEL_COLOR
+menuButton.BackgroundTransparency = 0.35
+menuButton.BorderSizePixel = 0
+menuButton.Font = Enum.Font.GothamBold
+menuButton.TextSize = 14
+menuButton.TextColor3 = TITLE_COLOR
+menuButton.Text = "MENU"
+menuButton.Parent = gui
+roundCorners(menuButton, UDim.new(0, 8))
+
+local menuAskedAt = 0
+menuButton.Activated:Connect(function()
+	local now = os.clock()
+	if now - menuAskedAt <= 3 then
+		menuAskedAt = 0
+		menuButton.Text = "LEAVING..."
+		Remotes.ReturnToMenu:FireServer()
+		task.delay(4, function()
+			menuButton.Text = "MENU"
+		end)
+		return
+	end
+	menuAskedAt = now
+	menuButton.Text = "LEAVE? TAP AGAIN"
+	task.delay(3, function()
+		if menuAskedAt == now then
+			menuButton.Text = "MENU"
+		end
+	end)
+end)
+
 -- Shown for as long as the guardian is hunting the player.
 local chaseBanner = makeLabel({
 	Name = "ChaseBanner",

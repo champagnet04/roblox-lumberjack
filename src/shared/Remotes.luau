@@ -10,6 +10,9 @@ local NAMES = {
 	"Escaped", -- server -> client: player reached camp with the guardian behind them
 	"Notice", -- server -> client: a short message to show on screen
 	"GameOver", -- server -> client: player was caught, ending the game; carries the summary
+	"ChooseMode", -- client -> server: a menu button was pressed ("Solo" or "QuickRace")
+	"MenuStatus", -- server -> client: a line of text to show on the menu
+	"ReturnToMenu", -- client -> server: leave this game and go back to the menu
 	"RaceResults", -- server -> everyone: a race round has ended; carries each racer's place and prize
 }
 
