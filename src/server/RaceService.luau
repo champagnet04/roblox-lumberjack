@@ -93,12 +93,19 @@ local function waitFor(duration: number, finished: (() -> boolean)?)
 	end
 end
 
--- Puts everyone back at camp with nothing carried and no score.
-local function resetRacers()
-	for _, player in Players:GetPlayers() do
+-- Puts everyone back at camp with nothing carried and no score, each in their own
+-- starting place round the fire. `places` counts players and bots together; the players
+-- take the first ones.
+local function resetRacers(places: number)
+	for place, player in Players:GetPlayers() do
 		PlayerState.startRound(player)
 		task.spawn(function()
-			player:LoadCharacter()
+			player:LoadCharacter() -- waits until the new character is in the world
+			local character = player.Character
+			if character then
+				local at = BotService.startingPlace(place, places)
+				character:PivotTo(CFrame.lookAt(at, Vector3.new(at.X * 2, at.Y, at.Z * 2)))
+			end
 		end)
 	end
 end
@@ -198,8 +205,10 @@ local function run()
 
 		GuardianService.reset()
 		TreeService.regrowAll()
-		resetRacers()
-		BotService.prepareRound(math.max(cfg.FillTo - #Players:GetPlayers(), 0))
+		local playerCount = #Players:GetPlayers()
+		local botCount = math.clamp(cfg.FillTo - playerCount, 0, #Config.Bots.Roster)
+		resetRacers(playerCount + botCount)
+		BotService.prepareRound(botCount, playerCount)
 		setPhase("Countdown", cfg.CountdownTime)
 		waitFor(cfg.CountdownTime, keepListed(0))
 

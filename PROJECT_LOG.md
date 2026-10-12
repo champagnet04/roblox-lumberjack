@@ -1232,3 +1232,17 @@ Notes:
 
 Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
 Not tested: nothing has been run. Finding and joining a race across servers works only in the published game and is completely untried. Two players landing in the same race needs a second person or account to check.
+
+### 2026-10-12 — Every racer gets their own starting place round the fire
+
+Why: the owner confirmed Quick Race works in the published game once Maximum Visitor Count was set to 15 (at 1 the server counted as full and the gathering wait was skipped). One fault: at the start of a race the player appeared on top of Whittlin' Joe's head.
+
+Cause: only the bots were given places in the ring round the fire. The player appeared at the game's ordinary starting point, which was the same spot as the last bot's place.
+
+Changed:
+
+- `src/server/BotService.luau` — starting places are now shared: there is one for every racer, players and bots together. The places run round an arc that leaves a gap where the lean-to stands. A caught bot returns to its own place.
+- `src/server/RaceService.luau` — at each countdown every player is put on their own place, facing outwards. Players take the first places and bots the rest.
+
+Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
+Not tested: not run. Unseen: whether any place overlaps the stump stools or other camp pieces.

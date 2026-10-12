@@ -50,7 +50,7 @@ type Bot = {
 	Root: BasePart,
 	Run: AnimationTrack?,
 	State: string, -- "Idle", "ToTree", "Chopping", "Resting", "Home", "Fleeing" or "Out"
-	Index: number, -- its place in the ring at camp
+	Place: number, -- its place in the ring at camp, out of `places`
 	FleeAt: number, -- when it stops staring at the guardian and runs
 	Stamina: number, -- spent on swings and sprinting, by the same rules as a player
 	LastEffortAt: number, -- stamina refills a short while after the last swing or sprint
@@ -66,6 +66,7 @@ local rng = Random.new()
 local folder: Folder
 local bots: { Bot } = {}
 local racing = false
+local places = 1 -- how many starting places there are this round, players and bots together
 
 local function loadTrack(humanoid: Humanoid, animationId: string, looped: boolean): AnimationTrack?
 	local animator = humanoid:FindFirstChildOfClass("Animator")
@@ -85,8 +86,11 @@ local function loadTrack(humanoid: Humanoid, animationId: string, looped: boolea
 	return track
 end
 
-local function spawnPoint(index: number, count: number): Vector3
-	local angle = (index / math.max(count, 1)) * math.pi * 2
+-- Where a racer stands at camp at the start of a round: one place each, spread round the
+-- fire, for players and bots alike. The arc leaves a gap where the lean-to stands.
+function BotService.startingPlace(place: number, outOf: number): Vector3
+	local arc = math.rad(300)
+	local angle = -arc / 2 + (place - 0.5) / math.max(outOf, 1) * arc
 	local x, z = math.cos(angle) * SPAWN_RING, math.sin(angle) * SPAWN_RING
 	return Vector3.new(x, TerrainBuilder.heightAt(x, z) + 4, z)
 end
@@ -131,7 +135,7 @@ local function makeBot(look: BotModels.Look): Bot?
 		Style = (Config.Bots.Styles :: any)[look.Style] or Config.Bots.Styles.Steady,
 		Outward = Vector3.xAxis,
 		State = "Idle",
-		Index = 1,
+		Place = 1,
 		FleeAt = 0,
 		Stamina = Config.Stamina.Max,
 		LastEffortAt = 0,
@@ -299,7 +303,7 @@ local function step(bot: Bot)
 			-- Caught: back to its place at camp for the rest of the round.
 			bot.State = "Out"
 			bot.Tree = nil
-			model:PivotTo(CFrame.new(spawnPoint(bot.Index, #bots)))
+			model:PivotTo(CFrame.new(BotService.startingPlace(bot.Place, places)))
 			stop(bot)
 		end
 		return
@@ -374,8 +378,9 @@ function BotService.getBots(): { Model }
 end
 
 -- Gets the bots ready for a new round: the right number of them, back at camp, with no
--- score. Call during the countdown. It may pause while new bots are made.
-function BotService.prepareRound(count: number)
+-- score. Players take the first `playerCount` starting places and the bots the rest.
+-- It may pause while new bots are made.
+function BotService.prepareRound(count: number, playerCount: number)
 	racing = false
 	count = math.clamp(count, 0, #Config.Bots.Roster)
 
@@ -391,6 +396,7 @@ function BotService.prepareRound(count: number)
 		table.insert(bots, bot)
 	end
 
+	places = playerCount + #bots
 	for index, bot in bots do
 		bot.Model:SetAttribute("Haul", 0)
 		bot.Model:SetAttribute("RaceScore", 0)
@@ -398,10 +404,10 @@ function BotService.prepareRound(count: number)
 		bot.Model:SetAttribute("Chased", false)
 		bot.Stamina = Config.Stamina.Max
 		bot.State = "Idle"
-		bot.Index = index
+		bot.Place = playerCount + index
 		bot.Tree = nil
 		bot.BankAt = math.round(between(bot.Style.BankAt))
-		local at = spawnPoint(index, #bots)
+		local at = BotService.startingPlace(bot.Place, places)
 		bot.Outward = (at * FLAT).Unit
 		bot.Model:PivotTo(CFrame.lookAt(at, Vector3.new(at.X * 2, at.Y, at.Z * 2))) -- facing outwards
 		stop(bot)
