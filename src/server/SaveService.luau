@@ -9,7 +9,9 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Records = require(ReplicatedStorage.Shared.Records)
 local PlayerState = require(script.Parent.PlayerState)
+local RecordService = require(script.Parent.RecordService)
 
 local SaveService = {}
 
@@ -21,7 +23,7 @@ local lastSaved: { [Player]: { [string]: number } } = {}
 local warnedUnavailable = false
 
 local function keyFor(player: Player): string
-	return `user_{player.UserId}`
+	return Records.saveKey(player.UserId)
 end
 
 -- Runs a data store call, retrying a couple of times because they can fail briefly.
@@ -93,6 +95,8 @@ local function load(player: Player)
 	loaded[player] = true
 	lastSaved[player] = PlayerState.getSaved(player)
 	player:SetAttribute("SaveStatus", "Ready")
+	-- Put their numbers on the leaderboards, in case they are not there yet.
+	task.spawn(RecordService.publish, player, PlayerState.getSaved(player))
 end
 
 local function save(player: Player)
@@ -112,6 +116,7 @@ local function save(player: Player)
 	end)
 	if ok then
 		lastSaved[player] = data
+		RecordService.publish(player, data)
 	else
 		warn("[SaveService] Could not save for", player.Name, "-", result)
 	end
@@ -146,6 +151,7 @@ function SaveService.start()
 		save(player)
 		loaded[player] = nil
 		lastSaved[player] = nil
+		RecordService.forget(player)
 	end)
 
 	-- Regular saves, so a crash loses little.

@@ -1282,3 +1282,34 @@ Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
 Not tested: not run. A tie is rare, so this is unlikely to be seen by chance.
 
 Still untested from earlier entries: Race with Friends (invites, a friend arriving, an opened race taking Quick Race players) and the shared starting places round the fire.
+
+### 2026-10-12 — Record Book planned (design file, no code)
+
+Why: the owner asked for a "record book" on the menu with three pages: personal records, a leaderboard among friends, and a leaderboard of all players showing the top 10, then "...", then the player's own place. This replaces the smaller "race records" item.
+
+Changed:
+
+- `RECORD_BOOK.md` — new. The owner's answers from the quiz: the personal page shows solo and race records; there are four boards (races won, best race score, best haul, camp progress); each has an all-time and a weekly list; the player's own place is exact to 1,000th and "1000+" below. The file also sets out two limits from Roblox (places refresh every few minutes; the Friends page covers friends in the top 1,000) and a two-part build.
+
+No game code changed.
+
+### 2026-10-12 — Record Book part 1: records are saved and published; My Records page on the menu
+
+Why: the owner approved part 1 of `RECORD_BOOK.md`.
+
+Changed:
+
+- `src/shared/Records.luau` — new. The four boards and which saved number each ranks, how a week is numbered (it turns over on Monday at midnight, world time), and the names things are stored under.
+- `src/server/PlayerState.luau` — nine new saved numbers: races won, best race score, races run, top-three finishes, the week number, and this week's races won, best race score, best haul and builds. Weekly numbers clear when a new week begins. A loaded save's weekly numbers are used only if they are from the current week. The existing saved numbers are handled exactly as before.
+- `src/server/RaceService.luau` — at the end of a round, each player who was racing when it began has the race noted in their records.
+- `src/server/RecordService.luau` — new. Writes a player's board numbers to Roblox's leaderboards, all-time and this week's, when they change. It only writes, and never touches saved progress.
+- `src/server/SaveService.luau` — after loading, and after each successful save, the player's board numbers are published.
+- `src/server/MenuService.luau` — reads a player's saved records for the Record Book. Read only.
+- `src/client/Menu.client.luau` — a fourth menu button, RECORD BOOK, opening a panel with three tabs. My Records shows best haul, best game, furthest tree, camp builds, races won, best race score, races run and top-three finishes. Friends and Everyone say "LEADERBOARDS ARE COMING SOON".
+- `src/shared/Remotes.luau` — two new messages for the Record Book.
+- `RECORD_BOOK.md` — three rules added while building.
+
+On saved progress: existing saves load as before. They have none of the new numbers, which simply start at zero. Nothing existing is renamed, removed or reinterpreted.
+
+Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
+Not tested: nothing has been run. Saving and the leaderboards need the published game (the owner's Studio does not have data access switched on). Unseen: the Record Book's layout, whether race records are saved after a race, and whether anything reaches the leaderboards, which nothing reads yet.

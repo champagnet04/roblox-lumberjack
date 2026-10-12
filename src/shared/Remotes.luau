@@ -12,6 +12,8 @@ local NAMES = {
 	"GameOver", -- server -> client: player was caught, ending the game; carries the summary
 	"ChooseMode", -- client -> server: a menu button was pressed ("Solo" or "QuickRace")
 	"MenuStatus", -- server -> client: a line of text to show on the menu
+	"RequestRecords", -- client -> server: the Record Book was opened; send my records
+	"Records", -- server -> client: the player's saved records, for the Record Book
 	"LobbyAction", -- client -> server: the host of a friends race pressed "Start", "ToggleBots" or "ToggleOpen"
 	"ReturnToMenu", -- client -> server: leave this game and go back to the menu
 	"RaceResults", -- server -> everyone: a race round has ended; carries each racer's place and prize

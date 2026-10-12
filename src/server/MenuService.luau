@@ -15,6 +15,7 @@
 -- invited from inside it; an invited friend arrives at a menu server first, carrying the
 -- race server's id, and is sent straight on (see followInvite).
 
+local DataStoreService = game:GetService("DataStoreService")
 local MemoryStoreService = game:GetService("MemoryStoreService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -23,6 +24,7 @@ local TeleportService = game:GetService("TeleportService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Records = require(ReplicatedStorage.Shared.Records)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local CampModels = require(script.Parent.CampModels)
 local RaceDirectory = require(script.Parent.RaceDirectory)
@@ -35,6 +37,10 @@ local MOVE_ATTEMPTS = 3
 local FAILED = "COULD NOT GET THERE. PLEASE TRY AGAIN."
 
 local busy: { [Player]: boolean } = {}
+
+-- Records already read for the Record Book, kept briefly so reopening it costs nothing.
+local RECORDS_KEPT_FOR = 30
+local recordsRead: { [Player]: { At: number, Saved: { [string]: any }? } } = {}
 
 local function roleNotes(): MemoryStoreHashMap
 	return MemoryStoreService:GetHashMap(ROLE_NOTES)
@@ -146,6 +152,31 @@ local function followInvite(player: Player)
 	busy[player] = nil
 end
 
+-- Sends a player their saved records for the Record Book. This only reads their saved
+-- progress; nothing at the menu ever writes it.
+local function sendRecords(player: Player)
+	local kept = recordsRead[player]
+	if not kept or os.clock() - kept.At > RECORDS_KEPT_FOR then
+		local ok, saved = pcall(function()
+			local store = DataStoreService:GetDataStore(Config.Save.StoreName)
+			return store:GetAsync(Records.saveKey(player.UserId))
+		end)
+		if not player.Parent then
+			return
+		end
+		kept = {
+			At = os.clock(),
+			-- nil means it could not be read; an empty table means nothing is saved yet.
+			Saved = if not ok then nil elseif typeof(saved) == "table" then saved else {},
+		}
+		recordsRead[player] = kept
+	end
+	Remotes.Records:FireClient(player, {
+		Saved = kept.Saved,
+		TotalBuilds = #Config.Camp.Builds,
+	})
+end
+
 -- The camp shown behind the menu: the finished lean-to stage.
 local function buildBackdrop(): Folder
 	local folder = Instance.new("Folder")
@@ -203,7 +234,10 @@ function MenuService.start(startHere: ((mode: string, host: number?) -> ())?)
 
 	Players.PlayerRemoving:Connect(function(player)
 		busy[player] = nil
+		recordsRead[player] = nil
 	end)
+
+	Remotes.RequestRecords.OnServerEvent:Connect(sendRecords)
 
 	-- Nobody has a character at the menu, so tell Roblox to show each player the camp.
 	local camp = Workspace:FindFirstChildWhichIsA("SpawnLocation", true)

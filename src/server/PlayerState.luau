@@ -15,6 +15,11 @@
 --   RaceOut     true once the guardian has caught the player this round
 --   RaceScoreAt when RaceScore last went up (server clock); on a tie, the earlier wins
 --
+-- Race records, saved (see RECORD_BOOK.md):
+--   RaceWins, BestRaceScore, RacesRun, RacePodiums (top-three finishes)
+-- This week's numbers for the weekly leaderboards, saved with the week they belong to:
+--   Week, WeekRaceWins, WeekBestRaceScore, WeekBestHaul, WeekBuilds
+--
 -- A game ends when the guardian captures the player.
 -- OverallBank, the three records, BuildsDone and banked materials are saved between
 -- sessions by SaveService.
@@ -25,6 +30,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Records = require(ReplicatedStorage.Shared.Records)
 
 local PlayerState = {}
 
@@ -92,6 +98,8 @@ function PlayerState.completeBuild(
 		player:SetAttribute(name, math.max(get(player, name) - requirement.Count, 0))
 	end
 	player:SetAttribute("BuildsDone", get(player, "BuildsDone") + 1)
+	PlayerState.ensureWeek(player)
+	player:SetAttribute("WeekBuilds", get(player, "WeekBuilds") + 1)
 end
 
 function PlayerState.addHaul(player: Player, amount: number)
@@ -120,6 +128,10 @@ function PlayerState.bankHaul(player: Player): number
 	if haul > 0 then
 		if haul > get(player, "BestHaul") then
 			player:SetAttribute("BestHaul", haul)
+		end
+		PlayerState.ensureWeek(player)
+		if haul > get(player, "WeekBestHaul") then
+			player:SetAttribute("WeekBestHaul", haul)
 		end
 		local furthest = math.round(tripFurthest[player] or 0)
 		if furthest > get(player, "FurthestTree") then
@@ -166,6 +178,30 @@ function PlayerState.startRound(player: Player)
 	tripFurthest[player] = nil
 end
 
+-- Notes a finished race in the player's records. `place` is 1 for the winner and 0 if the
+-- guardian caught them. A win or a top-three finish only counts with wood banked and at
+-- least one other racer, so a race run alone cannot be used to pile up wins.
+function PlayerState.recordRace(player: Player, place: number, score: number, racers: number)
+	PlayerState.ensureWeek(player)
+	player:SetAttribute("RacesRun", get(player, "RacesRun") + 1)
+	if score > get(player, "BestRaceScore") then
+		player:SetAttribute("BestRaceScore", score)
+	end
+	if score > get(player, "WeekBestRaceScore") then
+		player:SetAttribute("WeekBestRaceScore", score)
+	end
+	if score <= 0 or racers < 2 then
+		return
+	end
+	if place >= 1 and place <= 3 then
+		player:SetAttribute("RacePodiums", get(player, "RacePodiums") + 1)
+	end
+	if place == 1 then
+		player:SetAttribute("RaceWins", get(player, "RaceWins") + 1)
+		player:SetAttribute("WeekRaceWins", get(player, "WeekRaceWins") + 1)
+	end
+end
+
 -- Pays a race prize into the camp fund.
 function PlayerState.addPrize(player: Player, amount: number)
 	player:SetAttribute("OverallBank", get(player, "OverallBank") + amount)
@@ -205,10 +241,48 @@ function PlayerState.endGame(player: Player): GameSummary
 	}
 end
 
+-- This week's numbers. They start again from zero each Monday (see Records.currentWeek).
+local WEEKLY = { "WeekRaceWins", "WeekBestRaceScore", "WeekBestHaul", "WeekBuilds" }
+
 -- The numbers that are kept between sessions.
-local SAVED = { "OverallBank", "BestHaul", "BestGame", "FurthestTree", "BuildsDone" }
+local SAVED = {
+	"OverallBank",
+	"BestHaul",
+	"BestGame",
+	"FurthestTree",
+	"BuildsDone",
+	"RaceWins",
+	"BestRaceScore",
+	"RacesRun",
+	"RacePodiums",
+	"Week",
+}
+for _, name in WEEKLY do
+	table.insert(SAVED, name)
+end
 for _, materialType in Config.Camp.MaterialOrder do
 	table.insert(SAVED, `Mat_{materialType}`)
+end
+
+-- Numbers that count things up. The rest are records, where the higher value is kept.
+local COUNTED = {
+	OverallBank = true,
+	RaceWins = true,
+	RacesRun = true,
+	RacePodiums = true,
+	WeekRaceWins = true,
+	WeekBuilds = true,
+}
+
+-- If a new week has begun since the player's weekly numbers were last touched, clears them.
+function PlayerState.ensureWeek(player: Player)
+	local week = Records.currentWeek()
+	if get(player, "Week") ~= week then
+		for _, name in WEEKLY do
+			player:SetAttribute(name, 0)
+		end
+		player:SetAttribute("Week", week)
+	end
 end
 
 function PlayerState.getSaved(player: Player): { [string]: number }
@@ -220,12 +294,19 @@ function PlayerState.getSaved(player: Player): { [string]: number }
 end
 
 -- Applies numbers loaded from a save. Anything earned before the load finished is kept:
--- banked wood is added on top, and records keep whichever value is higher.
+-- counts are added on top, and records keep whichever value is higher.
+-- Saved weekly numbers are only used if they belong to the week it is now.
 function PlayerState.applySaved(player: Player, data: { [string]: any })
+	PlayerState.ensureWeek(player)
+	local sameWeek = data.Week == Records.currentWeek()
+
 	for _, name in SAVED do
 		local value = data[name]
-		if typeof(value) == "number" then
-			if name == "OverallBank" then
+		local usable = typeof(value) == "number"
+			and name ~= "Week"
+			and (sameWeek or not table.find(WEEKLY, name))
+		if usable then
+			if COUNTED[name] then
 				player:SetAttribute(name, get(player, name) + value)
 			else
 				player:SetAttribute(name, math.max(get(player, name), value))
@@ -272,6 +353,7 @@ local function onPlayerAdded(player: Player)
 	end
 	player:SetAttribute("CarriedMaterial", "")
 	player:SetAttribute("RaceOut", false)
+	PlayerState.ensureWeek(player)
 	if PlayerState.isTesting() and not IS_RACE then
 		applyTestState(player)
 	end

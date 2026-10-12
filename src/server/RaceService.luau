@@ -38,6 +38,7 @@ local LIST_EVERY = 3 -- seconds between updates to this server's entry in the li
 
 local friendsRace = false -- this race was made with Race with Friends and has a host
 local startRequested = false -- the host has pressed Start
+local participants: { [Player]: boolean } = {} -- the players who were racing when this round began
 
 export type Result = {
 	Name: string,
@@ -123,7 +124,7 @@ end
 -- banked; on a tie, whoever reached that score first is placed higher.
 -- A prize needs at least some wood banked, so standing still at camp earns nothing.
 -- Bots take places like anyone, but prizes are only paid to players.
-local function scoreRound(): { Result }
+local function scoreRound(startedWith: number): { Result }
 	local cfg = Config.Race
 	local racers = allRacers()
 	table.sort(racers, function(a, b)
@@ -155,6 +156,10 @@ local function scoreRound(): { Result }
 				prize = cfg.Prizes[place] or cfg.SurvivorPrize
 				PlayerState.addPrize(racer, prize)
 			end
+		end
+		-- Goes in the player's records, unless they joined partway through and only watched.
+		if racer:IsA("Player") and participants[racer] then
+			PlayerState.recordRace(racer, if out then 0 else place, score, startedWith)
 		end
 		table.insert(results, {
 			Name = nameOf(racer),
@@ -260,6 +265,10 @@ local function run()
 			continue -- everyone left during the countdown
 		end
 		GuardianService.reset() -- a fresh hidden number for the round
+		participants = {}
+		for _, player in Players:GetPlayers() do
+			participants[player] = not PlayerState.isOut(player)
+		end
 		setPhase("Running", cfg.RoundTime)
 		task.spawn(RaceDirectory.close) -- nobody is sent into the middle of a round
 		BotService.setRacing(true)
@@ -273,7 +282,7 @@ local function run()
 		setPhase("Results", cfg.ResultsTime)
 		BotService.setRacing(false)
 		GuardianService.reset()
-		Remotes.RaceResults:FireAllClients(scoreRound())
+		Remotes.RaceResults:FireAllClients(scoreRound(startedWith))
 		waitFor(cfg.ResultsTime, keepListed(cfg.CountdownTime)) -- open again for the next round
 	end
 end
