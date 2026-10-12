@@ -12,7 +12,7 @@ Solo play stays as it is: each player's own camp, built over about 50 hours. A r
 
 | Subject | Decision |
 |---|---|
-| Getting in | A menu when you join the game, with Solo and Race. |
+| Getting in | A menu when you join the game, with Solo, Quick Race and Race with Friends. See "Getting into a race". |
 | Racers per round | 1 to 15 real players. Bots fill a round up to 8 racers; each real player who joins replaces a bot. |
 | Round length | About 6 minutes. |
 | End of round | The timer runs out, or one racer is left. |
@@ -25,6 +25,17 @@ Solo play stays as it is: each player's own camp, built over about 50 hours. A r
 | Camp perks | Not used in a race. Everyone has the same axe, stamina and torch. |
 | Contact between players | None at first. Racers compete for the same trees and share the guardian, and that is all. Pushing may come later, once the basic race is fun. |
 | After a round | Results show for a few seconds, the forest regrows, and the next round starts with whoever stays. A button returns to the menu at any time. |
+
+## Getting into a race
+
+Decided with the owner on 2026-10-12. Not built.
+
+- **Solo.** Your own camp, on a private server.
+- **Quick Race.** Puts you in a race that is gathering players. A 30-second countdown shows who has joined; the race starts when it ends, or at once if the race is full. Bots fill the empty places. If no race is gathering, a new one is started. A player is never dropped into the middle of a round to wait.
+- **Race with Friends.** Opens a private lobby. The host invites friends through Roblox's own invite window, sees them arrive, and presses Start when ready. Only the host can start.
+- **Host's switches in a friends lobby.** Two: whether bots fill the empty places, and whether players who were not invited can join. It starts as private with bots on.
+
+None of this can be tried in Studio. Moving players between servers and inviting friends only work in the published game.
 
 ## Prizes
 

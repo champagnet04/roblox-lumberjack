@@ -1175,3 +1175,14 @@ Consequence: the guardian will again be out most of the time with eight racers, 
 
 Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
 Not tested: not run in Studio.
+
+### 2026-10-12 — Design file: how players get into a race (no code)
+
+The owner asked for a way to invite friends to a race, to start immediately, or to wait for more players. Decided by quiz and recorded in `MULTIPLAYER.md` under "Getting into a race":
+
+- The menu has three buttons: Solo, Quick Race, and Race with Friends.
+- Quick Race gathers players for 30 seconds, then starts with bots filling the empty places.
+- Race with Friends opens a private lobby; the host invites friends and presses Start.
+- In a friends lobby the host chooses whether bots fill the empty places and whether players who were not invited can join.
+
+No game code changed. This is the design for step 5.
