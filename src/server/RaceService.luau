@@ -153,7 +153,7 @@ local function scoreRound(startedWith: number): { Result }
 		if not out then
 			place += 1
 			if score > 0 and racer:IsA("Player") then
-				prize = cfg.Prizes[place] or cfg.SurvivorPrize
+				prize = PlayerState.prizeWorth(racer, cfg.Prizes[place] or cfg.SurvivorPrize)
 				PlayerState.addPrize(racer, prize)
 			end
 		end

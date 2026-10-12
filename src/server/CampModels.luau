@@ -31,6 +31,14 @@ local MEAT = Color3.fromRGB(134, 70, 44)
 local RUST = Color3.fromRGB(140, 84, 54)
 local EMBER = Color3.fromRGB(255, 120, 40)
 local GHOST = Color3.fromRGB(255, 214, 120)
+local IRON = Color3.fromRGB(48, 48, 54)
+local STEW = Color3.fromRGB(112, 78, 44)
+local LANTERN_GLOW = Color3.fromRGB(255, 190, 110)
+local CRATE = Color3.fromRGB(150, 112, 72)
+local FLANNEL = Color3.fromRGB(176, 40, 40)
+local FLANNEL_DARK = Color3.fromRGB(104, 22, 26)
+local SOCK = Color3.fromRGB(206, 204, 196)
+local FISH = Color3.fromRGB(150, 160, 166)
 
 local KIT_MODEL = "CampKit"
 
@@ -526,6 +534,481 @@ function builders.Bedroll(model: Model)
 	end
 end
 
+-- Stage 2: the tent camp. See CAMP_PROGRESSION.md.
+
+-- The tent stands where the lean-to stood, its open end toward the fire.
+-- Points are given in its own space: Z along the ridge (-Z is the front), Y up, X to the sides.
+local TENT = LEAN_TO
+local TENT_RIDGE_HEIGHT = 6.2
+local TENT_HALF_LENGTH = 4
+local TENT_HALF_WIDTH = 4.4
+
+local function tentPoint(x: number, y: number, z: number): Vector3
+	return TENT:PointToWorldSpace(Vector3.new(x, y, z))
+end
+
+-- A thin rope from one point to another (must not be exactly vertical).
+local function rope(from: Vector3, to: Vector3, parent: Instance, diameter: number?): Part
+	local part = pole(from, to, diameter or 0.09, parent, ROPE)
+	part.Name = "Rope"
+	part.Material = Enum.Material.Fabric
+	part.CanCollide = false
+	return part
+end
+
+-- A flat piece of cloth hanging in the plane of `at` (its X and Y), such as washing on a line.
+local function hanging(
+	name: string,
+	at: CFrame,
+	width: number,
+	height: number,
+	color: Color3,
+	parent
+)
+	return makePart({
+		Name = name,
+		Size = Vector3.new(width, height, 0.12),
+		CFrame = at,
+		Material = Enum.Material.Fabric,
+		Color = color,
+		CanCollide = false,
+	}, parent)
+end
+
+-- An iron pot hung by a chain from the spit, over the fire. (The meat is taken off the
+-- cooking frame when this is built; see Strips in Config.)
+function builders.HangingPot(model: Model)
+	local centre = Vector3.new(0, SPIT_HEIGHT - 1.8, 0)
+
+	pole(
+		Vector3.new(0, SPIT_HEIGHT - 0.1, 0),
+		centre + Vector3.new(0.02, 1.3, 0),
+		0.14,
+		model,
+		IRON
+	).Name =
+		"PotChain"
+	for _, side in { -1, 1 } do
+		-- The bail: a rod from each side of the rim up to the chain.
+		pole(
+			centre + Vector3.new(0, 0.7, side * 0.8),
+			centre + Vector3.new(0, 1.3, 0),
+			0.1,
+			model,
+			IRON
+		).Name =
+			"PotHandle"
+	end
+
+	makePart({
+		Name = "Pot",
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.one * 1.9,
+		Position = centre,
+		Material = Enum.Material.Metal,
+		Color = IRON,
+	}, model)
+	makePart({
+		Name = "PotRim",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.22, 1.75, 1.75),
+		CFrame = CFrame.new(centre + Vector3.new(0, 0.7, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+		Material = Enum.Material.Metal,
+		Color = IRON,
+	}, model)
+	local stew = makePart({
+		Name = "Stew",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.06, 1.5, 1.5),
+		CFrame = CFrame.new(centre + Vector3.new(0, 0.82, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+		Material = Enum.Material.SmoothPlastic,
+		Color = STEW,
+		CanCollide = false,
+	}, model)
+
+	local steam = Instance.new("ParticleEmitter")
+	steam.Name = "Steam"
+	steam.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	steam.EmissionDirection = Enum.NormalId.Right -- the stew's flat face looks up along its X
+	steam.Rate = 5
+	steam.Lifetime = NumberRange.new(1.6, 2.6)
+	steam.Speed = NumberRange.new(1.2, 1.8)
+	steam.SpreadAngle = Vector2.new(12, 12)
+	steam.Size = NumberSequence.new(0.5, 1.6)
+	steam.Transparency = NumberSequence.new(0.7, 1)
+	steam.Color = ColorSequence.new(Color3.fromRGB(230, 230, 230))
+	steam.Parent = stew
+end
+
+-- A post on the spawn side with a lantern hanging from an arm: a second light at camp.
+function builders.LanternPost(model: Model)
+	local base = Vector3.new(11, 0, 8)
+	local top = base + Vector3.new(0.12, 7, 0)
+	local armEnd = base + Vector3.new(-1.7, 6.9, -0.9) -- reaching in towards the fire
+	crookedPole(base - Vector3.new(0, 0.4, 0), top, 0.5, model, WOOD).Name = "Post"
+	crookedPole(top - Vector3.new(0, 0.5, 0), armEnd, 0.3, model, WOOD).Name = "Arm"
+	crookedPole(base + Vector3.new(0.08, 5.1, 0), (top + armEnd) / 2, 0.22, model, WOOD).Name =
+		"Brace"
+	lashing(
+		CFrame.new(top - Vector3.new(0, 0.5, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+		0.7,
+		model
+	)
+
+	local lantern = armEnd - Vector3.new(0, 1.35, 0)
+	pole(armEnd, lantern + Vector3.new(0.02, 0.6, 0), 0.08, model, IRON).Name = "LanternChain"
+	for _, cap in { 0.52, -0.52 } do
+		makePart({
+			Name = "LanternCap",
+			Size = Vector3.new(0.86, 0.14, 0.86),
+			Position = lantern + Vector3.new(0, cap, 0),
+			Material = Enum.Material.Metal,
+			Color = IRON,
+			CanCollide = false,
+		}, model)
+	end
+	local glass = makePart({
+		Name = "LanternGlass",
+		Size = Vector3.new(0.66, 0.9, 0.66),
+		Position = lantern,
+		Material = Enum.Material.Neon,
+		Color = LANTERN_GLOW,
+		CanCollide = false,
+	}, model)
+
+	local light = Instance.new("PointLight")
+	light.Color = Config.Lighting.WarmLight
+	light.Brightness = 1.6
+	light.Range = 30
+	light.Shadows = false
+	light.Parent = glass
+end
+
+-- Two uprights and a ridge pole on the lean-to's spot. (The lean-to is taken down when
+-- this is built; see Replaces in Config.)
+function builders.TentPoles(model: Model)
+	for _, z in { -TENT_HALF_LENGTH, TENT_HALF_LENGTH } do
+		crookedPole(tentPoint(0.06, -0.3, z), tentPoint(0, TENT_RIDGE_HEIGHT, z), 0.42, model, WOOD).Name =
+			"Upright"
+		lashing(TENT * CFrame.new(0, TENT_RIDGE_HEIGHT, z) * turn(90), 0.75, model)
+	end
+	crookedPole(
+		tentPoint(0, TENT_RIDGE_HEIGHT + 0.05, -TENT_HALF_LENGTH - 0.6),
+		tentPoint(0, TENT_RIDGE_HEIGHT, TENT_HALF_LENGTH + 0.6),
+		0.4,
+		model,
+		WOOD
+	).Name =
+		"Ridge"
+end
+
+-- Weathered canvas over the ridge, sloping to the ground on both sides, closed at the back
+-- and open at the front. Sewn from strips, with a couple of patches.
+function builders.TentCanvas(model: Model)
+	local top = Vector3.new(0, TENT_RIDGE_HEIGHT + 0.25, 0)
+	local strips = 3
+	local stripLength = (TENT_HALF_LENGTH * 2 + 0.4) / strips
+
+	for _, side in { -1, 1 } do
+		local foot = Vector3.new(side * TENT_HALF_WIDTH, 0.12, 0)
+		local slope = (foot - top).Unit
+		local slopeLength = (foot - top).Magnitude
+		local along = Vector3.new(0, 0, 1)
+		-- A panel lying on the slope: its X runs down the slope, its Z along the ridge.
+		local function panel(
+			name: string,
+			z: number,
+			length: number,
+			from: number,
+			to: number,
+			color
+		)
+			local middle = top + slope * ((from + to) / 2) + along * z
+			local part = makePart({
+				Name = name,
+				Size = Vector3.new(to - from, 0.12, length),
+				CFrame = TENT * CFrame.fromMatrix(middle, slope, along:Cross(slope), along),
+				Material = Enum.Material.Fabric,
+				Color = color,
+			}, model)
+			return part
+		end
+
+		for i = 1, strips do
+			local z = (i - (strips + 1) / 2) * stripLength
+			panel(
+				"Canvas",
+				z,
+				stripLength + 0.04,
+				0,
+				slopeLength,
+				if (i + side) % 2 == 0 then CLOTH else CLOTH_WORN
+			)
+		end
+		local patch =
+			panel("Patch", side * 1.4, 1.2, slopeLength * 0.45, slopeLength * 0.45 + 1, CLOTH_PATCH)
+		patch.CFrame *= CFrame.new(0, side * 0.04, 0)
+		patch.CanCollide = false
+
+		-- Half of the back wall: a triangle from the middle out to this side.
+		local wall = Instance.new("WedgePart")
+		wall.Name = "BackWall"
+		wall.Anchored = true
+		wall.Size = Vector3.new(0.12, TENT_RIDGE_HEIGHT, TENT_HALF_WIDTH)
+		wall.CFrame = TENT
+			* CFrame.fromMatrix(
+				Vector3.new(
+					side * TENT_HALF_WIDTH / 2,
+					TENT_RIDGE_HEIGHT / 2 + 0.1,
+					TENT_HALF_LENGTH
+				),
+				Vector3.new(0, 0, side),
+				Vector3.new(0, 1, 0),
+				Vector3.new(-side, 0, 0)
+			)
+		wall.Material = Enum.Material.Fabric
+		wall.Color = CLOTH_WORN
+		wall.TopSurface = Enum.SurfaceType.Smooth
+		wall.BottomSurface = Enum.SurfaceType.Smooth
+		wall.Parent = model
+	end
+end
+
+-- Wooden pegs along both sides and off each end of the ridge, with ropes pulling the tent taut.
+function builders.TentPegs(model: Model)
+	local function peg(x: number, z: number, leanX: number, leanZ: number): Vector3
+		local foot = tentPoint(x, -0.25, z)
+		local head = tentPoint(x + leanX, 0.75, z + leanZ)
+		pole(foot, head, 0.2, model, PALE_WOOD).Name = "Peg"
+		return tentPoint(x + leanX * 0.6, 0.45, z + leanZ * 0.6)
+	end
+
+	for _, side in { -1, 1 } do
+		-- Along the sides: from a third of the way up the canvas out to a peg.
+		for _, z in { -3, 0, 3 } do
+			local tie = peg(side * (TENT_HALF_WIDTH + 1.5), z, side * 0.35, 0)
+			rope(tentPoint(side * TENT_HALF_WIDTH * 0.72, 1.85, z), tie, model)
+		end
+		-- Off each end of the ridge, splayed to either side so the front stays open.
+		for _, direction in { -1, 1 } do
+			local z = direction * (TENT_HALF_LENGTH + 2.6)
+			local tie = peg(side * 3, z, 0, direction * 0.35)
+			rope(tentPoint(0, TENT_RIDGE_HEIGHT, direction * (TENT_HALF_LENGTH + 0.5)), tie, model)
+		end
+	end
+end
+
+-- A low canvas bed on a pole frame, inside the tent. (The bedroll goes when this is built.)
+function builders.Cot(model: Model)
+	local x = -1.5 -- to one side, leaving room to walk in
+	local height = 1.25
+	local halfLength = 2.9
+	local halfWidth = 1.1
+
+	for _, side in { -1, 1 } do
+		crookedPole(
+			tentPoint(x + side * halfWidth, height, -halfLength - 0.3),
+			tentPoint(x + side * halfWidth, height + 0.03, halfLength + 0.3),
+			0.26,
+			model,
+			WOOD
+		).Name =
+			"CotRail"
+	end
+	-- Crossed legs at each end.
+	for _, z in { -halfLength + 0.5, halfLength - 0.5 } do
+		for _, side in { -1, 1 } do
+			pole(
+				tentPoint(x + side * halfWidth, height, z),
+				tentPoint(x - side * halfWidth * 0.8, -0.1, z),
+				0.2,
+				model,
+				WOOD
+			).Name =
+				"CotLeg"
+		end
+	end
+
+	makePart({
+		Name = "CotCanvas",
+		Size = Vector3.new(halfWidth * 2, 0.14, halfLength * 2),
+		CFrame = TENT * CFrame.new(x, height + 0.08, 0),
+		Material = Enum.Material.Fabric,
+		Color = CLOTH,
+	}, model)
+	makePart({
+		Name = "Blanket",
+		Size = Vector3.new(halfWidth * 2 + 0.2, 0.22, 3),
+		CFrame = TENT * CFrame.new(x, height + 0.24, -1.2),
+		Material = Enum.Material.Fabric,
+		Color = BLANKET,
+		CanCollide = false,
+	}, model)
+	makePart({
+		Name = "Pillow",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(1.8, 0.7, 0.7),
+		CFrame = TENT * CFrame.new(x, height + 0.5, halfLength - 0.7),
+		Material = Enum.Material.Fabric,
+		Color = CLOTH_WORN,
+		CanCollide = false,
+	}, model)
+end
+
+-- A plank crate with corner battens, a lid left ajar and a rope handle at each end.
+function builders.SupplyCrate(model: Model)
+	local size = Vector3.new(3.2, 2.1, 2.3)
+	local crate = CFrame.new(-11.5, 0, 8.4) * turn(20)
+
+	makePart({
+		Name = "Crate",
+		Size = size,
+		CFrame = crate * CFrame.new(0, size.Y / 2, 0),
+		Material = Enum.Material.WoodPlanks,
+		Color = CRATE,
+	}, model)
+	for _, sideX in { -1, 1 } do
+		for _, sideZ in { -1, 1 } do
+			makePart({
+				Name = "Batten",
+				Size = Vector3.new(0.32, size.Y + 0.06, 0.32),
+				CFrame = crate
+					* CFrame.new(sideX * (size.X / 2 - 0.1), size.Y / 2, sideZ * (size.Z / 2 - 0.1)),
+				Color = DARK_WOOD,
+			}, model)
+		end
+		-- A loop of rope on each end to carry it by.
+		lashing(crate * CFrame.new(sideX * (size.X / 2 + 0.08), size.Y * 0.62, 0), 0.9, model)
+	end
+	makePart({
+		Name = "Lid",
+		Size = Vector3.new(size.X + 0.3, 0.2, size.Z + 0.3),
+		CFrame = crate
+			* CFrame.new(0.15, size.Y + 0.16, 0.1)
+			* turn(7)
+			* CFrame.Angles(0, 0, math.rad(4)),
+		Material = Enum.Material.WoodPlanks,
+		Color = CRATE,
+	}, model)
+end
+
+-- Two forked sticks and a pole, with a row of fish hung up to dry.
+function builders.DryingRack(model: Model)
+	local centre = Vector3.new(3, 0, -14)
+	local half = 3.3
+	for _, side in { -1, 1 } do
+		local origin = CFrame.new(centre + Vector3.new(side * half, -FORK_BURIED, 0))
+			* turn(90 + 8 * side)
+		forkedStick(origin, Vector3.one, model)
+	end
+	crookedPole(
+		centre + Vector3.new(-half - 0.7, SPIT_HEIGHT, 0),
+		centre + Vector3.new(half + 0.7, SPIT_HEIGHT + 0.04, 0),
+		0.3,
+		model,
+		STICK
+	).Name =
+		"RackPole"
+
+	for i = 1, 5 do
+		local x = (i - 3) * 1.15
+		local hung = centre + Vector3.new(x, SPIT_HEIGHT - 0.15, 0)
+		local drop = 0.55 + (i % 2) * 0.18
+		rope(hung, hung + Vector3.new(0.02, -drop, 0), model, 0.06)
+
+		local body = makePart({
+			Name = "Fish",
+			Size = Vector3.new(0.5, 1.5, 0.22),
+			CFrame = CFrame.new(hung + Vector3.new(0, -drop - 0.7, 0)) * turn(i * 37),
+			Material = Enum.Material.SmoothPlastic,
+			Color = FISH,
+			CanCollide = false,
+		}, model)
+		local shape = Instance.new("SpecialMesh")
+		shape.MeshType = Enum.MeshType.Sphere
+		shape.Parent = body
+
+		local tail = makePart({
+			Name = "FishTail",
+			Size = Vector3.new(0.5, 0.36, 0.1),
+			CFrame = body.CFrame * CFrame.new(0, -0.85, 0),
+			Material = Enum.Material.SmoothPlastic,
+			Color = FISH,
+			CanCollide = false,
+		}, model)
+		local tailShape = Instance.new("SpecialMesh")
+		tailShape.MeshType = Enum.MeshType.Sphere
+		tailShape.Parent = tail
+	end
+end
+
+-- A sagging rope between two poles, with a flannel shirt, a pair of socks and a blanket.
+function builders.Clothesline(model: Model)
+	local centre = Vector3.new(3, 0, 14)
+	local half = 4.6
+	local high, low = 5.8, 5.3
+
+	for _, side in { -1, 1 } do
+		local foot = centre + Vector3.new(side * half, -0.4, 0)
+		crookedPole(foot, foot + Vector3.new(side * 0.2, high + 0.8, 0), 0.4, model, WOOD).Name =
+			"LinePost"
+	end
+	local points = {
+		centre + Vector3.new(-half + 0.05, high, 0),
+		centre + Vector3.new(-half / 3, low, 0),
+		centre + Vector3.new(half / 3, low, 0),
+		centre + Vector3.new(half - 0.05, high, 0),
+	}
+	for i = 1, #points - 1 do
+		rope(points[i], points[i + 1], model, 0.1)
+	end
+
+	-- Everything hangs just below the low part of the line.
+	local function at(x: number, drop: number, lean: number): CFrame
+		return CFrame.new(centre + Vector3.new(x, low - drop, 0))
+			* CFrame.Angles(0, 0, math.rad(lean))
+	end
+
+	-- A red flannel shirt: body, two sleeves hanging out, and a couple of darker stripes.
+	hanging("Shirt", at(-2.3, 1.05, 0), 1.9, 2.1, FLANNEL, model)
+	for _, side in { -1, 1 } do
+		hanging("Sleeve", at(-2.3 + side * 1.25, 0.75, side * 28), 0.7, 1.6, FLANNEL, model)
+	end
+	for _, stripe in { -0.45, 0.45 } do
+		hanging(
+			"Stripe",
+			at(-2.3 + stripe, 1.05, 0) * CFrame.new(0, 0, 0.02),
+			0.14,
+			2.1,
+			FLANNEL_DARK,
+			model
+		)
+		hanging(
+			"Stripe",
+			at(-2.3, 1.05 + stripe, 0) * CFrame.new(0, 0, 0.02),
+			1.9,
+			0.14,
+			FLANNEL_DARK,
+			model
+		)
+	end
+
+	hanging("Sock", at(-0.1, 0.6, 4), 0.42, 1.2, SOCK, model)
+	hanging("Sock", at(0.5, 0.62, -5), 0.42, 1.2, SOCK, model)
+
+	-- A blanket folded over the line: one face each side of it.
+	for _, face in { -1, 1 } do
+		hanging(
+			"Blanket",
+			at(2.5, 0.85, 0) * CFrame.new(0, 0, face * 0.1),
+			2.6,
+			1.7,
+			BLANKET,
+			model
+		)
+	end
+end
+
 -- Where each build stands, for measuring the ground under it.
 local BUILD_SPOTS: { [string]: Vector3 } = {
 	FirePit = Vector3.new(0, 0, 0),
@@ -535,6 +1018,15 @@ local BUILD_SPOTS: { [string]: Vector3 } = {
 	LeanToFrame = Vector3.new(-14, 0, 0),
 	LeanToCover = Vector3.new(-14, 0, 0),
 	Bedroll = Vector3.new(-14, 0, 0),
+	HangingPot = Vector3.new(0, 0, 0),
+	LanternPost = Vector3.new(11, 0, 8),
+	TentPoles = Vector3.new(-14, 0, 0),
+	TentCanvas = Vector3.new(-14, 0, 0),
+	TentPegs = Vector3.new(-14, 0, 0),
+	Cot = Vector3.new(-14, 0, 0),
+	SupplyCrate = Vector3.new(-11.5, 0, 8.4),
+	DryingRack = Vector3.new(3, 0, -14),
+	Clothesline = Vector3.new(3, 0, 14),
 }
 local reportedGround: { [string]: boolean } = {}
 
@@ -607,7 +1099,7 @@ function CampModels.makeGhost(model: Model)
 			item.CanCollide = false
 			item.CanQuery = false
 			item.CastShadow = false
-		elseif item:IsA("Fire") or item:IsA("Light") then
+		elseif item:IsA("Fire") or item:IsA("Light") or item:IsA("ParticleEmitter") then
 			item:Destroy()
 		end
 	end
@@ -714,6 +1206,107 @@ end
 
 -- Builds a material floating above a point on the ground. The model itself is enlarged and
 -- lit up in its own shape, so it can be recognised and found in the dark.
+-- The tent camp's materials.
+
+-- A small iron cooking pot.
+function materialBuilders.IronPot(model: Model, at: Vector3)
+	makePart({
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.one * 1.1,
+		Position = at + Vector3.new(0, 0.55, 0),
+		Material = Enum.Material.Metal,
+		Color = IRON,
+	}, model)
+	makePart({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.16, 1.05, 1.05),
+		CFrame = CFrame.new(at + Vector3.new(0, 0.98, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+		Material = Enum.Material.Metal,
+		Color = IRON,
+	}, model)
+end
+
+-- A short length of chain: links end to end, each turned against the last.
+function materialBuilders.Chain(model: Model, at: Vector3)
+	for i = 1, 5 do
+		local from = at + Vector3.new((i - 3.5) * 0.42, 0.3 + (i % 2) * 0.14, 0)
+		local to = from + Vector3.new(0.46, ((i + 1) % 2 - i % 2) * 0.14, 0)
+		local link = pole(from, to, 0.22, model, IRON)
+		link.Material = Enum.Material.Metal
+	end
+end
+
+-- A battered lantern, still faintly lit.
+function materialBuilders.Lantern(model: Model, at: Vector3)
+	for _, cap in { 0.12, 1.02 } do
+		makePart({
+			Size = Vector3.new(0.7, 0.14, 0.7),
+			Position = at + Vector3.new(0, cap, 0),
+			Material = Enum.Material.Metal,
+			Color = IRON,
+		}, model)
+	end
+	makePart({
+		Size = Vector3.new(0.52, 0.76, 0.52),
+		Position = at + Vector3.new(0, 0.57, 0),
+		Material = Enum.Material.Neon,
+		Color = LANTERN_GLOW,
+	}, model)
+end
+
+-- A folded sheet of canvas tied with rope.
+function materialBuilders.Canvas(model: Model, at: Vector3)
+	for i = 1, 3 do
+		makePart({
+			Size = Vector3.new(1.7 - i * 0.06, 0.16, 1.15),
+			Position = at + Vector3.new(0, 0.1 + (i - 1) * 0.17, 0),
+			Material = Enum.Material.Fabric,
+			Color = if i % 2 == 0 then CLOTH_WORN else CLOTH,
+		}, model)
+	end
+	lashing(CFrame.new(at + Vector3.new(0, 0.28, 0)) * turn(90), 0.72, model)
+end
+
+-- A pair of wooden tent pegs.
+function materialBuilders.TentPeg(model: Model, at: Vector3)
+	for _, side in { -1, 1 } do
+		pole(
+			at + Vector3.new(-0.6, 0.15, side * 0.2),
+			at + Vector3.new(0.6, 0.3 + side * 0.08, side * 0.28),
+			0.2,
+			model,
+			PALE_WOOD
+		)
+	end
+end
+
+-- Two sawn planks, one across the other.
+function materialBuilders.Plank(model: Model, at: Vector3)
+	for i, angle in { 0, 22 } do
+		makePart({
+			Size = Vector3.new(2.5, 0.14, 0.5),
+			CFrame = CFrame.new(at + Vector3.new(0, 0.08 + (i - 1) * 0.15, 0)) * turn(angle),
+			Material = Enum.Material.WoodPlanks,
+			Color = PALE_WOOD,
+		}, model)
+	end
+end
+
+-- A small box of nails, a few standing proud.
+function materialBuilders.Nails(model: Model, at: Vector3)
+	makePart({
+		Size = Vector3.new(0.9, 0.42, 0.7),
+		Position = at + Vector3.new(0, 0.21, 0),
+		Material = Enum.Material.WoodPlanks,
+		Color = CRATE,
+	}, model)
+	for i = 1, 4 do
+		local foot = at + Vector3.new((i - 2.5) * 0.18, 0.4, (i % 2 - 0.5) * 0.2)
+		local nail = pole(foot, foot + Vector3.new(0.04, 0.42, 0.02), 0.07, model, RUST)
+		nail.Material = Enum.Material.Metal
+	end
+end
+
 function CampModels.buildMaterial(materialType: string, at: Vector3, parent: Instance): Model
 	local model = Instance.new("Model")
 	model.Name = materialType

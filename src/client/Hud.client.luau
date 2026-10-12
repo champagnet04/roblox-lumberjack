@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
+local Camp = require(ReplicatedStorage.Shared.Camp)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 
@@ -91,7 +92,7 @@ local statsPanel = Instance.new("Frame")
 statsPanel.Name = "Stats"
 statsPanel.AnchorPoint = Vector2.new(1, 0)
 statsPanel.Position = UDim2.new(1, -16, 0, 176)
-statsPanel.Size = UDim2.fromOffset(210, 117)
+statsPanel.Size = UDim2.fromOffset(210, 142)
 statsPanel.BackgroundColor3 = PANEL_COLOR
 statsPanel.BackgroundTransparency = 0.35
 statsPanel.BorderSizePixel = 0
@@ -122,12 +123,13 @@ local overallValue = makeStatRow("TOTAL BANKED", 1)
 local bestHaulValue = makeStatRow("BEST HAUL", 2)
 local bestGameValue = makeStatRow("BEST GAME", 3)
 local furthestValue = makeStatRow("FURTHEST TREE", 4)
+local worthValue = makeStatRow("WOOD WORTH", 5) -- goes up as camp stages are finished
 
 -- Shown only when progress cannot be saved this session.
 local saveNotice = makeLabel({
 	Name = "SaveNotice",
 	AnchorPoint = Vector2.new(1, 0),
-	Position = UDim2.new(1, -16, 0, 299),
+	Position = UDim2.new(1, -16, 0, 324),
 	Size = UDim2.fromOffset(210, 18),
 	TextSize = 12,
 	TextColor3 = DANGER,
@@ -552,7 +554,13 @@ local function showArrivalToast()
 		table.insert(parts, `{lastMaterialName} BANKED`)
 	end
 	if now - lastBankAt < ARRIVAL_WINDOW then
-		table.insert(parts, `+{lastBankAmount} WOOD BANKED`)
+		local worth = if IS_RACE then 1 else Camp.woodWorth(player:GetAttribute("BuildsDone") or 0)
+		table.insert(
+			parts,
+			if worth > 1
+				then `+{lastBankAmount} WOOD BANKED (x{worth} FOR YOUR CAMP)`
+				else `+{lastBankAmount} WOOD BANKED`
+		)
 	end
 	if #parts > 0 then
 		showToast(table.concat(parts, "  "))
@@ -586,6 +594,7 @@ local function refreshGameBank()
 end
 
 local function refreshStats()
+	worthValue.Text = `x{Camp.woodWorth(player:GetAttribute("BuildsDone") or 0)}`
 	local bestHaul = player:GetAttribute("BestHaul") or 0
 	overallValue.Text = tostring(player:GetAttribute("OverallBank") or 0)
 	bestHaulValue.Text = tostring(bestHaul)
@@ -713,7 +722,7 @@ end)
 player:GetAttributeChangedSignal("Stamina"):Connect(refreshStamina)
 player:GetAttributeChangedSignal("Haul"):Connect(refreshHaul)
 player:GetAttributeChangedSignal(BANK_ATTRIBUTE):Connect(refreshGameBank)
-for _, name in { "OverallBank", "BestHaul", "BestGame", "FurthestTree" } do
+for _, name in { "OverallBank", "BestHaul", "BestGame", "FurthestTree", "BuildsDone" } do
 	player:GetAttributeChangedSignal(name):Connect(refreshStats)
 end
 player:GetAttributeChangedSignal("Chased"):Connect(refreshChased)

@@ -1329,3 +1329,24 @@ Changed:
 
 Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
 Not tested: nothing has been run, and part 1 is untested too. Everything here depends on Roblox's data services, so it needs the published game. Most at risk: whether numbers reach the boards at all (part 1), reading them back, the names of other players, and the Friends page, which needs a friend who has played.
+
+### 2026-10-12 — Camp stage 2: the tent camp, with wood worth, replacing builds and stage-based material distances
+
+Why: with multiplayer and the Record Book built, the owner returned to the solo camp. A quiz settled the tent camp's look, and the owner approved the build. The owner will review each stage by setting the test settings to that stage's last build.
+
+Changed:
+
+- `src/shared/Config.luau` — nine new builds (8 to 16) with the agreed prices, 2,200 rising to 5,400, and materials. Seven new materials: iron pot, chain, old lantern, canvas, tent peg, plank, nails. New `Camp.Stages` (lean-to ends at build 7, tent camp at 16). A build can now say which earlier builds it replaces and which piece it strips from one. Material distance is set per stage (`MaterialStagePush`, `MaterialStageStart`) in place of a fixed step per build.
+- `src/shared/Camp.luau` — new. Works out which stage a build belongs to and what wood is worth.
+- `src/server/CampModels.luau` — models for the nine builds and seven materials, made from plain parts and the sculpted pieces already imported (forked sticks, crooked poles). No new import is needed.
+  - Hanging pot: an iron pot on a chain from the spit, with steam. Lantern post: a post and arm on the spawn side with a glowing lantern and a light. Tent poles, canvas, pegs and ropes: an A-frame tent on the lean-to's spot, open toward the fire, closed at the back. Cot: a canvas bed on crossed legs inside the tent. Supply crate: beside the tent, lid ajar. Drying rack: five fish, on one open side. Clothesline: a flannel shirt, socks and a blanket, on the other.
+- `src/server/CampBuildService.luau` — a finished build can take earlier ones down (tent poles remove the lean-to frame and cover; the cot removes the bedroll) or strip a piece (the pot removes the meat). A message when a stage is finished. Material distance by stage.
+- `src/server/PlayerState.luau` — banked wood is multiplied by wood worth when it goes into the camp fund: 2 times once the lean-to stage is finished, 3 times once the tent camp is. The game bank, best haul and best game stay in plain wood.
+- `src/server/RaceService.luau` — race prizes are multiplied by the player's wood worth, as planned.
+- `src/client/Hud.client.luau` — a "WOOD WORTH" line in the corner panel, and the banked message says when wood counted for more.
+- `CAMP_PROGRESSION.md` — the tent camp's look and the material distance rule.
+
+Effect on existing players: anyone who has finished the lean-to stage now banks at 2 times. Saved progress is unchanged; builds 1 to 7 keep their numbers.
+
+Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
+Not tested: nothing has been run. None of the nine models or seven materials has been seen. Most at risk: the tent canvas and its back wall (angled pieces placed by calculation), ropes and pegs, and whether anything sits inside something else.

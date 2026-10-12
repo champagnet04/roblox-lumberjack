@@ -50,6 +50,8 @@ Starts rough. Fire in the centre, stools on the spawn side, lean-to on the far s
 
 ## Stage 2: Tent camp
 
+Built on 2026-10-12, awaiting the owner's review of how it looks. Decided by quiz that day: weathered cream canvas with patches; the pot replaces the meat on the spit; fish on the drying rack; a red flannel shirt, socks and a blanket on the clothesline; the tent on the lean-to's spot with the cot inside and the crate beside it, the lantern post on the spawn side, and the rack and clothesline on the two open sides of the clearing.
+
 A canvas A-frame tent: two upright poles, a ridge pole, canvas pegged to the ground on both sides. It goes up in the middle of the stage.
 
 | # | Build | Wood | Materials |
@@ -173,7 +175,7 @@ New materials: paper, paint, bronze bell.
 
 - **Prices.** Set for about 52 hours. To be checked by timing the tent camp once it is built; if real play comes in short, the later prices go up.
 - **A daily reason to return.** Raised by Claude (for example, the first bank of each day worth double). Not in Version 0; the owner will add updates later.
-- **Where materials appear.** Each build completed pushes materials 20 studs farther out, and that reaches the forest edge by about the ninth build. As the game stands, every material from the tent camp on would be at the far edge of the forest. The step needs spreading across all 74 builds, or tying to the forest's growth.
+- **Where materials appear.** Settled when the tent camp was built: within a stage, materials move 120 studs farther out from its first build to its last, and each later stage starts 25 studs farther out than the one before. The lean-to stage is unchanged by this. Claude's choice; the owner has not reviewed it.
 - **Tent camp perk.** Carrying more wood was picked first, then dropped to protect the chase. Nothing has replaced it.
 - **Clearing and forest sizes per stage.** Today the clearing is 26 studs in radius and the forest edge is at 280. The clearing fits roughly the first three stages. "In proportion" could mean the forest keeps the same depth beyond the clearing, or keeps the same ratio to it (about eleven times), which would make a very large forest by the village.
 - **Walking inside the cabin.** The camera is held close under the trees and will need its own handling indoors.

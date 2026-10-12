@@ -29,6 +29,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
+local Camp = require(ReplicatedStorage.Shared.Camp)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Records = require(ReplicatedStorage.Shared.Records)
 
@@ -144,7 +145,10 @@ function PlayerState.bankHaul(player: Player): number
 			player:SetAttribute(name, get(player, name) + 1)
 			player:SetAttribute("CarriedMaterial", "")
 		end
-		player:SetAttribute("OverallBank", get(player, "OverallBank") + haul)
+		-- The camp fund gets more for each piece of wood as stages are finished. The game
+		-- bank and the records stay in plain wood, so players can be compared fairly.
+		local worth = Camp.woodWorth(get(player, "BuildsDone"))
+		player:SetAttribute("OverallBank", get(player, "OverallBank") + haul * worth)
 		player:SetAttribute("GameBank", get(player, "GameBank") + haul)
 		player:SetAttribute("Haul", 0)
 	end
@@ -200,6 +204,12 @@ function PlayerState.recordRace(player: Player, place: number, score: number, ra
 		player:SetAttribute("RaceWins", get(player, "RaceWins") + 1)
 		player:SetAttribute("WeekRaceWins", get(player, "WeekRaceWins") + 1)
 	end
+end
+
+-- What a race prize of `amount` is worth to this player: multiplied, like banked wood, by
+-- how far their own camp has got.
+function PlayerState.prizeWorth(player: Player, amount: number): number
+	return amount * Camp.woodWorth(get(player, "BuildsDone"))
 end
 
 -- Pays a race prize into the camp fund.

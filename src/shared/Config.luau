@@ -84,7 +84,7 @@ Config.Lighting = {
 -- While Enabled is true, every Play starts from the state below and nothing is loaded or saved.
 Config.Testing = {
 	Enabled = false,
-	BuildsDone = 7, -- start with this many camp builds already finished (0 to 7)
+	BuildsDone = 7, -- start with this many camp builds already finished (7 = lean-to stage, 16 = tent camp)
 	Wood = 1000, -- start with this much wood in the overall bank
 	GiveNextMaterials = true, -- start with every material the next build needs
 }
@@ -155,7 +155,17 @@ Config.Tree = {
 
 -- Camp progression: builds are completed in this order. Each costs banked wood plus
 -- materials found in the forest, one material per trip.
+--   Replaces  builds that are taken down when this one goes up
+--   Strips    pieces removed from an earlier build when this one goes up (build -> piece name)
 Config.Camp = {
+	-- The builds come in stages. Finishing a stage makes banked wood worth one more to the
+	-- camp fund: 2 times after the first stage, 3 times after the second, and so on.
+	-- LastBuild is the number of the stage's last build in the list below.
+	Stages = {
+		{ Name = "Lean-to", LastBuild = 7 },
+		{ Name = "Tent camp", LastBuild = 16 },
+	},
+
 	Builds = {
 		{
 			Id = "FirePit",
@@ -199,10 +209,106 @@ Config.Camp = {
 			Wood = 1400,
 			Materials = { { Type = "Cloth", Count = 1 }, { Type = "Moss", Count = 2 } },
 		},
+
+		-- Stage 2: tent camp.
+		{
+			Id = "HangingPot",
+			Name = "Hanging pot",
+			Wood = 2200,
+			Materials = {
+				{ Type = "IronPot", Count = 1 },
+				{ Type = "Chain", Count = 1 },
+				{ Type = "Rope", Count = 1 },
+			},
+			Strips = { CookingFrame = "Meat" },
+		},
+		{
+			Id = "LanternPost",
+			Name = "Lantern post",
+			Wood = 2600,
+			Materials = {
+				{ Type = "Pole", Count = 1 },
+				{ Type = "Lantern", Count = 1 },
+				{ Type = "Rope", Count = 1 },
+			},
+		},
+		{
+			Id = "TentPoles",
+			Name = "Tent poles",
+			Wood = 3000,
+			Materials = { { Type = "Pole", Count = 3 }, { Type = "Rope", Count = 1 } },
+			Replaces = { "LeanToFrame", "LeanToCover" },
+		},
+		{
+			Id = "TentCanvas",
+			Name = "Tent canvas",
+			Wood = 3400,
+			Materials = { { Type = "Canvas", Count = 3 }, { Type = "Rope", Count = 1 } },
+		},
+		{
+			Id = "TentPegs",
+			Name = "Pegs and guy ropes",
+			Wood = 3800,
+			Materials = { { Type = "TentPeg", Count = 2 }, { Type = "Rope", Count = 2 } },
+		},
+		{
+			Id = "Cot",
+			Name = "Cot",
+			Wood = 4200,
+			Materials = {
+				{ Type = "Pole", Count = 2 },
+				{ Type = "Canvas", Count = 1 },
+				{ Type = "Rope", Count = 1 },
+			},
+			Replaces = { "Bedroll" },
+		},
+		{
+			Id = "SupplyCrate",
+			Name = "Supply crate",
+			Wood = 4600,
+			Materials = { { Type = "Plank", Count = 3 }, { Type = "Nails", Count = 1 } },
+		},
+		{
+			Id = "DryingRack",
+			Name = "Drying rack",
+			Wood = 5000,
+			Materials = {
+				{ Type = "ForkedBranch", Count = 2 },
+				{ Type = "Pole", Count = 1 },
+				{ Type = "Rope", Count = 1 },
+			},
+		},
+		{
+			Id = "Clothesline",
+			Name = "Clothesline",
+			Wood = 5400,
+			Materials = {
+				{ Type = "Pole", Count = 2 },
+				{ Type = "Rope", Count = 1 },
+				{ Type = "Cloth", Count = 1 },
+			},
+		},
 	},
 
 	-- Every material type, in a fixed order (used for saving and the on-screen list).
-	MaterialOrder = { "Sticks", "Flint", "Saw", "ForkedBranch", "Rope", "Pole", "Cloth", "Moss" },
+	-- New kinds go on the end; the order of the earlier ones must not change.
+	MaterialOrder = {
+		"Sticks",
+		"Flint",
+		"Saw",
+		"ForkedBranch",
+		"Rope",
+		"Pole",
+		"Cloth",
+		"Moss",
+		"IronPot",
+		"Chain",
+		"Lantern",
+		"Canvas",
+		"TentPeg",
+		"Plank",
+		"Nails",
+	},
 	Materials = {
 		Sticks = { Name = "sticks" },
 		Flint = { Name = "flint" },
@@ -212,12 +318,21 @@ Config.Camp = {
 		Pole = { Name = "long pole" },
 		Cloth = { Name = "cloth" },
 		Moss = { Name = "moss" },
+		IronPot = { Name = "iron pot" },
+		Chain = { Name = "chain" },
+		Lantern = { Name = "old lantern" },
+		Canvas = { Name = "canvas" },
+		TentPeg = { Name = "tent peg" },
+		Plank = { Name = "plank" },
+		Nails = { Name = "nails" },
 	},
 
-	-- Where a material appears: this far from camp for the first build...
+	-- Where a material appears: between these two distances from camp for the first build
+	-- of the first stage...
 	MaterialMinDistance = 45,
 	MaterialMaxDistance = 110,
-	MaterialDistanceStepPerBuild = 20, -- ...and this much farther out for each build completed
+	MaterialStagePush = 120, -- ...moving this much farther out by the last build of a stage...
+	MaterialStageStart = 25, -- ...and each later stage starting this much farther out than the one before.
 	MaterialRespawnDelay = 3, -- seconds after banking or losing one before the next appears
 	MaterialGlowRange = 22, -- how far its light reaches
 	MaterialScale = 3, -- materials are drawn this many times larger than life so they can be seen

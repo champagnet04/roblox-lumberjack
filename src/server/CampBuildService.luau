@@ -15,6 +15,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
+local Camp = require(ReplicatedStorage.Shared.Camp)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local CampModels = require(script.Parent.CampModels)
@@ -94,8 +95,24 @@ local function tryBuild(player: Player)
 		return
 	end
 
+	local worthBefore = Camp.woodWorth(PlayerState.getBuildsDone(player))
 	PlayerState.completeBuild(player, build)
 	Remotes.Notice:FireClient(player, `{string.upper(build.Name)} BUILT!`)
+
+	-- The last build of a stage: say so, once the first message has had its moment.
+	local done = PlayerState.getBuildsDone(player)
+	local worth = Camp.woodWorth(done)
+	if worth > worthBefore then
+		local _, _, _, stageName = Camp.stageOf(done)
+		task.delay(3, function()
+			if player.Parent then
+				Remotes.Notice:FireClient(
+					player,
+					`{string.upper(stageName)} COMPLETE! WOOD IS NOW WORTH x{worth}`
+				)
+			end
+		end)
+	end
 end
 
 -- Rebuilds the camp to match the player's progress: finished builds solid, the next one faint.
@@ -103,9 +120,34 @@ local function syncCamp(player: Player)
 	buildsFolder:ClearAllChildren()
 
 	local done = PlayerState.getBuildsDone(player)
+
+	-- Some finished builds take earlier ones down, or take a piece off them.
+	local replaced: { [string]: boolean } = {}
+	local stripped: { [string]: string } = {}
 	for index, build in Config.Camp.Builds do
 		if index <= done then
-			CampModels.build(build.Id, buildsFolder)
+			for _, id in (build :: any).Replaces or {} do
+				replaced[id] = true
+			end
+			for id, piece in (build :: any).Strips or {} do
+				stripped[id] = piece
+			end
+		end
+	end
+
+	for index, build in Config.Camp.Builds do
+		if index <= done then
+			if not replaced[build.Id] then
+				local model = CampModels.build(build.Id, buildsFolder)
+				local piece = stripped[build.Id]
+				if piece then
+					for _, item in model:GetDescendants() do
+						if item.Name == piece then
+							item:Destroy()
+						end
+					end
+				end
+			end
 		elseif index == done + 1 then
 			local ghost = CampModels.build(build.Id, buildsFolder)
 			CampModels.makeGhost(ghost)
@@ -169,7 +211,11 @@ end
 -- and never inside a tree trunk.
 local function pickMaterialPosition(player: Player): Vector3
 	local cfg = Config.Camp
-	local step = PlayerState.getBuildsDone(player) * cfg.MaterialDistanceStepPerBuild
+	-- Farther out as a stage goes on, and each stage starting a little farther than the last.
+	local nextIndex = PlayerState.getBuildsDone(player) + 1
+	local stage, first, last = Camp.stageOf(nextIndex)
+	local through = math.clamp((nextIndex - first) / math.max(last - first, 1), 0, 1)
+	local step = (stage - 1) * cfg.MaterialStageStart + through * cfg.MaterialStagePush
 	local limit = Config.World.ForestRadius - 10
 	local minRadius = math.min(cfg.MaterialMinDistance + step, limit - 40)
 	local maxRadius = math.min(cfg.MaterialMaxDistance + step, limit)
