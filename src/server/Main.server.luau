@@ -21,7 +21,8 @@ local isMenu = RunService:IsStudio() or game.PrivateServerId == "" or game.Priva
 -- At the menu nobody has a character. This must be set before the first player arrives.
 Players.CharacterAutoLoads = not isMenu
 
-local function startGame(mode: string)
+-- `host` is given for a friends race: the user id of the player who made it.
+local function startGame(mode: string, host: number?)
 	Config.Mode = mode
 	Players.CharacterAutoLoads = true
 
@@ -47,7 +48,7 @@ local function startGame(mode: string)
 		CampBuildService.startShared(Config.Race.CampBuilds)
 		GuardianService.start()
 		BotService.start()
-		RaceService.start()
+		RaceService.start(host)
 	else
 		CampBuildService.start()
 		GuardianService.start()

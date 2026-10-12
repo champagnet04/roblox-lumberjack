@@ -2,6 +2,7 @@
 --
 -- A server loops through these phases for as long as it is up:
 --   Waiting    too few players to start
+--   Lobby      a friends race waits here until its host presses Start
 --   Gathering  a new race waits a while for more players to arrive (not in Studio)
 --   Countdown  everyone is put back at camp and held there; the forest regrows; bots join
 --              to fill the round (see BotService)
@@ -11,6 +12,11 @@
 -- The phase and its start and end times are published as attributes on Workspace
 -- (RacePhase, RacePhaseStartedAt, RacePhaseEndsAt) for the other services and the client.
 -- Times are on the shared server clock, Workspace:GetServerTimeNow().
+--
+-- A friends race (made with Race with Friends) has a host, who starts it and has two
+-- switches, also published on Workspace: RaceBots (bots fill the empty places) and
+-- RaceOpen (Quick Race may send other players here). RaceHost is the host's user id and
+-- RaceInvite is what an invite to this race carries.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -29,6 +35,9 @@ local RaceService = {}
 
 local TICK = 0.25
 local LIST_EVERY = 3 -- seconds between updates to this server's entry in the list of open races
+
+local friendsRace = false -- this race was made with Race with Friends and has a host
+local startRequested = false -- the host has pressed Start
 
 export type Result = {
 	Name: string,
@@ -162,12 +171,20 @@ end
 -- While a round has not started, the server is listed so Quick Race can send players
 -- here. Returns a function to call every tick of the wait; `extra` is how long after the
 -- current phase the round starts.
+-- Whether Quick Race may send players here: always, except to a friends race whose host
+-- has kept it private.
+local function isOpen(): boolean
+	return not friendsRace or Workspace:GetAttribute("RaceOpen") == true
+end
+
 local function keepListed(extra: number): () -> boolean
 	local nextAt = 0
 	return function()
 		if os.clock() >= nextAt then
 			nextAt = os.clock() + LIST_EVERY
-			task.spawn(RaceDirectory.announce, phaseTimeLeft() + extra)
+			if isOpen() then
+				task.spawn(RaceDirectory.announce, phaseTimeLeft() + extra)
+			end
 		end
 		return false
 	end
@@ -176,7 +193,7 @@ end
 -- A new race waits a while for more players to arrive. Not in Studio: nobody can join there.
 local function gather()
 	local cfg = Config.Race
-	if RunService:IsStudio() or cfg.GatherTime <= 0 then
+	if RunService:IsStudio() or cfg.GatherTime <= 0 or not isOpen() then
 		return
 	end
 	setPhase("Gathering", cfg.GatherTime)
@@ -200,13 +217,33 @@ local function run()
 		end
 		if not gathered then
 			gathered = true
+			if friendsRace then
+				-- A friends race waits for its host, however long that takes.
+				setPhase("Lobby")
+				startRequested = false
+				-- In Studio the players were at the menu and have no character yet.
+				for _, player in Players:GetPlayers() do
+					if not player.Character then
+						task.spawn(function()
+							player:LoadCharacter()
+						end)
+					end
+				end
+				repeat
+					task.wait(TICK)
+				until startRequested and #Players:GetPlayers() >= cfg.MinPlayers
+			end
 			gather()
 		end
 
 		GuardianService.reset()
 		TreeService.regrowAll()
 		local playerCount = #Players:GetPlayers()
-		local botCount = math.clamp(cfg.FillTo - playerCount, 0, #Config.Bots.Roster)
+		local fillTo = cfg.FillTo
+		if friendsRace and Workspace:GetAttribute("RaceBots") ~= true then
+			fillTo = 0 -- the host has switched bots off
+		end
+		local botCount = math.clamp(fillTo - playerCount, 0, #Config.Bots.Roster)
 		resetRacers(playerCount + botCount)
 		BotService.prepareRound(botCount, playerCount)
 		setPhase("Countdown", cfg.CountdownTime)
@@ -235,7 +272,60 @@ local function run()
 	end
 end
 
-function RaceService.start()
+-- Sets this race up as a friends race hosted by the player with this user id.
+local function hostFriendsRace(host: number)
+	friendsRace = true
+	Workspace:SetAttribute("RaceHost", host)
+	Workspace:SetAttribute("RaceBots", true)
+	Workspace:SetAttribute("RaceOpen", false)
+	-- What an invite carries, so the menu can send an invited friend here. Empty in Studio.
+	Workspace:SetAttribute(
+		"RaceInvite",
+		if game.PrivateServerId ~= ""
+			then RaceDirectory.INVITE_PREFIX .. game.PrivateServerId
+			else ""
+	)
+
+	Remotes.LobbyAction.OnServerEvent:Connect(function(player, action)
+		if player.UserId ~= Workspace:GetAttribute("RaceHost") then
+			return -- only the host has these controls
+		end
+		if action == "Start" then
+			if Workspace:GetAttribute("RacePhase") == "Lobby" then
+				startRequested = true
+			end
+		elseif action == "ToggleBots" then
+			Workspace:SetAttribute("RaceBots", Workspace:GetAttribute("RaceBots") ~= true)
+		elseif action == "ToggleOpen" then
+			local open = Workspace:GetAttribute("RaceOpen") ~= true
+			Workspace:SetAttribute("RaceOpen", open)
+			if not open then
+				task.spawn(RaceDirectory.close)
+			end
+		end
+	end)
+
+	-- If the host leaves, the player who has been here longest takes over.
+	Players.PlayerRemoving:Connect(function(leaving)
+		if leaving.UserId ~= Workspace:GetAttribute("RaceHost") then
+			return
+		end
+		for _, other in Players:GetPlayers() do
+			if other ~= leaving then
+				Workspace:SetAttribute("RaceHost", other.UserId)
+				Remotes.Notice:FireClient(other, "YOU ARE NOW THE HOST")
+				return
+			end
+		end
+	end)
+end
+
+-- `host` is given for a friends race: the user id of the player who made it.
+function RaceService.start(host: number?)
+	if host then
+		hostFriendsRace(host)
+	end
+
 	-- Someone who joins partway through a round watches until the next one.
 	local function onPlayerAdded(player: Player)
 		PlayerState.setOut(player, Workspace:GetAttribute("RacePhase") == "Running")

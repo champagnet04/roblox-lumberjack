@@ -35,6 +35,13 @@ Decided with the owner on 2026-10-12. Not built.
 - **Race with Friends.** Opens a private lobby. The host invites friends through Roblox's own invite window, sees them arrive, and presses Start when ready. Only the host can start.
 - **Host's switches in a friends lobby.** Two: whether bots fill the empty places, and whether players who were not invited can join. It starts as private with bots on.
 
+How the friends race was built (2026-10-12), filling in what the quiz left open:
+
+- An invited friend can arrive at any time. If a round is under way they watch until the next one.
+- If the host has opened the race to others, pressing Start begins the same 30-second gathering as Quick Race, so other players have a chance to arrive. A private race goes straight to the countdown.
+- After the first round, later rounds start by themselves, as in Quick Race. The host's switches stay available between rounds and apply to the next one.
+- If the host leaves, another player in the race becomes the host.
+
 None of this can be tried in Studio. Moving players between servers and inviting friends only work in the published game.
 
 ## Prizes

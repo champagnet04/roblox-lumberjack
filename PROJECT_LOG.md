@@ -1246,3 +1246,23 @@ Changed:
 
 Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
 Not tested: not run. Unseen: whether any place overlaps the stump stools or other camp pieces.
+
+### 2026-10-12 — Multiplayer step 5, part 3: Race with Friends
+
+Why: the owner confirmed the starting places and asked for part 3.
+
+Changed:
+
+- `src/server/MenuService.luau` — Race with Friends makes a private race server with the player as its host and sends them there. A friend who accepts an invite arrives at a menu server carrying the race's id and is sent straight on to it. The note left for a new server now records the host as well as the mode.
+- `src/server/RaceDirectory.luau` — a race server's access code can be saved and looked up without listing the race as open, which is what keeps a friends race private.
+- `src/server/RaceService.luau` — a friends race waits in a new Lobby phase until its host presses Start. The host has two switches: bots on or off, and friends only or anyone can join. With bots off no bots are added. Only an opened race is listed for Quick Race, and an opened race gathers for 30 seconds after Start. If the host leaves, another player becomes host.
+- `src/server/Main.server.luau` — passes the host on when a friends race starts.
+- `src/client/Hud.client.luau` — a bar along the bottom in a friends race, before the start and between rounds. Everyone sees how the race is set up. The host also has INVITE FRIENDS (Roblox's own invite window), the two switches, and START RACE.
+- `src/client/Menu.client.luau` — the Race with Friends button works.
+- `src/shared/Remotes.luau` — new `LobbyAction` message.
+- `MULTIPLAYER.md` — how the friends race behaves where the quiz had not said.
+
+In Studio: Race with Friends starts a friends race in the same server with the chooser as host, so the bar, the switches and Start can be tried. Invites cannot.
+
+Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
+Not tested: nothing has been run. Completely untried and only possible in the published game with a second person: sending an invite, a friend being brought to the race, and an opened race receiving Quick Race players.

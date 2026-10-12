@@ -2,6 +2,7 @@
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
+local SocialService = game:GetService("SocialService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
@@ -788,7 +789,9 @@ local function refreshRaceClock()
 	local left = math.ceil(math.max(endsAt - Workspace:GetServerTimeNow(), 0))
 
 	raceClock.TextColor3 = WHITE
-	if phase == "Gathering" then
+	if phase == "Lobby" then
+		raceClock.Text = "FRIENDS RACE"
+	elseif phase == "Gathering" then
 		local here = #Players:GetPlayers()
 		raceClock.Text = `GATHERING RACERS  {left}   ({here} HERE)`
 	elseif phase == "Countdown" then
@@ -832,12 +835,119 @@ Remotes.RaceResults.OnClientEvent:Connect(function(results)
 	resultsPanel.Visible = true
 end)
 
+-- Friends race: a bar along the bottom, before the race starts and between rounds. Everyone
+-- sees how the race is set up; the host also gets the buttons.
+local lobbyPanel = Instance.new("Frame")
+lobbyPanel.Name = "FriendsRace"
+lobbyPanel.AnchorPoint = Vector2.new(0.5, 1)
+lobbyPanel.Position = UDim2.new(0.5, 0, 1, -64)
+lobbyPanel.Size = UDim2.fromOffset(648, 92)
+lobbyPanel.BackgroundColor3 = PANEL_COLOR
+lobbyPanel.BackgroundTransparency = 0.25
+lobbyPanel.BorderSizePixel = 0
+lobbyPanel.Visible = false
+lobbyPanel.Parent = gui
+roundCorners(lobbyPanel, UDim.new(0, 12))
+
+local lobbyStatus = makeLabel({
+	Name = "Status",
+	Position = UDim2.fromOffset(12, 8),
+	Size = UDim2.new(1, -24, 0, 22),
+	TextSize = 15,
+	TextColor3 = TITLE_COLOR,
+	TextTruncate = Enum.TextTruncate.AtEnd,
+}, lobbyPanel)
+
+local function makeLobbyButton(order: number, action: string?): TextButton
+	local button = Instance.new("TextButton")
+	button.Position = UDim2.fromOffset(12 + (order - 1) * 158, 38)
+	button.Size = UDim2.fromOffset(150, 42)
+	button.BackgroundColor3 = PANEL_COLOR
+	button.BackgroundTransparency = 0.1
+	button.BorderSizePixel = 0
+	button.Font = Enum.Font.GothamBlack
+	button.TextSize = 14
+	button.TextColor3 = WHITE
+	button.Parent = lobbyPanel
+	roundCorners(button, UDim.new(0, 8))
+	if action then
+		button.Activated:Connect(function()
+			Remotes.LobbyAction:FireServer(action)
+		end)
+	end
+	return button
+end
+
+local inviteButton = makeLobbyButton(1, nil)
+inviteButton.Text = "INVITE FRIENDS"
+local botsButton = makeLobbyButton(2, "ToggleBots")
+local openButton = makeLobbyButton(3, "ToggleOpen")
+local startButton = makeLobbyButton(4, "Start")
+startButton.Text = "START RACE"
+startButton.TextColor3 = GOLD
+
+inviteButton.Activated:Connect(function()
+	local invite = Workspace:GetAttribute("RaceInvite")
+	if typeof(invite) ~= "string" or invite == "" then
+		showToast("INVITES ONLY WORK IN THE PUBLISHED GAME")
+		return
+	end
+	-- Roblox's own invite window. A friend who accepts is brought to this race.
+	local ok = pcall(function()
+		local options = Instance.new("ExperienceInviteOptions")
+		options.LaunchData = invite
+		options.PromptMessage = "Invite friends to your race"
+		SocialService:PromptGameInvite(player, options)
+	end)
+	if not ok then
+		showToast("COULD NOT OPEN INVITES")
+	end
+end)
+
+local function refreshLobby()
+	local hostId = Workspace:GetAttribute("RaceHost")
+	local phase = Workspace:GetAttribute("RacePhase")
+	if not hostId or (phase ~= "Lobby" and phase ~= "Results") then
+		lobbyPanel.Visible = false
+		return
+	end
+
+	local isHost = hostId == player.UserId
+	local bots = Workspace:GetAttribute("RaceBots") == true
+	local open = Workspace:GetAttribute("RaceOpen") == true
+	local setup = `{if bots then "BOTS ON" else "NO BOTS"}  -  {if open
+		then "ANYONE CAN JOIN"
+		else "FRIENDS ONLY"}`
+
+	if isHost then
+		lobbyStatus.Text = if phase == "Lobby"
+			then "YOUR RACE: INVITE FRIENDS, THEN PRESS START"
+			else "YOUR RACE: CHANGES APPLY TO THE NEXT ROUND"
+	else
+		local host = Players:GetPlayerByUserId(hostId)
+		local hostName = if host then string.upper(host.DisplayName) else "THE HOST"
+		lobbyStatus.Text = if phase == "Lobby"
+			then `WAITING FOR {hostName} TO START  -  {setup}`
+			else `{hostName}'S RACE  -  {setup}`
+	end
+
+	botsButton.Text = if bots then "BOTS: ON" else "BOTS: OFF"
+	openButton.Text = if open then "ANYONE CAN JOIN" else "FRIENDS ONLY"
+	for _, button in { inviteButton, botsButton, openButton } do
+		button.Visible = isHost
+	end
+	startButton.Visible = isHost and phase == "Lobby"
+	lobbyPanel.Size = UDim2.fromOffset(648, if isHost then 92 else 38)
+	lobbyPanel.Visible = true
+end
+
 if IS_RACE then
 	-- Redrawn on a timer: simpler and safer than listening to every racer for changes.
 	task.spawn(function()
 		while true do
 			refreshScoreboard()
 			refreshRaceClock()
+			refreshLobby()
 			task.wait(0.25)
 		end
 	end)

@@ -11,7 +11,9 @@
 -- Quick Race works the same way, except that it first looks for a race that is still
 -- gathering players (see RaceDirectory) and only makes a new server if there is none.
 --
--- Not built yet: Race with Friends (MULTIPLAYER.md).
+-- Race with Friends makes a private race server with the player as its host. Friends are
+-- invited from inside it; an invited friend arrives at a menu server first, carrying the
+-- race server's id, and is sent straight on (see followInvite).
 
 local MemoryStoreService = game:GetService("MemoryStoreService")
 local Players = game:GetService("Players")
@@ -40,13 +42,14 @@ end
 
 -- What this private server was made for: "Solo" or "Race". Only for the published game.
 -- It may wait several seconds for the note, and then for the first player to arrive.
-function MenuService.roleOfThisServer(): string
+-- Returns the mode, and for a friends race the user id of the player who made it.
+function MenuService.roleOfThisServer(): (string, number?)
 	for _ = 1, 5 do
-		local ok, role = pcall(function()
+		local ok, note = pcall(function()
 			return roleNotes():GetAsync(game.PrivateServerId)
 		end)
-		if ok and (role == "Solo" or role == "Race") then
-			return role
+		if ok and typeof(note) == "table" and (note.Mode == "Solo" or note.Mode == "Race") then
+			return note.Mode, if typeof(note.Host) == "number" then note.Host else nil
 		end
 		task.wait(1)
 	end
@@ -55,10 +58,10 @@ function MenuService.roleOfThisServer(): string
 	local player = Players:GetPlayers()[1] or Players.PlayerAdded:Wait()
 	local data = player:GetJoinData().TeleportData
 	if typeof(data) == "table" and (data.Mode == "Solo" or data.Mode == "Race") then
-		return data.Mode
+		return data.Mode, if typeof(data.Host) == "number" then data.Host else nil
 	end
 	warn("[MenuService] Could not tell what this server is for; running the solo game.")
-	return "Solo"
+	return "Solo", nil
 end
 
 local function tell(player: Player, text: string)
@@ -68,32 +71,47 @@ local function tell(player: Player, text: string)
 end
 
 -- Makes a private server for a game and leaves a note saying what it is for.
+-- `host` is given for a friends race: the user id of the player making it.
 -- Returns the code needed to send players there.
-local function makeServer(mode: string): string
+local function makeServer(mode: string, host: number?): string
 	local accessCode, serverId = TeleportService:ReserveServer(game.PlaceId)
-	roleNotes():SetAsync(serverId, mode, NOTE_LIFETIME)
-	if mode == "Race" then
+	roleNotes():SetAsync(serverId, { Mode = mode, Host = host }, NOTE_LIFETIME)
+	if mode == "Race" and host then
+		RaceDirectory.saveCode(serverId, accessCode) -- private: reachable by invite only
+	elseif mode == "Race" then
 		RaceDirectory.register(serverId, accessCode)
 	end
 	return accessCode
 end
 
--- Sends the player to their own camp ("Solo"), or to a race that is gathering players,
--- making a new one if there is none ("Race").
-local function send(player: Player, mode: string)
-	tell(player, if mode == "Race" then "FINDING A RACE..." else "HEADING TO YOUR CAMP...")
+local function teleport(player: Player, accessCode: string, data: { [string]: any })
+	local options = Instance.new("TeleportOptions")
+	options.ReservedServerAccessCode = accessCode
+	options:SetTeleportData(data)
+	TeleportService:TeleportAsync(game.PlaceId, { player }, options)
+end
+
+-- Sends the player to a game, trying a few times. `kind` is "Solo" (their own camp),
+-- "QuickRace" (a race that is gathering players, or a new one) or "FriendsRace" (a new
+-- private race that they host).
+local function send(player: Player, kind: string)
+	tell(
+		player,
+		if kind == "Solo"
+			then "HEADING TO YOUR CAMP..."
+			elseif kind == "QuickRace" then "FINDING A RACE..."
+			else "SETTING UP YOUR RACE..."
+	)
+	local mode = if kind == "Solo" then "Solo" else "Race"
+	local host = if kind == "FriendsRace" then player.UserId else nil
 	local lastError
 	for attempt = 1, MOVE_ATTEMPTS do
 		local ok, result = pcall(function()
-			local accessCode = if mode == "Race" then RaceDirectory.findOpen() else nil
+			local accessCode = if kind == "QuickRace" then RaceDirectory.findOpen() else nil
 			if not accessCode then
-				accessCode = makeServer(mode)
+				accessCode = makeServer(mode, host)
 			end
-
-			local options = Instance.new("TeleportOptions")
-			options.ReservedServerAccessCode = accessCode
-			options:SetTeleportData({ Mode = mode })
-			TeleportService:TeleportAsync(game.PlaceId, { player }, options)
+			teleport(player, accessCode, { Mode = mode, Host = host })
 		end)
 		if ok or not player.Parent then
 			return
@@ -101,8 +119,31 @@ local function send(player: Player, mode: string)
 		lastError = result
 		task.wait(attempt)
 	end
-	warn("[MenuService] Could not send", player.Name, "to a", mode, "server:", lastError)
+	warn("[MenuService] Could not send", player.Name, "to a", kind, "server:", lastError)
 	tell(player, FAILED)
+end
+
+-- A friend who accepted an invite arrives at the menu carrying the id of the race they
+-- were invited to. Send them straight on to it.
+local function followInvite(player: Player)
+	local launch = player:GetJoinData().LaunchData
+	if typeof(launch) ~= "string" then
+		return
+	end
+	local serverId = string.match(launch, "^" .. RaceDirectory.INVITE_PREFIX .. "(.+)$")
+	if not serverId then
+		return
+	end
+
+	busy[player] = true
+	tell(player, "JOINING YOUR FRIEND'S RACE...")
+	local accessCode = RaceDirectory.codeFor(serverId)
+	local ok = accessCode ~= nil
+		and pcall(teleport, player, accessCode :: string, { Mode = "Race" })
+	if not ok then
+		tell(player, "COULD NOT FIND THAT RACE. IT MAY HAVE ENDED.")
+	end
+	busy[player] = nil
 end
 
 -- The camp shown behind the menu: the finished lean-to stage.
@@ -125,8 +166,9 @@ local function buildBackdrop(): Folder
 end
 
 -- Runs the menu. `startHere` is given in Studio only: it starts the chosen game ("Solo" or
--- "Race") in this server, once, for everyone in it.
-function MenuService.start(startHere: ((mode: string) -> ())?)
+-- "Race") in this server, once, for everyone in it. For a friends race it is also given
+-- the user id of the player who chose it, who becomes the host.
+function MenuService.start(startHere: ((mode: string, host: number?) -> ())?)
 	local backdrop = buildBackdrop()
 	local started = false
 
@@ -138,23 +180,24 @@ function MenuService.start(startHere: ((mode: string) -> ())?)
 		end
 
 		if startHere then
-			if choice == "Solo" or choice == "QuickRace" then
+			if choice == "Solo" or choice == "QuickRace" or choice == "FriendsRace" then
 				started = true
 				backdrop:Destroy()
 				for _, other in Players:GetPlayers() do
 					other.ReplicationFocus = nil
 				end
-				startHere(if choice == "Solo" then "Solo" else "Race")
+				startHere(
+					if choice == "Solo" then "Solo" else "Race",
+					if choice == "FriendsRace" then player.UserId else nil
+				)
 			end
 			return
 		end
 
-		if choice == "Solo" or choice == "QuickRace" then
+		if choice == "Solo" or choice == "QuickRace" or choice == "FriendsRace" then
 			busy[player] = true
-			send(player, if choice == "Solo" then "Solo" else "Race")
+			send(player, choice)
 			busy[player] = nil
-		else
-			tell(player, "RACING WITH FRIENDS IS COMING SOON")
 		end
 	end)
 
@@ -167,6 +210,9 @@ function MenuService.start(startHere: ((mode: string) -> ())?)
 	local function onPlayerAdded(player: Player)
 		if camp and not started then
 			player.ReplicationFocus = camp
+		end
+		if not startHere then
+			task.spawn(followInvite, player)
 		end
 	end
 	Players.PlayerAdded:Connect(onPlayerAdded)

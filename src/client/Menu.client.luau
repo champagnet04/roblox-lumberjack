@@ -139,7 +139,7 @@ end
 
 makeButton(1, "SOLO", "BUILD YOUR OWN CAMP", "Solo")
 local quickRace = makeButton(2, "QUICK RACE", "", "QuickRace")
-local friendsRace = makeButton(3, "RACE WITH FRIENDS", "", "FriendsRace")
+makeButton(3, "RACE WITH FRIENDS", "A PRIVATE RACE YOU HOST", "FriendsRace")
 
 local function dim(item: MenuButton, caption: string)
 	item.Caption.Text = caption
@@ -162,7 +162,6 @@ local function refreshRaceButtons()
 	else
 		dim(quickRace, "COMING SOON")
 	end
-	dim(friendsRace, "COMING SOON")
 end
 Workspace:GetAttributeChangedSignal("MenuRaceOpen"):Connect(refreshRaceButtons)
 refreshRaceButtons()

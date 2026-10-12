@@ -23,6 +23,9 @@ local Config = require(ReplicatedStorage.Shared.Config)
 
 local RaceDirectory = {}
 
+-- An invite to a friends race carries this followed by the race server's id.
+RaceDirectory.INVITE_PREFIX = "race:"
+
 local OPEN_RACES = "OpenRaces"
 local SERVER_CODES = "RaceServerCodes"
 local CODE_LIFETIME = 6 * 60 * 60 -- a race server can list itself for this long after it is made
@@ -50,16 +53,39 @@ local function list(serverId: string, entry: Entry)
 	openRaces():SetAsync(serverId, entry, lifetime, entry.StartsAt)
 end
 
--- Menu server: records a race server it has just made, and lists it as open straight away
--- so that other players pressing Quick Race in the same moment join it rather than making
--- their own.
+-- Menu server: saves a new race server's access code under its id. The race server reads
+-- it to list itself, and the menu reads it to send an invited friend to a friends race.
+function RaceDirectory.saveCode(serverId: string, accessCode: string)
+	if IN_STUDIO then
+		return
+	end
+	pcall(function()
+		serverCodes():SetAsync(serverId, accessCode, CODE_LIFETIME)
+	end)
+end
+
+-- Menu server: the access code of the race server with this id, or nil if it is not known
+-- (the race is over, or the id is wrong).
+function RaceDirectory.codeFor(serverId: string): string?
+	if IN_STUDIO then
+		return nil
+	end
+	local ok, code = pcall(function()
+		return serverCodes():GetAsync(serverId)
+	end)
+	return if ok and typeof(code) == "string" then code else nil
+end
+
+-- Menu server: records a Quick Race server it has just made, and lists it as open straight
+-- away so that other players pressing Quick Race in the same moment join it rather than
+-- making their own.
 function RaceDirectory.register(serverId: string, accessCode: string)
 	if IN_STUDIO then
 		return
 	end
 	local cfg = Config.Race
+	RaceDirectory.saveCode(serverId, accessCode)
 	pcall(function()
-		serverCodes():SetAsync(serverId, accessCode, CODE_LIFETIME)
 		-- A guess at when it will start; the race server corrects it once it is running.
 		list(serverId, {
 			Code = accessCode,
