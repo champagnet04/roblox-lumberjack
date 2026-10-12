@@ -1313,3 +1313,19 @@ On saved progress: existing saves load as before. They have none of the new numb
 
 Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
 Not tested: nothing has been run. Saving and the leaderboards need the published game (the owner's Studio does not have data access switched on). Unseen: the Record Book's layout, whether race records are saved after a race, and whether anything reaches the leaderboards, which nothing reads yet.
+
+### 2026-10-12 — Record Book part 2: the Friends and Everyone leaderboards
+
+Why: the owner asked for part 2 straight after part 1, without testing part 1 first.
+
+Changed:
+
+- `src/server/BoardService.luau` — new, used by menu servers. Reads a board from Roblox down to 1,000th place, at most once every five minutes, and shares the result between servers. From that list it works out the top 10, the player's own place, and which of the player's friends are on the board.
+- `src/server/MenuService.luau` — answers the menu's requests for a leaderboard page, passing in the player's own saved numbers so their row is current.
+- `src/client/Menu.client.luau` — the Friends and Everyone tabs now show a leaderboard: four board buttons, ALL-TIME and THIS WEEK, up to ten rows, then "..." and the player's own row if they are not among the ten. The player's own row is in gold. The panel is a little taller.
+- `src/shared/Records.luau` — each board says what follows its numbers ("WOOD", "BUILDS").
+- `src/shared/Remotes.luau` — two new messages.
+- `RECORD_BOOK.md` — how the pages behave as built.
+
+Tested: `stylua`, `selene` (0 errors, 0 warnings) and `rojo build` pass.
+Not tested: nothing has been run, and part 1 is untested too. Everything here depends on Roblox's data services, so it needs the published game. Most at risk: whether numbers reach the boards at all (part 1), reading them back, the names of other players, and the Friends page, which needs a friend who has played.

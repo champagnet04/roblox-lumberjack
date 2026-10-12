@@ -7,16 +7,36 @@ local Records = {}
 -- The leaderboards. Each ranks players by one saved number, and has a weekly twin.
 --   AllTime  the saved number ranked on the all-time list
 --   Weekly   the saved number ranked on this week's list
+--   Unit     what follows the number when it is shown
 Records.Boards = {
-	{ Id = "RaceWins", Title = "RACES WON", AllTime = "RaceWins", Weekly = "WeekRaceWins" },
+	{
+		Id = "RaceWins",
+		Title = "RACES WON",
+		AllTime = "RaceWins",
+		Weekly = "WeekRaceWins",
+		Unit = "",
+	},
 	{
 		Id = "RaceScore",
 		Title = "BEST RACE SCORE",
 		AllTime = "BestRaceScore",
 		Weekly = "WeekBestRaceScore",
+		Unit = " WOOD",
 	},
-	{ Id = "Haul", Title = "BEST HAUL", AllTime = "BestHaul", Weekly = "WeekBestHaul" },
-	{ Id = "Camp", Title = "CAMP PROGRESS", AllTime = "BuildsDone", Weekly = "WeekBuilds" },
+	{
+		Id = "Haul",
+		Title = "BEST HAUL",
+		AllTime = "BestHaul",
+		Weekly = "WeekBestHaul",
+		Unit = " WOOD",
+	},
+	{
+		Id = "Camp",
+		Title = "CAMP PROGRESS",
+		AllTime = "BuildsDone",
+		Weekly = "WeekBuilds",
+		Unit = " BUILDS",
+	},
 }
 
 local WEEK = 7 * 24 * 60 * 60

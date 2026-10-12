@@ -26,6 +26,7 @@ local Workspace = game:GetService("Workspace")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Records = require(ReplicatedStorage.Shared.Records)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local BoardService = require(script.Parent.BoardService)
 local CampModels = require(script.Parent.CampModels)
 local RaceDirectory = require(script.Parent.RaceDirectory)
 
@@ -41,6 +42,7 @@ local busy: { [Player]: boolean } = {}
 -- Records already read for the Record Book, kept briefly so reopening it costs nothing.
 local RECORDS_KEPT_FOR = 30
 local recordsRead: { [Player]: { At: number, Saved: { [string]: any }? } } = {}
+local boardAsked: { [Player]: number } = {} -- when each player last asked for a leaderboard
 
 local function roleNotes(): MemoryStoreHashMap
 	return MemoryStoreService:GetHashMap(ROLE_NOTES)
@@ -152,29 +154,56 @@ local function followInvite(player: Player)
 	busy[player] = nil
 end
 
--- Sends a player their saved records for the Record Book. This only reads their saved
--- progress; nothing at the menu ever writes it.
-local function sendRecords(player: Player)
+-- A player's saved numbers, for the Record Book: nil if they could not be read, an empty
+-- table if nothing is saved yet. This only reads; nothing at the menu ever writes them.
+local function readSaved(player: Player): { [string]: any }?
 	local kept = recordsRead[player]
 	if not kept or os.clock() - kept.At > RECORDS_KEPT_FOR then
 		local ok, saved = pcall(function()
 			local store = DataStoreService:GetDataStore(Config.Save.StoreName)
 			return store:GetAsync(Records.saveKey(player.UserId))
 		end)
-		if not player.Parent then
-			return
-		end
 		kept = {
 			At = os.clock(),
-			-- nil means it could not be read; an empty table means nothing is saved yet.
 			Saved = if not ok then nil elseif typeof(saved) == "table" then saved else {},
 		}
 		recordsRead[player] = kept
 	end
-	Remotes.Records:FireClient(player, {
-		Saved = kept.Saved,
-		TotalBuilds = #Config.Camp.Builds,
-	})
+	return kept.Saved
+end
+
+local function sendRecords(player: Player)
+	local saved = readSaved(player)
+	if player.Parent then
+		Remotes.Records:FireClient(player, {
+			Saved = saved,
+			TotalBuilds = #Config.Camp.Builds,
+		})
+	end
+end
+
+-- Sends one page of a leaderboard. The request is echoed back so the menu can tell which
+-- page an answer belongs to if the player has moved on.
+local function sendBoard(player: Player, boardId: any, period: any, kind: any)
+	if typeof(boardId) ~= "string" or (period ~= "All" and period ~= "Week") then
+		return
+	end
+	if kind ~= "Everyone" and kind ~= "Friends" then
+		return
+	end
+	local now = os.clock()
+	if now - (boardAsked[player] or 0) < 0.3 then
+		return
+	end
+	boardAsked[player] = now
+
+	local page = BoardService.page(player, boardId, period, kind, readSaved(player))
+	if player.Parent then
+		Remotes.Board:FireClient(
+			player,
+			{ BoardId = boardId, Period = period, Kind = kind, Page = page }
+		)
+	end
 end
 
 -- The camp shown behind the menu: the finished lean-to stage.
@@ -235,9 +264,12 @@ function MenuService.start(startHere: ((mode: string, host: number?) -> ())?)
 	Players.PlayerRemoving:Connect(function(player)
 		busy[player] = nil
 		recordsRead[player] = nil
+		boardAsked[player] = nil
+		BoardService.forget(player)
 	end)
 
 	Remotes.RequestRecords.OnServerEvent:Connect(sendRecords)
+	Remotes.RequestBoard.OnServerEvent:Connect(sendBoard)
 
 	-- Nobody has a character at the menu, so tell Roblox to show each player the camp.
 	local camp = Workspace:FindFirstChildWhichIsA("SpawnLocation", true)

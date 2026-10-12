@@ -9,6 +9,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local GameMode = require(ReplicatedStorage.Shared.GameMode)
+local Records = require(ReplicatedStorage.Shared.Records)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 
 if GameMode.waitForAny() ~= "Menu" then
@@ -164,12 +165,12 @@ local quickRace = makeButton(2, "QUICK RACE", "", "QuickRace")
 makeButton(3, "RACE WITH FRIENDS", "A PRIVATE RACE YOU HOST", "FriendsRace")
 
 -- The Record Book (see RECORD_BOOK.md): a panel over the menu with three pages.
--- Only My Records is built so far; the two leaderboard pages say so.
+-- My Records shows the player's own numbers. Friends and Everyone are leaderboards.
 local book = Instance.new("Frame")
 book.Name = "RecordBook"
 book.AnchorPoint = Vector2.new(0.5, 0)
-book.Position = UDim2.fromScale(0.5, 0.31)
-book.Size = UDim2.fromOffset(780, 400)
+book.Position = UDim2.fromScale(0.5, 0.29)
+book.Size = UDim2.fromOffset(780, 470)
 book.BackgroundColor3 = PANEL_COLOR
 book.BackgroundTransparency = 0.08
 book.BorderSizePixel = 0
@@ -222,15 +223,196 @@ minePage.Size = UDim2.new(1, -48, 1, -160)
 minePage.BackgroundTransparency = 1
 minePage.Parent = book
 
-local soonPage = makeLabel({
-	Name = "ComingSoon",
-	Position = UDim2.fromOffset(24, 104),
-	Size = UDim2.new(1, -48, 1, -160),
-	TextSize = 20,
-	TextColor3 = TITLE_COLOR,
-	Text = "LEADERBOARDS ARE COMING SOON",
+-- Friends and Everyone share one layout: a choice of board, all-time or this week, then
+-- up to ten rows, and below them the player's own row if they are not among the ten.
+local boardPage = Instance.new("Frame")
+boardPage.Name = "Leaderboard"
+boardPage.Position = UDim2.fromOffset(24, 100)
+boardPage.Size = UDim2.new(1, -48, 1, -152)
+boardPage.BackgroundTransparency = 1
+boardPage.Visible = false
+boardPage.Parent = book
+
+local function makeChoice(text: string, offsetX: number, offsetY: number, width: number): TextButton
+	local button = Instance.new("TextButton")
+	button.Position = UDim2.fromOffset(offsetX, offsetY)
+	button.Size = UDim2.fromOffset(width, 28)
+	button.BackgroundColor3 = Color3.fromRGB(44, 36, 28)
+	button.BorderSizePixel = 0
+	button.Font = Enum.Font.GothamBold
+	button.TextSize = 13
+	button.TextColor3 = WHITE
+	button.Text = text
+	button.Parent = boardPage
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 6)
+	corner.Parent = button
+	return button
+end
+
+local boardButtons: { TextButton } = {}
+for index, board in Records.Boards do
+	boardButtons[index] = makeChoice(board.Title, (index - 1) * 184, 0, 178)
+end
+local PERIODS = { { Id = "All", Title = "ALL-TIME" }, { Id = "Week", Title = "THIS WEEK" } }
+local periodButtons: { TextButton } = {}
+for index, period in PERIODS do
+	periodButtons[index] = makeChoice(period.Title, (index - 1) * 126, 36, 120)
+end
+
+local boardNote = makeLabel({
+	Name = "Note",
+	Position = UDim2.fromOffset(260, 36),
+	Size = UDim2.new(1, -260, 0, 28),
+	TextSize = 13,
+	TextColor3 = MUTED,
+	TextXAlignment = Enum.TextXAlignment.Right,
+	Text = "",
+}, boardPage)
+
+local BOARD_ROW_HEIGHT = 20
+local BOARD_ROWS = 10
+
+type BoardRow = { Rank: TextLabel, Name: TextLabel, Value: TextLabel }
+
+local function makeBoardRow(offsetY: number): BoardRow
+	local function part(offsetX: number, width: UDim, alignment: Enum.TextXAlignment): TextLabel
+		return makeLabel({
+			Position = UDim2.fromOffset(offsetX, offsetY),
+			Size = UDim2.new(width, UDim.new(0, BOARD_ROW_HEIGHT)),
+			TextSize = 15,
+			TextXAlignment = alignment,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+			Text = "",
+		}, boardPage)
+	end
+	return {
+		Rank = part(0, UDim.new(0, 70), Enum.TextXAlignment.Left),
+		Name = part(76, UDim.new(1, -260), Enum.TextXAlignment.Left),
+		Value = part(0, UDim.new(1, 0), Enum.TextXAlignment.Right),
+	}
+end
+
+local boardRows: { BoardRow } = {}
+for index = 1, BOARD_ROWS do
+	boardRows[index] = makeBoardRow(74 + (index - 1) * BOARD_ROW_HEIGHT)
+end
+local dotsLabel = makeLabel({
+	Position = UDim2.fromOffset(0, 74 + BOARD_ROWS * BOARD_ROW_HEIGHT),
+	Size = UDim2.new(1, 0, 0, 14),
+	TextSize = 15,
+	TextColor3 = MUTED,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	Text = "...",
 	Visible = false,
-}, book)
+}, boardPage)
+local ownRow = makeBoardRow(74 + BOARD_ROWS * BOARD_ROW_HEIGHT + 16)
+
+local boardMessage = makeLabel({
+	Name = "Message",
+	Position = UDim2.fromOffset(0, 74),
+	Size = UDim2.new(1, 0, 0, 120),
+	TextSize = 18,
+	TextColor3 = TITLE_COLOR,
+	Text = "",
+}, boardPage)
+
+local function setRow(row: BoardRow, rank: string, name: string, value: string, color: Color3)
+	row.Rank.Text, row.Name.Text, row.Value.Text = rank, name, value
+	row.Rank.TextColor3, row.Name.TextColor3, row.Value.TextColor3 = color, color, color
+end
+
+local function clearBoard(message: string)
+	for _, row in boardRows do
+		setRow(row, "", "", "", WHITE)
+	end
+	setRow(ownRow, "", "", "", GOLD)
+	dotsLabel.Visible = false
+	boardNote.Text = ""
+	boardMessage.Text = message
+end
+
+local shownPage = 1 -- 1 My Records, 2 Friends, 3 Everyone
+local shownBoard = 1
+local shownPeriod = 1
+
+local function kindShown(): string
+	return if shownPage == 2 then "Friends" else "Everyone"
+end
+
+-- Asks the server for the leaderboard now chosen. The answer arrives in Remotes.Board.
+local function requestBoard()
+	for index, button in boardButtons do
+		button.TextColor3 = if index == shownBoard then GOLD else WHITE
+	end
+	for index, button in periodButtons do
+		button.TextColor3 = if index == shownPeriod then GOLD else WHITE
+	end
+	clearBoard("LOADING...")
+	Remotes.RequestBoard:FireServer(
+		Records.Boards[shownBoard].Id,
+		PERIODS[shownPeriod].Id,
+		kindShown()
+	)
+end
+
+for index, button in boardButtons do
+	button.Activated:Connect(function()
+		shownBoard = index
+		requestBoard()
+	end)
+end
+for index, button in periodButtons do
+	button.Activated:Connect(function()
+		shownPeriod = index
+		requestBoard()
+	end)
+end
+
+Remotes.Board.OnClientEvent:Connect(function(answer)
+	-- Ignore an answer to a page the player has already left.
+	if
+		typeof(answer) ~= "table"
+		or shownPage == 1
+		or answer.BoardId ~= Records.Boards[shownBoard].Id
+		or answer.Period ~= PERIODS[shownPeriod].Id
+		or answer.Kind ~= kindShown()
+	then
+		return
+	end
+	local page = answer.Page
+	if typeof(page) ~= "table" or page.Failed then
+		clearBoard("THE LEADERBOARD COULD NOT BE LOADED. PLEASE TRY AGAIN LATER.")
+		return
+	end
+
+	local unit = Records.Boards[shownBoard].Unit
+	clearBoard("")
+	local youAreListed = false
+	for index, entry in page.Rows do
+		local row = boardRows[index]
+		if row then
+			local color = if entry.You then GOLD else WHITE
+			setRow(row, `{entry.Rank}.`, string.upper(entry.Name), `{entry.Value}{unit}`, color)
+			youAreListed = youAreListed or entry.You
+		end
+	end
+	if #page.Rows == 0 then
+		boardMessage.Text = "NOBODY IS ON THIS BOARD YET"
+	end
+
+	-- Your own row, when you are not among the rows above.
+	local you = page.You
+	if not youAreListed and typeof(you) == "table" then
+		local rank = if you.Rank then `{you.Rank}.` elseif you.Beyond then "1000+" else "-"
+		dotsLabel.Visible = #page.Rows > 0
+		setRow(ownRow, rank, string.upper(player.DisplayName), `{you.Value}{unit}`, GOLD)
+	end
+
+	local minutes = math.floor((page.UpdatedAgo or 0) / 60)
+	local updated = if minutes < 1 then "UPDATED JUST NOW" else `UPDATED {minutes} MIN AGO`
+	boardNote.Text = if shownPage == 2 then `FRIENDS IN THE TOP 1,000  -  {updated}` else updated
+end)
 
 local ROW_HEIGHT = 34
 
@@ -302,12 +484,16 @@ local bookNote = makeLabel({
 }, book)
 
 local function showPage(index: number)
+	shownPage = index
 	for buttonIndex, button in pageButtons do
 		button.TextColor3 = if buttonIndex == index then GOLD else WHITE
 	end
 	minePage.Visible = index == 1
-	soonPage.Visible = index ~= 1
+	boardPage.Visible = index ~= 1
 	bookNote.Visible = index == 1
+	if index ~= 1 then
+		requestBoard()
+	end
 end
 for index, button in pageButtons do
 	button.Activated:Connect(function()

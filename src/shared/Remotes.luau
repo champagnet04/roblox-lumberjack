@@ -14,6 +14,8 @@ local NAMES = {
 	"MenuStatus", -- server -> client: a line of text to show on the menu
 	"RequestRecords", -- client -> server: the Record Book was opened; send my records
 	"Records", -- server -> client: the player's saved records, for the Record Book
+	"RequestBoard", -- client -> server: show me a leaderboard (board, "All"/"Week", "Everyone"/"Friends")
+	"Board", -- server -> client: that leaderboard's rows and the player's own place
 	"LobbyAction", -- client -> server: the host of a friends race pressed "Start", "ToggleBots" or "ToggleOpen"
 	"ReturnToMenu", -- client -> server: leave this game and go back to the menu
 	"RaceResults", -- server -> everyone: a race round has ended; carries each racer's place and prize

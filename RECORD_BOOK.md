@@ -1,6 +1,6 @@
 # Record Book
 
-A fourth option on the menu, asked for by the owner on 2026-10-12. Part 1 (recording, and the My Records page) was built the same day and is untested. Part 2 (the leaderboards) is not built.
+A fourth option on the menu, asked for by the owner on 2026-10-12. Both parts were built the same day: part 1 (recording, and the My Records page) and part 2 (the Friends and Everyone leaderboards). Neither has been tested.
 
 ## What it is
 
@@ -51,6 +51,14 @@ Rules added while building part 1:
 - A race only goes in your records if you were racing when the round began. Joining partway through and watching does not count as a race run.
 - A win or a top-three finish needs wood banked and at least one other racer, bots included. A race run entirely alone cannot be used to pile up wins.
 - Studio's test players are never put on a board.
+
+How the leaderboard pages behave, as built:
+
+- A board is read from Roblox at most once every five minutes and shared between servers. The page says how long ago that was.
+- Your own row shows your score as saved now, even if the board has not caught up.
+- If you are not on the list at all, your place shows "1000+" when the list is full, and "-" when it is not, which means the board has not been read since you got on it.
+- The Friends page looks at your first 200 friends.
+- Two menu servers can occasionally read the same board at the same moment. It wastes a little of Roblox's allowance and does no harm.
 
 ## Limits set by Roblox
 
