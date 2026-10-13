@@ -49,8 +49,8 @@ local function tilt(tree: Model, state: TreeState, direction: Vector3, angle: nu
 end
 
 local function regrow(tree: Model, state: TreeState)
-	if not state.Felled then
-		return
+	if not state.Felled or states[tree] ~= state then
+		return -- standing already, or the forest has been made again since (see readForest)
 	end
 	tree:PivotTo(state.Upright)
 	state.Health = Config.Tree.SwingsToFell
@@ -66,6 +66,9 @@ local function fell(tree: Model, state: TreeState, direction: Vector3)
 	for step = 1, steps do
 		tilt(tree, state, direction, math.rad(85) * (step / steps) ^ 2)
 		task.wait(0.04)
+	end
+	if states[tree] ~= state then
+		return -- the forest was made again while this tree was falling
 	end
 	tree.Parent = nil
 
@@ -250,9 +253,16 @@ function TreeService.regrowAll()
 	end
 end
 
--- Call after the world has been built.
-function TreeService.start()
-	treesFolder = Workspace:WaitForChild("World"):WaitForChild("Trees")
+-- Reads the forest afresh. Used at the start, and again after the world has grown, when
+-- every tree has been replaced by a new one.
+function TreeService.readForest()
+	-- A felled tree is kept out of the world until it regrows; the old ones are finished with.
+	for tree, state in states do
+		if state.Felled then
+			tree:Destroy()
+		end
+	end
+	table.clear(states)
 
 	for _, tree in treesFolder:GetChildren() do
 		if tree:IsA("Model") and tree.PrimaryPart then
@@ -268,6 +278,12 @@ function TreeService.start()
 			}
 		end
 	end
+end
+
+-- Call after the world has been built.
+function TreeService.start()
+	treesFolder = Workspace:WaitForChild("World"):WaitForChild("Trees")
+	TreeService.readForest()
 
 	-- When a game ends, the whole forest grows back for the next one.
 	PlayerState.GameEnded:Connect(TreeService.regrowAll)

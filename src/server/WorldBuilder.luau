@@ -10,6 +10,11 @@ local TerrainBuilder = require(script.Parent.TerrainBuilder)
 
 local WorldBuilder = {}
 
+-- The sizes the world starts with. Config.World itself changes when the world grows.
+local startingWorld = table.clone(Config.World)
+local worldFolder: Folder
+local currentStep = 0
+
 local BARK_COLORS = {
 	Color3.fromRGB(84, 60, 42),
 	Color3.fromRGB(72, 54, 40),
@@ -100,6 +105,13 @@ local function randomInRing(rng: Random, minRadius: number, maxRadius: number): 
 	return onGround(math.cos(angle) * radius, math.sin(angle) * radius)
 end
 
+local function folderIn(parent: Instance, name: string): Folder
+	local folder = Instance.new("Folder")
+	folder.Name = name
+	folder.Parent = parent
+	return folder
+end
+
 local function buildBoundary(parent: Instance)
 	-- Invisible circular wall just past the last choppable trees.
 	local radius = Config.World.ForestRadius + 6
@@ -174,8 +186,6 @@ end
 local function buildCamp(parent: Instance)
 	local camp = Instance.new("Folder")
 	camp.Name = "Camp"
-
-	buildSafeZoneMarker(camp)
 
 	local spawnLocation = Instance.new("SpawnLocation")
 	spawnLocation.Name = "CampSpawn"
@@ -336,7 +346,7 @@ local function buildTree(rng: Random, base: Vector3, spec: TreeSpec, parent: Ins
 	tree.Parent = parent
 end
 
-local function buildForest(rng: Random, parent: Instance)
+local function buildForest(rng: Random, trees: Instance, border: Instance)
 	local world = Config.World
 	local treeCfg = Config.Tree
 	local placed: { Vector3 } = {}
@@ -370,12 +380,12 @@ local function buildForest(rng: Random, parent: Instance)
 		return min + (max - min) * alpha
 	end
 
-	local trees = Instance.new("Folder")
-	trees.Name = "Trees"
 	scatter(world.TreeCount, world.TreeMinDistanceFromCamp, world.ForestRadius, function(position)
 		-- 0 = smallest tree, 1 = largest. Trees grow bigger deeper in, because they are worth more.
 		local weight = treeCfg.DepthSizeWeight
-		local size = Forest.depthAt(position) * weight + rng:NextNumber() * (1 - weight)
+		-- (In a forest that has grown, the far trees are no bigger than the biggest today.)
+		local depth = math.min(Forest.depthAt(position), 1)
+		local size = depth * weight + rng:NextNumber() * (1 - weight)
 		buildTree(rng, position, {
 			Height = between(treeCfg.HeightMin, treeCfg.HeightMax, size),
 			Diameter = between(treeCfg.TrunkDiameterMin, treeCfg.TrunkDiameterMax, size),
@@ -386,10 +396,7 @@ local function buildForest(rng: Random, parent: Instance)
 			Detailed = true,
 		}, trees)
 	end)
-	trees.Parent = parent
 
-	local border = Instance.new("Folder")
-	border.Name = "BorderTrees"
 	scatter(
 		world.BorderTreeCount,
 		world.ForestRadius + 12,
@@ -408,13 +415,10 @@ local function buildForest(rng: Random, parent: Instance)
 			}, border)
 		end
 	)
-	border.Parent = parent
 end
 
-local function buildUndergrowth(rng: Random, parent: Instance)
+local function buildUndergrowth(rng: Random, undergrowth: Instance)
 	local world = Config.World
-	local undergrowth = Instance.new("Folder")
-	undergrowth.Name = "Undergrowth"
 
 	local innerRadius = world.CampRadius + 4
 	local outerRadius = world.ForestRadius + world.BorderDepth
@@ -470,8 +474,60 @@ local function buildUndergrowth(rng: Random, parent: Instance)
 			Color = pick(rng, BARK_COLORS),
 		}, undergrowth)
 	end
+end
 
-	undergrowth.Parent = parent
+-- Everything whose place depends on the world's sizes: the ground, the edge wall, the ring
+-- of stones round camp, the trees and the undergrowth. The folders themselves are kept, so
+-- anything holding on to one (the trees folder above all) still has the right one after
+-- the world grows.
+local function fill()
+	TerrainBuilder.build()
+
+	local camp = worldFolder:FindFirstChild("Camp") :: Instance
+	local marker = camp:FindFirstChild("SafeZoneMarker")
+	if marker then
+		marker:Destroy()
+	end
+	buildSafeZoneMarker(camp)
+
+	local boundary = worldFolder:FindFirstChild("Boundary") :: Instance
+	local trees = worldFolder:FindFirstChild("Trees") :: Instance
+	local border = worldFolder:FindFirstChild("BorderTrees") :: Instance
+	local undergrowth = worldFolder:FindFirstChild("Undergrowth") :: Instance
+	for _, folder in { boundary, trees, border, undergrowth } do
+		folder:ClearAllChildren()
+	end
+
+	local rng = Random.new(Config.World.Seed)
+	buildBoundary(boundary)
+	buildForest(rng, trees, border)
+	buildUndergrowth(rng, undergrowth)
+end
+
+-- Which size the world is now: 0 at the start, then counting along Config.WorldGrowth.
+function WorldBuilder.step(): number
+	return currentStep
+end
+
+-- Rebuilds the ground and the forest at another size (see Config.WorldGrowth). The camp's
+-- builds are left alone. Every tree is made afresh, so anything that keeps notes on the
+-- trees must read them again afterwards. Does nothing if the world is already that size.
+function WorldBuilder.resize(step: number)
+	if step == currentStep then
+		return
+	end
+	currentStep = step
+
+	for key, value in startingWorld do
+		(Config.World :: any)[key] = value
+	end
+	for key, value in Config.WorldGrowth[step] or {} do
+		if key ~= "FromBuild" then
+			(Config.World :: any)[key] = value
+		end
+	end
+
+	fill()
 end
 
 function WorldBuilder.build()
@@ -483,19 +539,17 @@ function WorldBuilder.build()
 		end
 	end
 
-	TerrainBuilder.build()
 	preparePyramidQuarters()
 
-	local rng = Random.new(Config.World.Seed)
-	local world = Instance.new("Folder")
-	world.Name = "World"
+	worldFolder = Instance.new("Folder")
+	worldFolder.Name = "World"
+	buildCamp(worldFolder)
+	for _, name in { "Boundary", "Trees", "BorderTrees", "Undergrowth" } do
+		folderIn(worldFolder, name)
+	end
+	fill()
 
-	buildBoundary(world)
-	buildCamp(world)
-	buildForest(rng, world)
-	buildUndergrowth(rng, world)
-
-	world.Parent = Workspace
+	worldFolder.Parent = Workspace
 end
 
 return WorldBuilder

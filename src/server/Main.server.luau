@@ -52,6 +52,9 @@ local function startGame(mode: string, host: number?)
 	else
 		CampBuildService.start()
 		GuardianService.start()
+		-- Loaded here, not above: a race has no use for it.
+		local WorldGrowth = require(script.Parent.WorldGrowth)
+		WorldGrowth.start()
 	end
 	MenuService.listenForReturn()
 

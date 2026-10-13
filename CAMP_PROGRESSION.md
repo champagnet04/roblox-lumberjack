@@ -12,8 +12,32 @@ The plan for how the camp grows, agreed with the owner on 2026-10-08. Only the l
 - Finishing a stage makes wood worth more when it is banked, and unlocks one other perk. The multiplier is applied at banking, so what the player carries, the carry slowdown and the chase do not change.
 - Other builds are visual only.
 - The chase must stay tricky but not impossible. Every perk has to pass that test. Carrying more wood was left out for this reason.
-- What is replaced: the tent replaces the lean-to, the cot replaces the bedroll, and the hut replaces the tent (owner, 2026-10-12; the earlier plan had the tent staying). Whether the cabin replaces the hut is to be decided when the cabin is planned.
-- The clearing grows as the camp does, and the forest grows in proportion with it. Sizes per stage are not yet decided (see "Still open").
+- What is replaced: the tent replaces the lean-to, the cot replaces the bedroll, and the hut replaces the tent (owner, 2026-10-12; the earlier plan had the tent staying). The cabin does not replace the hut: the hut stays as the workshop (owner, 2026-10-12).
+- The clearing grows as the camp does, and the forest grows with it in the same ratio (owner, 2026-10-12). See "The clearing and the forest".
+
+## The clearing and the forest
+
+Decided by quiz on 2026-10-12. Built the same day for the cabin stage; not yet seen by the owner.
+
+- The forest keeps its ratio to the clearing, about eleven times. Every distance grows together: the clearing, the safe ring of stones and lanterns, where the first trees stand, and the forest edge. The run home from the nearest trees to the safe ring is therefore the same length as before.
+- The number of trees, bushes, rocks and fallen logs grows with the area, so the forest is as thick as before.
+- It grows the moment a stage's last build is finished. The screen goes dark for a couple of seconds and the ground and forest are made again. Trees that were felled are standing afterwards.
+- A player arriving with a saved camp gets the right size straight away, behind the same dark screen.
+- A race always uses the starting size.
+
+| | Start | From the cabin stage (26 builds done) |
+|---|---|---|
+| Clearing edge | 26 | 40 |
+| Safe ring | 22 | 34 |
+| First trees | 32 | 49 |
+| Forest edge | 280 | 430 |
+| Trees to chop | 420 | 990 |
+
+Claude's choices, not reviewed by the owner:
+
+- **What a tree is worth.** A tree's worth still rises with how far it is past the first trees, at the same rate as today, so the same walk earns the same wood. The new ground beyond the old edge is worth more than anything before it: about four times a near tree at the new edge, against three times at the old one.
+- **Tree size.** The far trees are no bigger than the biggest trees today.
+- **Sizes for the homestead, settlement and village.** Not set. Each is to be chosen when its stage is planned.
 
 ## Summary
 
@@ -92,6 +116,16 @@ New materials: flat stone, axe head, bark sheet, hinge, old tools, barrel.
 ## Stage 4: Cabin
 
 A log cabin, clearly bigger than the hut, with a shingle roof, a stone chimney, glass windows and a covered front porch. The player can walk inside. The hut stays as the workshop.
+
+Decided by quiz on 2026-10-12. Not built yet; the bigger clearing it needs is.
+
+| Subject | Decision |
+|---|---|
+| The hut | Stays as the workshop |
+| Place | The far side of the fire from where the player starts, on the new ground, porch facing the fire |
+| Inside | The player walks in. The roof stays solid and the camera moves in close |
+| Look | Dark brown round logs with pale chinking, mossy green shingles, a grey stone chimney, red shutters |
+| Perk | Stamina bar a tenth bigger (110 in place of 100) |
 
 | # | Build | Wood | Materials |
 |---|---|---|---|
@@ -179,8 +213,8 @@ New materials: paper, paint, bronze bell.
 - **A daily reason to return.** Raised by Claude (for example, the first bank of each day worth double). Not in Version 0; the owner will add updates later.
 - **Where materials appear.** Settled when the tent camp was built: within a stage, materials move 120 studs farther out from its first build to its last, and each later stage starts 25 studs farther out than the one before. The lean-to stage is unchanged by this. Claude's choice; the owner has not reviewed it.
 - **Tent camp perk.** Carrying more wood was picked first, then dropped to protect the chase. Nothing has replaced it.
-- **Clearing and forest sizes per stage.** Today the clearing is 26 studs in radius and the forest edge is at 280. The clearing fits roughly the first three stages. "In proportion" could mean the forest keeps the same depth beyond the clearing, or keeps the same ratio to it (about eleven times), which would make a very large forest by the village.
-- **Walking inside the cabin.** The camera is held close under the trees and will need its own handling indoors.
+- **Clearing and forest sizes after the cabin.** The ratio is settled; the sizes for the last three stages are not. At the same ratio the forest is very large by the village, and how smoothly that runs on a phone has to be checked, starting with the cabin's size.
+- **Walking inside the cabin.** Decided: the camera moves in close. Not built.
 - **Villagers.** Nothing in the game stands around or walks yet. The settlement is the first stage that needs it.
 - **Models.** Which pieces are sculpted and which are built in code, stage by stage, with a quiz before each stage is built.
 - **Founding a new camp.** What happens after the bell.

@@ -60,6 +60,30 @@ Config.World = {
 	FallenLogCount = 45,
 }
 
+-- How far the forest runs from its first trees to its edge at the starting size. The worth
+-- of a tree is measured against this, so a tree is worth the same when the forest grows.
+Config.World.DepthSpan = Config.World.ForestRadius - Config.World.TreeMinDistanceFromCamp
+
+-- The clearing and the forest grow as the solo camp does (see CAMP_PROGRESSION.md). Once
+-- FromBuild builds are finished, the sizes in that entry replace the ones above. Every
+-- distance keeps its ratio to the clearing; the counts keep the forest as thick as before.
+-- A race always uses the starting sizes.
+Config.WorldGrowth = {
+	{
+		FromBuild = 26, -- the hut stage is finished; room for the cabin
+		GroundSize = 1000,
+		CampRadius = 40,
+		SafeZoneRadius = 34,
+		ForestRadius = 430,
+		TreeCount = 990,
+		TreeMinDistanceFromCamp = 49,
+		BorderTreeCount = 310,
+		BushCount = 900,
+		RockCount = 300,
+		FallenLogCount = 105,
+	},
+}
+
 Config.Lighting = {
 	ClockTime = 0, -- midnight; the campfire and the torch are the main lights
 	Brightness = 1.5, -- moonlight strength
@@ -84,8 +108,8 @@ Config.Lighting = {
 -- While Enabled is true, every Play starts from the state below and nothing is loaded or saved.
 Config.Testing = {
 	Enabled = true,
-	BuildsDone = 26, -- start with this many camp builds already finished (7 = lean-to stage, 16 = tent camp, 26 = hut)
-	Wood = 1000, -- start with this much wood in the overall bank
+	BuildsDone = 25, -- start with this many camp builds already finished (7 = lean-to stage, 16 = tent camp, 26 = hut)
+	Wood = 20000, -- start with this much wood in the overall bank
 	GiveNextMaterials = true, -- start with every material the next build needs
 }
 

@@ -306,6 +306,20 @@ local function onPlayerAdded(player: Player)
 	syncCamp(player)
 end
 
+-- Call after the world has been made again at another size (see WorldGrowth). Materials
+-- lying in the old forest are taken away, to appear again in the new one, and the camp is
+-- set down again on the new ground.
+function CampBuildService.worldChanged()
+	local deadline = os.clock() + 10
+	while not CampModels.groundIsReady() and os.clock() < deadline do
+		task.wait(0.1)
+	end
+	for _, player in Players:GetPlayers() do
+		removeItem(player)
+		syncCamp(player)
+	end
+end
+
 -- For a race: builds the first `buildCount` builds once, for everyone. No outline, no
 -- prompt and no materials in the forest. Call after the world has been built.
 function CampBuildService.startShared(buildCount: number)

@@ -41,6 +41,18 @@ function Camp.hasPerk(buildsDone: number, perk: string): boolean
 	return false
 end
 
+-- Which size the clearing and forest are with this many builds done: 0 is the starting
+-- size, and 1 upward counts along Config.WorldGrowth.
+function Camp.worldStep(buildsDone: number): number
+	local step = 0
+	for index, growth in Config.WorldGrowth do
+		if buildsDone >= growth.FromBuild then
+			step = index
+		end
+	end
+	return step
+end
+
 -- What each piece of banked wood is worth to the camp fund: 1 at the start, and one more
 -- for every stage finished.
 function Camp.woodWorth(buildsDone: number): number

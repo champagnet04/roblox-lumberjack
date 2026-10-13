@@ -1419,3 +1419,24 @@ Changed, in `src/server/CampModels.luau`:
 
 Tested: `stylua`, `selene` and `rojo build` pass.
 Not tested: not run.
+
+### 2026-10-12 — The clearing and forest grow for the cabin stage (cabin step 1 of 3)
+
+Why: the owner started the cabin stage. By quiz: the hut stays as the workshop, the cabin stands on new ground on the far side of the fire, the forest grows in the same ratio as the clearing, and it grows as the hut stage finishes. Also decided for later steps: walk-in cabin with a close camera, dark logs with a green roof, and a stamina bar a tenth bigger. All recorded in `CAMP_PROGRESSION.md`.
+
+What it does: with 26 builds done, the clearing reaches 40 studs (from 26), the safe ring 34 (from 22), the first trees stand at 49 (from 32) and the forest ends at 430 (from 280), with 990 trees (from 420). Finishing build 26 during play darkens the screen for about two seconds while the ground and forest are made again; a saved camp past that point gets the bigger world on arriving. A race keeps the starting size.
+
+Changed:
+
+- `src/shared/Config.luau`: new `Config.WorldGrowth`, the list of bigger sizes and the build each starts from. New `Config.World.DepthSpan`.
+- `src/shared/Camp.luau`: `worldStep`, which size goes with how many builds.
+- `src/shared/Forest.luau`: a tree's depth is measured against the starting forest, so the same walk is worth the same wood after the forest grows, and the new far ground is worth more.
+- `src/server/WorldBuilder.luau`: the world's folders are now kept and refilled, and `resize` makes the ground, safe ring, edge wall, trees and undergrowth again at another size. The edge wall has its own folder. The starting forest's layout is unchanged.
+- `src/server/TreeService.luau`: `readForest`, to take in the new trees; a tree that was falling or waiting to regrow when the forest changed is dropped safely.
+- `src/server/CampBuildService.luau`: `worldChanged`, which takes away a material lying in the old forest and sets the camp down again on the new ground.
+- `src/server/WorldGrowth.luau` (new): watches the player's builds and runs the change. Holds the player still while the ground is replaced.
+- `src/client/WorldCover.client.luau` (new): the dark screen and its message.
+- `src/server/Main.server.luau`: starts the growth in a solo game.
+
+Tested: `stylua`, `selene` and `rojo build` pass.
+Not tested: not run at all. Most in doubt: how smoothly 990 trees run, on a phone above all; how long the dark screen really needs; whether the player stays on the ground through the change.
