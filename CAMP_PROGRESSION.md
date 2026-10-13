@@ -33,6 +33,13 @@ Decided by quiz on 2026-10-12. Built the same day for the cabin stage; not yet s
 | Forest edge | 280 | 430 |
 | Trees to chop | 420 | 990 |
 
+**The camp is laid out again when the clearing grows** (owner, 2026-10-12, after seeing the cabin stage and finding the camp cluttered). Everything had stayed within about 17 studs of the fire. Now there are three areas with open ground between them, and the pieces move behind the same dark screen as the forest:
+
+- **Fire circle.** Only the fire, the cooking frame and pot, and the stools.
+- **The hut**, moved 8 studs further back from the fire, with everything in and against it: workbench, cot, rain barrel, supply crate. The stone path to its door is longer.
+- **Work yard**, beside the hut: woodpile, chopping block, plank stack, sawhorse, drying rack.
+- **Home area**, by the cabin: picnic table, clothesline, lantern post.
+
 Claude's choices, not reviewed by the owner:
 
 - **What a tree is worth.** A tree's worth still rises with how far it is past the first trees, at the same rate as today, so the same walk earns the same wood. The new ground beyond the old edge is worth more than anything before it: about four times a near tree at the new edge, against three times at the old one.
@@ -134,7 +141,6 @@ As built (Claude's choices, to be judged in Studio):
 - Windows: two in the front wall and one in the end wall facing the hut. Glass has a warm tint.
 - The door stands open into the room. The fireplace has a fire that lights the room; the chimney smokes.
 - Inside: bed in the back corner, table and two stools in the middle, shelves of jars on the back wall.
-- The clothesline moves along, from (3.5, 16) to (13, 18), once the foundation is laid, because the porch reaches its first spot.
 - The build prompt for every cabin piece hangs in front of the porch step, so the roof and the furniture can be built from the ground outside.
 - All pieces are built in code from the same sculpted logs and rocks as the hut. No new sculpted models.
 

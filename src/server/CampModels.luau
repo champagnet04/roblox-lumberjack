@@ -300,7 +300,8 @@ end
 -- `standing` says which other builds are there, by Id, for the few pieces that sit
 -- differently depending on what is around them.
 type Standing = { [string]: boolean }
-local builders: { [string]: (model: Model, standing: Standing) -> () } = {}
+-- `layout` is which size the clearing is (0 at the start; see Config.WorldGrowth).
+local builders: { [string]: (model: Model, standing: Standing, layout: number) -> () } = {}
 
 -- A ring of rough rocks around a small stack of burning logs.
 function builders.FirePit(model: Model)
@@ -951,11 +952,8 @@ function builders.DryingRack(model: Model)
 end
 
 -- A sagging rope between two poles, with a flannel shirt, a pair of socks and a blanket.
-function builders.Clothesline(model: Model, standing: Standing)
-	-- It moves along to make room once the cabin is begun: the porch reaches its first spot.
-	local centre = if standing.CabinFoundation
-		then Vector3.new(13, 0, 18)
-		else Vector3.new(3.5, 0, 16)
+function builders.Clothesline(model: Model)
+	local centre = Vector3.new(3.5, 0, 16)
 	local half = 4.6
 	local high, low = 5.8, 5.3
 
@@ -1034,6 +1032,9 @@ local COURSE_STEP = 1.05
 local DOOR_HALF_WIDTH = 1.45
 local WALL_TOP = HUT_FLOOR + 0.6 + LOG_COURSES * COURSE_STEP
 local ROOF_PEAK = WALL_TOP + 3
+
+-- How far the hut moves back from the fire when the clearing grows (see GROWN_SHIFT).
+local HUT_MOVED_BACK = 8
 
 local function hutPoint(x: number, y: number, z: number): Vector3
 	return HUT:PointToWorldSpace(Vector3.new(x, y, z))
@@ -1479,13 +1480,19 @@ function builders.RainBarrel(model: Model)
 end
 
 -- Flat stones set in the dirt from the fire to the hut's door.
-function builders.StonePath(model: Model)
+function builders.StonePath(model: Model, _standing: Standing, layout: number)
 	local rng = Random.new(29)
 	-- The hut's own Z axis runs through the fire, so the path is a line of Z values: from
 	-- just clear of the fire's ring of rocks to just outside the door.
 	local start = HUT:PointToObjectSpace(Vector3.new(-3.9, 0, 0)).Z
 	local to = -HUT_HALF_DEPTH - 1.4
 	local steps = 6
+	if layout > 0 then
+		-- The hut has moved back from the fire (see GROWN_SHIFT), so the path is longer.
+		-- It is laid out from the hut and then moved with it.
+		start -= HUT_MOVED_BACK
+		steps = 11
+	end
 	for i = 0, steps - 1 do
 		local z = start + (to - start) * (i / (steps - 1))
 		local diameter = rng:NextNumber(1.7, 2.3)
@@ -2721,6 +2728,34 @@ local BUILD_SPOTS: { [string]: Vector3 } = {
 }
 local reportedGround: { [string]: boolean } = {}
 
+-- Once the clearing has grown, the camp is laid out again in three areas with open ground
+-- between them, and each of these builds stands this far from its first spot:
+--   * the fire circle keeps only the fire, the pot and the stools;
+--   * the hut moves back from the fire, with everything in and against it;
+--   * the work yard is beside the hut: woodpile, chopping block, planks, sawhorse, rack;
+--   * the home area is by the cabin: picnic table, clothesline, lantern post.
+local HUT_SHIFT = Vector3.new(-HUT_MOVED_BACK, 0, 0)
+local GROWN_SHIFT: { [string]: Vector3 } = {
+	StoneFooting = HUT_SHIFT,
+	LogWalls = HUT_SHIFT,
+	BarkRoof = HUT_SHIFT,
+	Door = HUT_SHIFT,
+	Workbench = HUT_SHIFT,
+	RainBarrel = HUT_SHIFT,
+	StonePath = HUT_SHIFT,
+	Cot = HUT_SHIFT,
+	SupplyCrate = HUT_SHIFT,
+
+	Woodpile = Vector3.new(-7, 0, -3), -- to (-20, -12)
+	ChoppingBlock = Vector3.new(-6.5, 0, -5.5), -- to (-13, -17)
+	Sawhorse = Vector3.new(-8.8, 0, -7.4), -- sawhorse to (-5, -24), planks to (-11.2, -24.2)
+	DryingRack = Vector3.new(-5.5, 0, -9.5), -- to (3, -22)
+
+	PicnicTable = Vector3.new(7.5, 0, 7.5), -- to (9, 17)
+	Clothesline = Vector3.new(8.5, 0, 10), -- to (12, 26)
+	LanternPost = Vector3.new(3, 0, 4), -- to (14, 12)
+}
+
 -- The real height of the terrain's surface at a spot. Terrain is drawn a little above the
 -- height it was filled to, so anything built at Y = 0 would be partly buried.
 local function groundHeightAt(spot: Vector3): number
@@ -2742,21 +2777,29 @@ end
 
 -- Builds one camp structure, in place, by its Id from Config.Camp.Builds.
 -- `standing` is the set of builds standing in the camp (by Id); leave it out for none.
-function CampModels.build(id: string, parent: Instance, standing: { [string]: boolean }?): Model
+-- `layout` is which size the clearing is (0, or left out, for the starting size).
+function CampModels.build(
+	id: string,
+	parent: Instance,
+	standing: { [string]: boolean }?,
+	layout: number?
+): Model
 	local model = Instance.new("Model")
 	model.Name = id
 	local builder = builders[id]
 	if builder then
-		builder(model, standing or {})
-		-- The builders work from Y = 0; lift the result onto the real ground.
-		local ground = groundHeightAt(BUILD_SPOTS[id] or Vector3.zero)
+		builder(model, standing or {}, layout or 0)
+		-- The builders work from each piece's first spot and from Y = 0; move the result
+		-- to where it stands now, and lift it onto the real ground.
+		local shift = if (layout or 0) > 0 then GROWN_SHIFT[id] or Vector3.zero else Vector3.zero
+		local ground = groundHeightAt((BUILD_SPOTS[id] or Vector3.zero) + shift)
 		if not reportedGround[id] then
 			reportedGround[id] = true
 			print(`[CampModels] Ground under {id} is at height {string.format("%.2f", ground)}.`)
 		end
 		for _, item in model:GetDescendants() do
 			if item:IsA("BasePart") then
-				item.CFrame += Vector3.new(0, ground, 0)
+				item.CFrame += shift + Vector3.new(0, ground, 0)
 			end
 		end
 	else

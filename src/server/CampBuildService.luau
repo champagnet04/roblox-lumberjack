@@ -21,6 +21,7 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local CampModels = require(script.Parent.CampModels)
 local PlayerState = require(script.Parent.PlayerState)
 local TerrainBuilder = require(script.Parent.TerrainBuilder)
+local WorldBuilder = require(script.Parent.WorldBuilder)
 
 local CampBuildService = {}
 
@@ -132,6 +133,9 @@ local function syncCamp(player: Player)
 	buildsFolder:ClearAllChildren()
 
 	local done = PlayerState.getBuildsDone(player)
+	-- Some pieces stand elsewhere once the clearing has grown. This goes by the size the
+	-- world is now, so they move behind the dark screen, with the forest (see WorldGrowth).
+	local layout = WorldBuilder.step()
 
 	-- Some finished builds take earlier ones down, or take a piece off them.
 	local replaced: { [string]: boolean } = {}
@@ -158,7 +162,7 @@ local function syncCamp(player: Player)
 	for index, build in Config.Camp.Builds do
 		if index <= done then
 			if not replaced[build.Id] then
-				local model = CampModels.build(build.Id, buildsFolder, standing)
+				local model = CampModels.build(build.Id, buildsFolder, standing, layout)
 				local piece = stripped[build.Id]
 				if piece then
 					for _, item in model:GetDescendants() do
@@ -169,7 +173,7 @@ local function syncCamp(player: Player)
 				end
 			end
 		elseif index == done + 1 then
-			local ghost = CampModels.build(build.Id, buildsFolder, standing)
+			local ghost = CampModels.build(build.Id, buildsFolder, standing, layout)
 			CampModels.makeGhost(ghost)
 
 			local firstPart = ghost:FindFirstChildWhichIsA("BasePart")

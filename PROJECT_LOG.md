@@ -1473,3 +1473,24 @@ Changed:
 
 Tested: `stylua`, `selene` and `rojo build` pass.
 Not tested: not run. Most in doubt: whether the corner view really shows the whole room or a beam is in the way, how moving feels with a camera that stays put, and whether the new colours are dark enough under firelight.
+
+### 2026-10-12 — The camp is laid out in areas once the clearing has grown
+
+Why: the owner sent a screenshot of the cabin stage and said the camp looks very cluttered. Every piece was still within about 17 studs of the fire, though the clearing now reaches 40. By quiz they chose to group the pieces into areas, and to move the hut further back from the fire.
+
+What it does, from 26 builds done (it changes behind the dark screen, with the forest):
+
+- The hut and everything in or against it (footing, walls, roof, door, workbench, cot, rain barrel, supply crate) move 8 studs back from the fire. The stone path is laid longer, 11 stones in place of 6.
+- Work yard beside the hut: woodpile to (-20, -12), chopping block to (-13, -17), plank stack to (-11.2, -24.2), sawhorse to (-5, -24), drying rack to (3, -22).
+- Home area by the cabin: picnic table to (9, 17), clothesline to (12, 26), lantern post to (14, 12).
+- The fire, cooking frame, pot and stools stay.
+
+Before 26 builds, and in a race, nothing moves.
+
+Changed:
+
+- `src/server/CampModels.luau`: `GROWN_SHIFT`, how far each build stands from its first spot once the clearing has grown; `build` takes the clearing's size and moves the piece. The stone path is laid longer. The clothesline's own move for the cabin is taken out, since this replaces it.
+- `src/server/CampBuildService.luau`: passes the world's present size when it builds the camp.
+
+Tested: `stylua`, `selene` and `rojo build` pass.
+Not tested: not run. The new spots are worked out from numbers alone.
