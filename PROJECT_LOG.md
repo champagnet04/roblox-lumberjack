@@ -1510,3 +1510,15 @@ Why: the owner had an idea for solo play: a boy scout or girl scout style patch 
 Changed: new `PATCHES.md`. No code.
 
 Nothing in it is built. It marks which points the owner decided (solo play, missions, a patch per stage) and which are Claude's suggestions.
+
+### 2026-10-13 — Scout patches: rules decided by quiz
+
+Why: the owner asked to be quizzed on the patches idea.
+
+Decided: one patch per mission with no levels; just the patch, no other reward; all four kinds of mission; several tree-clearing patches, one of them the whole forest in one game; seen on a menu page, a button in the game and worn on the character; round stitched badges; players already part-way get their stage patches straight away; only the big ones are also Roblox badges.
+
+Changed: `PATCHES.md` rewritten with the decisions and a draft list of 26 patches. The list is Claude's and has not been gone over. No code.
+
+### 2026-10-13 — Scout patches plan accepted for now
+
+The owner looked over the draft list in `PATCHES.md` and said the plan looks good for now and will be added later. `PATCHES.md` now says so. No code.
