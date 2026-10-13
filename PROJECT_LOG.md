@@ -1494,3 +1494,19 @@ Changed:
 
 Tested: `stylua`, `selene` and `rojo build` pass.
 Not tested: not run. The new spots are worked out from numbers alone.
+
+### 2026-10-12 — Monetization ideas written down
+
+Why: the owner raised earning from the game, which is free today, and preferred temporary power-ups over permanent passes: for example an hour of double wood or extra stamina, counted in play time, inside a 24-hour window. They asked for it to be saved in a design doc to explore later.
+
+Changed: new `MONETIZATION.md`. No code.
+
+Nothing in it is built, priced or finally decided. It records which ideas were the owner's and which were Claude's, and one reading of the owner's words that still needs confirming (whether an unused part of the hour is lost after 24 hours).
+
+### 2026-10-13 — Scout patches idea written down
+
+Why: the owner had an idea for solo play: a boy scout or girl scout style patch for doing a mission, for example clearing the trees round camp in one round. They asked for a design doc to go over later, and added that every finished camp stage earns a patch.
+
+Changed: new `PATCHES.md`. No code.
+
+Nothing in it is built. It marks which points the owner decided (solo play, missions, a patch per stage) and which are Claude's suggestions.
