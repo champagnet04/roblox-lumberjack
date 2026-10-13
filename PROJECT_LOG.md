@@ -1440,3 +1440,36 @@ Changed:
 
 Tested: `stylua`, `selene` and `rojo build` pass.
 Not tested: not run at all. Most in doubt: how smoothly 990 trees run, on a phone above all; how long the dark screen really needs; whether the player stays on the ground through the change.
+
+### 2026-10-12 — Camp stage 4: the cabin (cabin step 2 of 3)
+
+Why: the owner approved the grown clearing and asked for the next step.
+
+What it adds: builds 27 to 37, the whole cabin stage, as listed in `CAMP_PROGRESSION.md`: stone foundation, log walls, roof beams, shingle roof, door and windows, chimney and hearth, porch and steps, rocking chair and porch lantern, bed with a quilt, table and shelves, shutters and flower boxes. Six new materials to find: shingle, glass pane, clay, quilt, jars, wildflowers. Finishing the stage makes wood worth five times.
+
+Changed:
+
+- `src/shared/Config.luau`: a fourth stage, "Cabin", ending at build 37; the eleven builds with their prices and materials; the six new materials. The comment on `Testing.BuildsDone` now mentions 37.
+- `src/server/CampModels.luau`: models for the eleven builds and the six materials. The clothesline moves to (13, 18) once the cabin's foundation stands. New `promptSpot`, which says where a build's prompt should hang.
+- `src/server/CampBuildService.luau`: uses `promptSpot`, so cabin pieces are built from in front of the porch instead of from under a prompt high on the roof.
+
+Not done yet: the stamina perk for finishing the stage, and the indoor camera. Roblox's own camera already moves in when a roof is in the way, so it may need little.
+
+Tested: `stylua`, `selene` and `rojo build` pass.
+Not tested: not run. None of the cabin has been seen, so sizes, colours and where pieces sit are all unchecked. Most in doubt: whether the door and windows line up with the gaps in the logs, the roof and gable ends meeting cleanly, stepping up onto the floor, and furniture spacing inside.
+
+### 2026-10-12 — Cabin: darker roof and chimney, a view of the room, the stamina perk (cabin step 3 of 3)
+
+Why: the owner saw the finished cabin and said the roof was too bright a green ("normal shingles or a darker moss"), the chimney too bright, and the inside hard to see. They do not want the roof removed, and suggested a button at the door and a different, zoomed-out view inside that shows the whole room. The stamina perk was the last agreed piece of the stage.
+
+Changed:
+
+- `src/server/CampModels.luau`: shingles are now three dark, slightly green greys. The chimney and fireplace stone is a darker grey. The cabin's walls carry an unseen box the size of the room, and a "Go inside" and a "Go outside" button at the doorway that step the player through it. Outlines of unbuilt pieces drop such working parts.
+- `src/client/CabinCamera.client.luau` (new): while the player stands in the room, the camera sits in the top front corner on the bed's side and looks down across the room with a wide view, turning a little to follow the player. Outside, the usual camera returns.
+- `src/shared/Config.luau`: `Stamina.BigMax = 110`; the cabin stage gives the `BigStamina` perk.
+- `src/server/MovementService.luau`: a full bar holds 110 once the cabin stage is finished, in solo only. Publishes `MaxStamina` for the display.
+- `src/client/Hud.client.luau`: the stamina bar is measured against `MaxStamina`.
+- `src/server/CampBuildService.luau`: a message for the new perk.
+
+Tested: `stylua`, `selene` and `rojo build` pass.
+Not tested: not run. Most in doubt: whether the corner view really shows the whole room or a beam is in the way, how moving feels with a camera that stays put, and whether the new colours are dark enough under firelight.

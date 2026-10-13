@@ -108,7 +108,7 @@ Config.Lighting = {
 -- While Enabled is true, every Play starts from the state below and nothing is loaded or saved.
 Config.Testing = {
 	Enabled = true,
-	BuildsDone = 25, -- start with this many camp builds already finished (7 = lean-to stage, 16 = tent camp, 26 = hut)
+	BuildsDone = 36, -- start with this many camp builds already finished (7 = lean-to stage, 16 = tent camp, 26 = hut, 37 = cabin)
 	Wood = 20000, -- start with this much wood in the overall bank
 	GiveNextMaterials = true, -- start with every material the next build needs
 }
@@ -129,6 +129,7 @@ Config.Player = {
 
 Config.Stamina = {
 	Max = 100,
+	BigMax = 110, -- with the cabin stage finished (the BigStamina perk). Solo only.
 	SprintDrainPerSecond = 12,
 	SwingCost = 4,
 	RegenPerSecond = 6,
@@ -191,6 +192,7 @@ Config.Camp = {
 		{ Name = "Lean-to", LastBuild = 7 },
 		{ Name = "Tent camp", LastBuild = 16 },
 		{ Name = "Hut", LastBuild = 26, Perk = "BetterAxe" }, -- see Config.Tree.BetterAxeSwings
+		{ Name = "Cabin", LastBuild = 37, Perk = "BigStamina" }, -- see Config.Stamina.BigMax
 	},
 
 	Builds = {
@@ -398,6 +400,104 @@ Config.Camp = {
 			Wood = 11300,
 			Materials = { { Type = "FlatStone", Count = 4 } },
 		},
+
+		-- Stage 4: the cabin. It stands on the ground the clearing gains when the hut
+		-- stage is finished (see Config.WorldGrowth). The hut stays, as the workshop.
+		{
+			Id = "CabinFoundation",
+			Name = "Stone foundation",
+			Wood = 11500,
+			Materials = { { Type = "FlatStone", Count = 5 } },
+		},
+		{
+			Id = "CabinWalls",
+			Name = "Cabin log walls",
+			Wood = 12100,
+			Materials = { { Type = "Pole", Count = 3 }, { Type = "Moss", Count = 2 } },
+		},
+		{
+			Id = "CabinRoofBeams",
+			Name = "Roof beams",
+			Wood = 12700,
+			Materials = { { Type = "Pole", Count = 3 }, { Type = "Nails", Count = 1 } },
+		},
+		{
+			Id = "CabinRoof",
+			Name = "Shingle roof",
+			Wood = 13300,
+			Materials = { { Type = "Shingle", Count = 4 }, { Type = "Nails", Count = 1 } },
+		},
+		{
+			Id = "CabinDoorWindows",
+			Name = "Door and windows",
+			Wood = 13900,
+			Materials = {
+				{ Type = "GlassPane", Count = 2 },
+				{ Type = "Hinge", Count = 1 },
+				{ Type = "Plank", Count = 1 },
+				{ Type = "Nails", Count = 1 },
+			},
+		},
+		{
+			Id = "CabinChimney",
+			Name = "Chimney and hearth",
+			Wood = 14500,
+			Materials = {
+				{ Type = "FlatStone", Count = 3 },
+				{ Type = "Clay", Count = 1 },
+				{ Type = "Flint", Count = 1 },
+			},
+		},
+		{
+			Id = "CabinPorch",
+			Name = "Porch and steps",
+			Wood = 15100,
+			Materials = {
+				{ Type = "Plank", Count = 3 },
+				{ Type = "Pole", Count = 1 },
+				{ Type = "Nails", Count = 1 },
+			},
+		},
+		{
+			Id = "PorchChair",
+			Name = "Rocking chair and porch lantern",
+			Wood = 15700,
+			Materials = {
+				{ Type = "Plank", Count = 2 },
+				{ Type = "Lantern", Count = 1 },
+				{ Type = "Rope", Count = 1 },
+			},
+		},
+		{
+			Id = "CabinBed",
+			Name = "Bed with a quilt",
+			Wood = 16300,
+			Materials = {
+				{ Type = "Plank", Count = 2 },
+				{ Type = "Quilt", Count = 1 },
+				{ Type = "Cloth", Count = 1 },
+			},
+		},
+		{
+			Id = "CabinTable",
+			Name = "Table and shelves",
+			Wood = 16900,
+			Materials = {
+				{ Type = "Plank", Count = 3 },
+				{ Type = "Jars", Count = 1 },
+				{ Type = "Nails", Count = 1 },
+			},
+		},
+		{
+			Id = "CabinShutters",
+			Name = "Shutters and flower boxes",
+			Wood = 17500,
+			Materials = {
+				{ Type = "Plank", Count = 2 },
+				{ Type = "Hinge", Count = 1 },
+				{ Type = "Wildflowers", Count = 2 },
+			},
+		},
 	},
 
 	-- Every material type, in a fixed order (used for saving and the on-screen list).
@@ -424,6 +524,12 @@ Config.Camp = {
 		"Hinge",
 		"OldTools",
 		"Barrel",
+		"Shingle",
+		"GlassPane",
+		"Clay",
+		"Quilt",
+		"Jars",
+		"Wildflowers",
 	},
 	Materials = {
 		Sticks = { Name = "sticks" },
@@ -447,6 +553,12 @@ Config.Camp = {
 		Hinge = { Name = "hinge" },
 		OldTools = { Name = "old tools" },
 		Barrel = { Name = "barrel" },
+		Shingle = { Name = "shingle" },
+		GlassPane = { Name = "glass pane" },
+		Clay = { Name = "clay" },
+		Quilt = { Name = "quilt" },
+		Jars = { Name = "jars" },
+		Wildflowers = { Name = "wildflowers" },
 	},
 
 	-- Where a material appears: between these two distances from camp for the first build

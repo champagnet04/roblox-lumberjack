@@ -613,14 +613,15 @@ local function refreshStats()
 end
 
 local function refreshStamina()
-	local stamina = player:GetAttribute("Stamina") or Config.Stamina.Max
+	local full = player:GetAttribute("MaxStamina") or Config.Stamina.Max
+	local stamina = player:GetAttribute("Stamina") or full
 	local low = stamina < Config.Stamina.LowThreshold
 	staminaFill.BackgroundColor3 = if low then STAMINA_LOW_COLOR else STAMINA_COLOR
 	-- The server sends a new value ten times a second; glide between them.
 	TweenService:Create(
 		staminaFill,
 		TweenInfo.new(0.1, Enum.EasingStyle.Linear),
-		{ Size = UDim2.fromScale(math.clamp(stamina / Config.Stamina.Max, 0, 1), 1) }
+		{ Size = UDim2.fromScale(math.clamp(stamina / full, 0, 1), 1) }
 	):Play()
 end
 

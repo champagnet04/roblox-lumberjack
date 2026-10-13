@@ -113,13 +113,14 @@ local function tryBuild(player: Player)
 				)
 			end
 		end)
-		if perk == "BetterAxe" then
+		local perkMessage = if perk == "BetterAxe"
+			then `BETTER AXE! TREES FALL IN {Config.Tree.BetterAxeSwings} SWINGS`
+			elseif perk == "BigStamina" then "BIGGER STAMINA BAR! YOU CAN RUN FOR LONGER"
+			else nil
+		if perkMessage then
 			task.delay(7, function()
 				if player.Parent then
-					Remotes.Notice:FireClient(
-						player,
-						`BETTER AXE! TREES FALL IN {Config.Tree.BetterAxeSwings} SWINGS`
-					)
+					Remotes.Notice:FireClient(player, perkMessage)
 				end
 			end)
 		end
@@ -183,7 +184,8 @@ local function syncCamp(player: Player)
 				anchor.CanCollide = false
 				anchor.CanQuery = false
 				anchor.CanTouch = false
-				anchor.Position = firstPart.Position + Vector3.new(0, Config.Camp.PromptHeight, 0)
+				anchor.Position = (CampModels.promptSpot(build.Id) or firstPart.Position)
+					+ Vector3.new(0, Config.Camp.PromptHeight, 0)
 				anchor.Parent = ghost
 
 				local prompt = Instance.new("ProximityPrompt")

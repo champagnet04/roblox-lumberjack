@@ -6,6 +6,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
+local Camp = require(ReplicatedStorage.Shared.Camp)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local PlayerState = require(script.Parent.PlayerState)
@@ -13,6 +14,7 @@ local PlayerState = require(script.Parent.PlayerState)
 local MovementService = {}
 
 local TICK = 0.1
+local IS_RACE = Config.Mode == "Race"
 
 type MoveState = {
 	Stamina: number,
@@ -23,8 +25,18 @@ type MoveState = {
 
 local states: { [Player]: MoveState } = {}
 
+-- How much stamina a full bar holds. More once the cabin stage is finished; not in a race,
+-- where everyone is equal.
+local function maxStamina(player: Player): number
+	if not IS_RACE and Camp.hasPerk(PlayerState.getBuildsDone(player), "BigStamina") then
+		return Config.Stamina.BigMax
+	end
+	return Config.Stamina.Max
+end
+
 local function publish(player: Player, state: MoveState)
 	player:SetAttribute("Stamina", math.floor(state.Stamina * 10 + 0.5) / 10)
+	player:SetAttribute("MaxStamina", maxStamina(player))
 end
 
 -- Speed multiplier from carried wood, interpolated between the points in Config.Carry.
@@ -85,7 +97,7 @@ local function step(player: Player, state: MoveState, dt: number)
 			state.Exhausted = true
 		end
 	elseif now - state.LastEffort >= cfg.RegenDelay then
-		state.Stamina = math.min(state.Stamina + cfg.RegenPerSecond * dt, cfg.Max)
+		state.Stamina = math.min(state.Stamina + cfg.RegenPerSecond * dt, maxStamina(player))
 	end
 
 	local baseSpeed = if sprinting then Config.Player.SprintSpeed else Config.Player.WalkSpeed
@@ -101,7 +113,7 @@ end
 
 local function onPlayerAdded(player: Player)
 	local state: MoveState = {
-		Stamina = Config.Stamina.Max,
+		Stamina = maxStamina(player),
 		WantsSprint = false,
 		Exhausted = false,
 		LastEffort = 0,
@@ -111,7 +123,7 @@ local function onPlayerAdded(player: Player)
 
 	-- Every respawn starts fresh.
 	player.CharacterAdded:Connect(function()
-		state.Stamina = Config.Stamina.Max
+		state.Stamina = maxStamina(player)
 		state.Exhausted = false
 		publish(player, state)
 	end)

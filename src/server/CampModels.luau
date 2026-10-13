@@ -951,8 +951,11 @@ function builders.DryingRack(model: Model)
 end
 
 -- A sagging rope between two poles, with a flannel shirt, a pair of socks and a blanket.
-function builders.Clothesline(model: Model)
-	local centre = Vector3.new(3.5, 0, 16)
+function builders.Clothesline(model: Model, standing: Standing)
+	-- It moves along to make room once the cabin is begun: the porch reaches its first spot.
+	local centre = if standing.CabinFoundation
+		then Vector3.new(13, 0, 18)
+		else Vector3.new(3.5, 0, 16)
 	local half = 4.6
 	local high, low = 5.8, 5.3
 
@@ -1500,6 +1503,1182 @@ function builders.StonePath(model: Model)
 	end
 end
 
+-- Stage 4: the cabin. See CAMP_PROGRESSION.md.
+
+-- The cabin stands on the ground the clearing gained (see Config.WorldGrowth), behind the
+-- fire and to one side of the hut, facing the fire. Points are given in its own space:
+-- X across the front, Y up, -Z toward the fire. The chimney is on the +X side.
+local CABIN_CENTRE = Vector3.new(-8.55, 0, 23.49)
+local CABIN = CFrame.lookAt(CABIN_CENTRE, Vector3.zero)
+local CABIN_HALF_WIDTH = 7.5
+local CABIN_HALF_DEPTH = 5.5
+local CABIN_FLOOR = 0.8 -- top of the stone foundation, and of the porch
+local CABIN_LOG = 1.2 -- how thick a wall log is
+local CABIN_COURSES = 7
+local CABIN_STEP = 1.1 -- from one log up to the next
+local CABIN_WALL_TOP = CABIN_FLOOR + 0.6 + CABIN_COURSES * CABIN_STEP
+local CABIN_PEAK = CABIN_WALL_TOP + 4.2
+local CABIN_EAVE = CABIN_HALF_DEPTH + 1.3 -- how far out the roof's lower edge is
+local CABIN_EAVE_HEIGHT = CABIN_WALL_TOP - 0.75
+local CABIN_ROOF_HALF_LENGTH = CABIN_HALF_WIDTH + 1.5
+local CABIN_DOOR_HALF = 1.6
+local CABIN_DOOR_TOP = CABIN_FLOOR + 6.1
+local PORCH_DEPTH = 4
+local PORCH_FRONT = -CABIN_HALF_DEPTH - 0.55 - PORCH_DEPTH -- the porch's front edge
+local PORCH_POST_Z = PORCH_FRONT + 0.35
+
+local DARK_LOG = Color3.fromRGB(58, 42, 32)
+local CHINKING = Color3.fromRGB(206, 196, 172)
+-- Old dark shingles with moss grown into them. Kept dark: firelight brightens them a lot.
+local SHINGLES = {
+	Color3.fromRGB(40, 50, 40),
+	Color3.fromRGB(48, 56, 42),
+	Color3.fromRGB(36, 42, 38),
+}
+local CHIMNEY_STONE = Color3.fromRGB(74, 72, 70)
+local CHIMNEY_STONE_DARK = Color3.fromRGB(56, 54, 54)
+local SHUTTER_RED = Color3.fromRGB(164, 42, 38)
+local WINDOW_GLOW = Color3.fromRGB(255, 208, 140)
+local CLAY = Color3.fromRGB(168, 98, 70)
+local SOIL = Color3.fromRGB(54, 40, 32)
+local QUILT = {
+	Color3.fromRGB(164, 42, 38),
+	Color3.fromRGB(224, 210, 178),
+	Color3.fromRGB(58, 84, 128),
+	Color3.fromRGB(206, 160, 62),
+	Color3.fromRGB(70, 110, 72),
+}
+local PETALS = {
+	Color3.fromRGB(240, 204, 70),
+	Color3.fromRGB(236, 232, 224),
+	Color3.fromRGB(150, 104, 190),
+	Color3.fromRGB(226, 120, 150),
+}
+
+-- The windows: where the middle of each opening is, and which way it faces.
+local CABIN_WINDOW_SIZE = 2.2
+local FRONT_WINDOW_X = 4.7
+local FRONT_WINDOW_Y = CABIN_FLOOR + 3.9
+local SIDE_WINDOW_Y = CABIN_FLOOR + 4.45
+local CABIN_WINDOWS = {
+	CABIN * CFrame.new(-FRONT_WINDOW_X, FRONT_WINDOW_Y, -CABIN_HALF_DEPTH),
+	CABIN * CFrame.new(FRONT_WINDOW_X, FRONT_WINDOW_Y, -CABIN_HALF_DEPTH),
+	CABIN * CFrame.new(-CABIN_HALF_WIDTH, SIDE_WINDOW_Y, 0) * turn(90),
+}
+
+local function cabinPoint(x: number, y: number, z: number): Vector3
+	return CABIN:PointToWorldSpace(Vector3.new(x, y, z))
+end
+
+-- A box in the cabin's own space.
+local function cabinBox(
+	name: string,
+	middle: Vector3,
+	size: Vector3,
+	color: Color3,
+	parent: Instance,
+	material: Enum.Material?
+): Part
+	return makePart({
+		Name = name,
+		Size = size,
+		CFrame = CABIN * CFrame.new(middle),
+		Material = material or Enum.Material.WoodPlanks,
+		Color = color,
+	}, parent)
+end
+
+-- A round post standing on `foot` (a point in the world).
+local function post(
+	name: string,
+	foot: Vector3,
+	height: number,
+	diameter: number,
+	color: Color3,
+	parent: Instance
+): Part
+	return makePart({
+		Name = name,
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(height, diameter, diameter),
+		CFrame = CFrame.new(foot + Vector3.new(0, height / 2, 0))
+			* CFrame.Angles(0, 0, math.rad(90)),
+		Color = color,
+	}, parent)
+end
+
+-- A dark wall log between two points, with a sawn face only on the ends that show.
+local function cabinLog(
+	from: Vector3,
+	to: Vector3,
+	parent: Instance,
+	capFrom: boolean,
+	capTo: boolean
+)
+	local length = (to - from).Magnitude
+	local along = CFrame.lookAt((from + to) / 2, to) * CFrame.Angles(0, math.rad(90), 0)
+	local thickness = CABIN_LOG / KIT.Log.Size.Y
+	local scale = Vector3.new(length / KIT.Log.Size.X, thickness, thickness)
+	local part = kitPart("Log", along, scale, { Color = DARK_LOG }, parent)
+		or pole(from, to, CABIN_LOG, parent, DARK_LOG)
+	part.Name = "WallLog"
+	for side, capped in { [-1] = capFrom, [1] = capTo } do
+		if capped then
+			slice(along * CFrame.new(side * length / 2, 0, 0), CABIN_LOG * 0.8, PALE_WOOD, parent).Name =
+				"LogEnd"
+		end
+	end
+end
+
+-- A gap in a wall: From and To along the wall, Low and High in height.
+type Opening = { From: number, To: number, Low: number, High: number }
+
+-- One wall of the cabin: logs stacked up, cut short at any doorway or window, with pale
+-- chinking between them. `alongX` walls run across the cabin at Z = `at`; the others run
+-- front to back at X = `at`. `lift` raises the whole stack (the front and back walls sit
+-- half a log higher than the sides, so the corners lock together).
+local function cabinWall(
+	model: Model,
+	alongX: boolean,
+	at: number,
+	half: number,
+	lift: number,
+	openings: { Opening }
+)
+	local over = 0.8 -- how far each log runs past the corner
+	local function point(t: number, y: number): Vector3
+		return if alongX then cabinPoint(t, y, at) else cabinPoint(at, y, t)
+	end
+
+	for course = 0, CABIN_COURSES - 1 do
+		local y = CABIN_FLOOR + 0.6 + lift + course * CABIN_STEP
+		local start = -half - over
+		local runs: { { number } } = {}
+		for _, opening in openings do
+			if y > opening.Low and y < opening.High then
+				table.insert(runs, { start, opening.From })
+				start = opening.To
+			end
+		end
+		table.insert(runs, { start, half + over })
+
+		for _, run in runs do
+			local from, to = run[1], run[2]
+			cabinLog(point(from, y), point(to, y), model, from == -half - over, to == half + over)
+
+			local chinkFrom, chinkTo = math.max(from, -half), math.min(to, half)
+			local length = chinkTo - chinkFrom
+			local middle = (chinkFrom + chinkTo) / 2
+			local chink = cabinBox(
+				"Chinking",
+				if alongX then Vector3.new(middle, y, at) else Vector3.new(at, y, middle),
+				if alongX
+					then Vector3.new(length, CABIN_STEP, 0.5)
+					else Vector3.new(0.5, CABIN_STEP, length),
+				CHINKING,
+				model,
+				Enum.Material.Sand
+			)
+			chink.CanCollide = false
+		end
+	end
+end
+
+-- Rows of mossy shingles down one slope of a roof, on a solid deck. `top` and `foot` are
+-- the slope's upper and lower edges at the middle of the roof, in the cabin's own space;
+-- the roof runs `halfLength` to each side of them.
+local function shingleSlope(
+	model: Model,
+	top: Vector3,
+	foot: Vector3,
+	halfLength: number,
+	rows: number,
+	seed: number
+)
+	local rng = Random.new(seed)
+	local along = Vector3.xAxis
+	local slope = (foot - top).Unit
+	local slopeLength = (foot - top).Magnitude
+	local across = along:Cross(slope)
+	local out = if across.Y < 0 then -across else across -- up and away from the roof
+
+	makePart({
+		Name = "RoofDeck",
+		Size = Vector3.new(slopeLength, 0.25, halfLength * 2),
+		CFrame = CABIN * CFrame.fromMatrix((top + foot) / 2, slope, across, along),
+		Material = Enum.Material.WoodPlanks,
+		Color = DARK_WOOD,
+	}, model)
+
+	local rowLength = slopeLength / rows
+	local pieces = 4
+	for row = 0, rows - 1 do
+		-- Where one shingle ends and the next begins, a little different in every row.
+		local edges = { -halfLength - 0.15 }
+		for i = 1, pieces - 1 do
+			table.insert(
+				edges,
+				-halfLength + (halfLength * 2) * (i / pieces) + rng:NextNumber(-0.9, 0.9)
+			)
+		end
+		table.insert(edges, halfLength + 0.15)
+
+		for i = 1, pieces do
+			local length = edges[i + 1] - edges[i]
+			local middle = top
+				+ slope * ((row + 0.5) * rowLength + 0.1)
+				+ along * ((edges[i] + edges[i + 1]) / 2)
+				+ out * (0.2 + ((row + i) % 2) * 0.07)
+			makePart({
+				Name = "Shingles",
+				Size = Vector3.new(rowLength * 1.12, 0.2, length),
+				CFrame = CABIN * CFrame.fromMatrix(middle, slope, across, along),
+				Material = Enum.Material.Slate,
+				Color = SHINGLES[rng:NextInteger(1, #SHINGLES)],
+				CanCollide = false,
+			}, model)
+		end
+	end
+end
+
+-- A slab of grey stone the whole size of the cabin, edged with boulders, and a doorstep.
+function builders.CabinFoundation(model: Model)
+	local w, d = CABIN_HALF_WIDTH + 0.6, CABIN_HALF_DEPTH + 0.6
+	cabinBox(
+		"Floor",
+		Vector3.new(0, CABIN_FLOOR / 2 - 0.15, 0),
+		Vector3.new(w * 2, CABIN_FLOOR + 0.3, d * 2),
+		STONE:Lerp(Color3.new(0, 0, 0), 0.25),
+		model,
+		Enum.Material.Slate
+	)
+	-- Half the floor's height, so there is an easy way up before the porch is built.
+	cabinBox(
+		"Doorstep",
+		Vector3.new(0, CABIN_FLOOR / 4, -d - 0.8),
+		Vector3.new(CABIN_DOOR_HALF * 2 + 1.4, CABIN_FLOOR / 2, 1.6),
+		STONE,
+		model,
+		Enum.Material.Slate
+	)
+
+	-- Boulders along the sides and the back. The front is left clear for the porch.
+	local rng = Random.new(31)
+	local rocks = { "RockA", "RockB", "RockC" }
+	local count = 0
+	local function edge(fromX: number, fromZ: number, toX: number, toZ: number)
+		local length = math.max(math.abs(toX - fromX), math.abs(toZ - fromZ))
+		local steps = math.floor(length / 1.8)
+		for i = 0, steps - 1 do
+			local t = (i + 0.5) / steps
+			count += 1
+			rock(
+				rocks[count % 3 + 1],
+				CABIN
+					* CFrame.new(fromX + (toX - fromX) * t, -0.1, fromZ + (toZ - fromZ) * t)
+					* turn(rng:NextNumber(0, 360)),
+				rng:NextNumber(0.8, 1.05),
+				model
+			)
+		end
+	end
+	edge(w, -d, w, d)
+	edge(w, d, -w, d)
+	edge(-w, d, -w, -d)
+end
+
+-- Dark logs seven high with pale chinking, crossing at the corners. A doorway and two
+-- windows in the front wall, and a window in the side wall facing the hut.
+function builders.CabinWalls(model: Model)
+	local w, d = CABIN_HALF_WIDTH, CABIN_HALF_DEPTH
+	local window = CABIN_WINDOW_SIZE / 2
+	local frontWindows = { Low = FRONT_WINDOW_Y - window, High = FRONT_WINDOW_Y + window }
+
+	cabinWall(model, true, -d, w, CABIN_STEP / 2, {
+		{
+			From = -FRONT_WINDOW_X - window,
+			To = -FRONT_WINDOW_X + window,
+			Low = frontWindows.Low,
+			High = frontWindows.High,
+		},
+		{ From = -CABIN_DOOR_HALF, To = CABIN_DOOR_HALF, Low = 0, High = CABIN_DOOR_TOP },
+		{
+			From = FRONT_WINDOW_X - window,
+			To = FRONT_WINDOW_X + window,
+			Low = frontWindows.Low,
+			High = frontWindows.High,
+		},
+	})
+	cabinWall(model, true, d, w, CABIN_STEP / 2, {})
+	cabinWall(model, false, -w, d, 0, {
+		{
+			From = -window,
+			To = window,
+			Low = SIDE_WINDOW_Y - window,
+			High = SIDE_WINDOW_Y + window,
+		},
+	})
+	cabinWall(model, false, w, d, 0, {})
+
+	-- The room itself, as an unseen box. The player's game watches for it and, while the
+	-- player stands inside it, looks down on the room from a top corner (see CabinCamera).
+	local roomHeight = CABIN_WALL_TOP - CABIN_FLOOR
+	local room = cabinBox(
+		"CabinRoom",
+		Vector3.new(0, CABIN_FLOOR + roomHeight / 2, 0),
+		Vector3.new(w * 2 - CABIN_LOG, roomHeight, d * 2 - CABIN_LOG),
+		DARK_WOOD,
+		model
+	)
+	room.Transparency = 1
+	room.CanCollide = false
+	room.CanQuery = false
+	room.CanTouch = false
+	room.CastShadow = false
+	room:SetAttribute("LiveOnly", true)
+
+	-- A button each side of the doorway, to step through it.
+	for _, way in
+		{
+			{ Name = "GoInside", Text = "Go inside", From = -d - 1.7, To = -d + 2.6 },
+			{ Name = "GoOutside", Text = "Go outside", From = -d + 1.7, To = -d - 2.6 },
+		}
+	do
+		local anchor = cabinBox(
+			way.Name,
+			Vector3.new(0, CABIN_FLOOR + 3.4, way.From),
+			Vector3.one,
+			DARK_WOOD,
+			model
+		)
+		anchor.Transparency = 1
+		anchor.CanCollide = false
+		anchor.CanQuery = false
+		anchor.CanTouch = false
+		anchor.CastShadow = false
+		anchor:SetAttribute("LiveOnly", true)
+
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.ActionText = way.Text
+		prompt.ObjectText = "Cabin"
+		prompt.HoldDuration = 0
+		prompt.MaxActivationDistance = 5
+		prompt.RequiresLineOfSight = false
+		prompt.Triggered:Connect(function(player)
+			local character = player.Character
+			local root = character and character:FindFirstChild("HumanoidRootPart")
+			if character and root and root:IsA("BasePart") then
+				-- Keep them where they stood from side to side, as far as the doorway allows.
+				local across = CABIN:PointToObjectSpace(root.Position).X
+				local place = cabinPoint(
+					math.clamp(across, -CABIN_DOOR_HALF + 0.8, CABIN_DOOR_HALF - 0.8),
+					0,
+					way.To
+				)
+				local height = anchor.Position.Y - 0.2 -- standing on the floor
+				local facing = cabinPoint(0, 0, way.To) - cabinPoint(0, 0, way.From)
+				local at = Vector3.new(place.X, height, place.Z)
+				root.AssemblyLinearVelocity = Vector3.zero
+				character:PivotTo(CFrame.lookAt(at, at + facing))
+			end
+		end)
+		prompt.Parent = anchor
+	end
+
+	-- An upright each side of the doorway, to tidy the cut ends.
+	for _, side in { -1, 1 } do
+		cabinBox(
+			"DoorPost",
+			Vector3.new(side * (CABIN_DOOR_HALF + 0.05), (CABIN_FLOOR + CABIN_DOOR_TOP) / 2, -d),
+			Vector3.new(0.35, CABIN_DOOR_TOP - CABIN_FLOOR, CABIN_LOG + 0.1),
+			DARK_WOOD,
+			model
+		)
+	end
+end
+
+-- The roof's skeleton: a ridge log, rafters down each side, two beams across the room,
+-- and a boarded triangle closing each end wall.
+function builders.CabinRoofBeams(model: Model)
+	local w = CABIN_HALF_WIDTH
+	local ridgeY = CABIN_PEAK - 0.45
+
+	beam(
+		cabinPoint(-CABIN_ROOF_HALF_LENGTH + 0.2, ridgeY, 0),
+		cabinPoint(CABIN_ROOF_HALF_LENGTH - 0.2, ridgeY, 0),
+		0.8,
+		model,
+		DARK_LOG
+	)
+	for _, x in { -w - 0.9, -w / 2, 0, w / 2, w + 0.9 } do
+		for _, side in { -1, 1 } do
+			pole(
+				cabinPoint(x, ridgeY + 0.1, side * 0.2),
+				cabinPoint(x, CABIN_EAVE_HEIGHT - 0.3, side * (CABIN_EAVE - 0.2)),
+				0.45,
+				model,
+				DARK_LOG
+			).Name =
+				"Rafter"
+		end
+	end
+	for _, x in { -w / 3, w / 3 } do
+		beam(
+			cabinPoint(x, CABIN_WALL_TOP + 0.1, -CABIN_HALF_DEPTH - 0.4),
+			cabinPoint(x, CABIN_WALL_TOP + 0.1, CABIN_HALF_DEPTH + 0.4),
+			0.7,
+			model,
+			DARK_LOG
+		)
+	end
+
+	-- Each end's triangle is two halves, from the middle out to the front and to the back.
+	-- It follows the roof's slope, a little below it.
+	local base = CABIN_WALL_TOP - 0.6
+	local height = CABIN_PEAK - 0.3 - base
+	local rise = (CABIN_PEAK - CABIN_EAVE_HEIGHT) / CABIN_EAVE -- how steep the roof is
+	local reach = height / rise
+	for _, x in { -w, w } do
+		for _, side in { -1, 1 } do
+			local gable = Instance.new("WedgePart")
+			gable.Name = "Gable"
+			gable.Anchored = true
+			gable.Size = Vector3.new(0.5, height, reach)
+			gable.CFrame = CABIN
+				* CFrame.fromMatrix(
+					Vector3.new(x, base + height / 2, side * reach / 2),
+					Vector3.new(-side, 0, 0),
+					Vector3.new(0, 1, 0),
+					Vector3.new(0, 0, -side)
+				)
+			gable.Material = Enum.Material.WoodPlanks
+			gable.Color = DARK_WOOD
+			gable.TopSurface = Enum.SurfaceType.Smooth
+			gable.BottomSurface = Enum.SurfaceType.Smooth
+			gable.Parent = model
+		end
+	end
+end
+
+-- Mossy green shingles down both slopes, and a cap along the ridge.
+function builders.CabinRoof(model: Model)
+	local top = Vector3.new(0, CABIN_PEAK, 0)
+	for index, side in { -1, 1 } do
+		shingleSlope(
+			model,
+			top,
+			Vector3.new(0, CABIN_EAVE_HEIGHT, side * CABIN_EAVE),
+			CABIN_ROOF_HALF_LENGTH,
+			7,
+			40 + index
+		)
+	end
+	cabinBox(
+		"RidgeCap",
+		Vector3.new(0, CABIN_PEAK + 0.22, 0),
+		Vector3.new(CABIN_ROOF_HALF_LENGTH * 2 + 0.5, 0.4, 0.9),
+		SHINGLES[3]:Lerp(Color3.new(0, 0, 0), 0.2),
+		model,
+		Enum.Material.Slate
+	)
+end
+
+-- A plank door standing open into the room, and glass in the three windows.
+function builders.CabinDoorWindows(model: Model)
+	local height = CABIN_DOOR_TOP - CABIN_FLOOR - 0.25
+	local width = CABIN_DOOR_HALF * 2 - 0.3
+	-- Hinged on one side of the doorway and swung back into the room.
+	local hinge = CABIN
+		* CFrame.new(
+			CABIN_DOOR_HALF - 0.15,
+			CABIN_FLOOR + height / 2 + 0.05,
+			-CABIN_HALF_DEPTH + 0.5
+		)
+		* turn(-80)
+	local door = hinge * CFrame.new(width / 2, 0, 0)
+
+	board("Door", door, Vector3.new(width, height, 0.24), CRATE, model).CanCollide = false
+	for _, y in { -height * 0.3, height * 0.3 } do
+		board(
+			"DoorBrace",
+			door * CFrame.new(0, y, 0.15),
+			Vector3.new(width - 0.1, 0.4, 0.1),
+			DARK_WOOD,
+			model
+		).CanCollide =
+			false
+		makePart({
+			Name = "Hinge",
+			Size = Vector3.new(0.8, 0.22, 0.36),
+			CFrame = hinge * CFrame.new(0.3, y, 0),
+			Material = Enum.Material.Metal,
+			Color = IRON,
+			CanCollide = false,
+		}, model)
+	end
+	makePart({
+		Name = "DoorHandle",
+		Size = Vector3.new(0.2, 0.7, 0.5),
+		CFrame = door * CFrame.new(width / 2 - 0.35, 0, 0),
+		Material = Enum.Material.Metal,
+		Color = IRON,
+		CanCollide = false,
+	}, model)
+	cabinBox(
+		"DoorLintel",
+		Vector3.new(0, CABIN_DOOR_TOP + 0.1, -CABIN_HALF_DEPTH),
+		Vector3.new(CABIN_DOOR_HALF * 2 + 0.8, 0.35, CABIN_LOG + 0.2),
+		DARK_WOOD,
+		model
+	)
+
+	local half = CABIN_WINDOW_SIZE / 2
+	for _, window in CABIN_WINDOWS do
+		-- The frame: a board along each edge of the opening.
+		for _, side in { -1, 1 } do
+			board(
+				"WindowFrame",
+				window * CFrame.new(side * half, 0, 0),
+				Vector3.new(0.3, CABIN_WINDOW_SIZE + 0.3, CABIN_LOG + 0.2),
+				PALE_WOOD,
+				model
+			)
+			board(
+				"WindowFrame",
+				window * CFrame.new(0, side * half, 0),
+				Vector3.new(CABIN_WINDOW_SIZE + 0.3, 0.3, CABIN_LOG + 0.2),
+				PALE_WOOD,
+				model
+			)
+		end
+		-- Four panes: one sheet of glass with a cross of thin bars over it.
+		makePart({
+			Name = "Glass",
+			Size = Vector3.new(CABIN_WINDOW_SIZE, CABIN_WINDOW_SIZE, 0.12),
+			CFrame = window,
+			Material = Enum.Material.Glass,
+			Color = WINDOW_GLOW,
+			Transparency = 0.45,
+		}, model)
+		board("WindowBar", window, Vector3.new(0.14, CABIN_WINDOW_SIZE, 0.24), PALE_WOOD, model)
+		board("WindowBar", window, Vector3.new(CABIN_WINDOW_SIZE, 0.14, 0.24), PALE_WOOD, model)
+	end
+end
+
+-- A grey stone chimney up the outside of the end wall, and a fireplace inside with a fire
+-- burning in it.
+function builders.CabinChimney(model: Model)
+	local w = CABIN_HALF_WIDTH
+	local stone = Enum.Material.Cobblestone
+	local grey, dark = CHIMNEY_STONE, CHIMNEY_STONE_DARK
+
+	-- Outside: a wide base, a shoulder, and the stack rising past the ridge.
+	local outer = w + 0.5
+	cabinBox(
+		"ChimneyBase",
+		Vector3.new(outer + 1.2, 3.4, 0),
+		Vector3.new(2.4, 6.8, 4.4),
+		grey,
+		model,
+		stone
+	)
+	cabinBox(
+		"ChimneyShoulder",
+		Vector3.new(outer + 1.1, 7.6, 0),
+		Vector3.new(2.2, 1.6, 3.5),
+		dark,
+		model,
+		stone
+	)
+	local stackTop = CABIN_PEAK + 2.4
+	cabinBox(
+		"ChimneyStack",
+		Vector3.new(outer + 1.0, (8.4 + stackTop) / 2, 0),
+		Vector3.new(2.0, stackTop - 8.4, 2.6),
+		grey,
+		model,
+		stone
+	)
+	cabinBox(
+		"ChimneyCap",
+		Vector3.new(outer + 1.0, stackTop + 0.2, 0),
+		Vector3.new(2.5, 0.4, 3.1),
+		dark,
+		model,
+		stone
+	)
+	local flue = cabinBox(
+		"Flue",
+		Vector3.new(outer + 1.0, stackTop + 0.45, 0),
+		Vector3.new(1.3, 0.12, 1.9),
+		CHARRED,
+		model,
+		Enum.Material.Slate
+	)
+	flue.CanCollide = false
+
+	local smoke = Instance.new("ParticleEmitter")
+	smoke.Name = "Smoke"
+	smoke.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	smoke.EmissionDirection = Enum.NormalId.Top
+	smoke.Rate = 3
+	smoke.Lifetime = NumberRange.new(5, 7)
+	smoke.Speed = NumberRange.new(1.5, 2.5)
+	smoke.SpreadAngle = Vector2.new(12, 12)
+	smoke.Rotation = NumberRange.new(0, 360)
+	smoke.RotSpeed = NumberRange.new(-20, 20)
+	smoke.Color = ColorSequence.new(Color3.fromRGB(150, 150, 156))
+	smoke.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1.2),
+		NumberSequenceKeypoint.new(1, 4.5),
+	})
+	smoke.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.6),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	smoke.Parent = flue
+
+	local rng = Random.new(37)
+	for i, z in { -2.6, 0, 2.6 } do
+		rock(
+			({ "RockA", "RockB", "RockC" })[i],
+			CABIN * CFrame.new(outer + 2.7, -0.1, z) * turn(rng:NextNumber(0, 360)),
+			rng:NextNumber(0.7, 0.95),
+			model
+		)
+	end
+
+	-- Inside: stone against the wall, an opening for the fire, and a mantel shelf over it.
+	local inner = w - CABIN_LOG / 2 -- the inside face of the end wall
+	local floor = CABIN_FLOOR
+	cabinBox(
+		"Hearth",
+		Vector3.new(inner - 1.5, floor + 0.12, 0),
+		Vector3.new(3, 0.25, 5),
+		dark,
+		model,
+		stone
+	)
+	cabinBox(
+		"FireBack",
+		Vector3.new(inner - 0.25, floor + 2.9, 0),
+		Vector3.new(0.5, 5.8, 4.6),
+		dark,
+		model,
+		stone
+	)
+	for _, side in { -1, 1 } do
+		cabinBox(
+			"FireSide",
+			Vector3.new(inner - 1.0, floor + 1.85, side * 1.85),
+			Vector3.new(1.5, 3.7, 0.9),
+			grey,
+			model,
+			stone
+		)
+	end
+	cabinBox(
+		"FireArch",
+		Vector3.new(inner - 1.0, floor + 4.2, 0),
+		Vector3.new(1.5, 1, 4.6),
+		grey,
+		model,
+		stone
+	)
+	cabinBox(
+		"Mantel",
+		Vector3.new(inner - 1.1, floor + 4.85, 0),
+		Vector3.new(1.9, 0.3, 5.2),
+		DARK_WOOD,
+		model
+	)
+	local breastTop = CABIN_WALL_TOP + 1.6
+	cabinBox(
+		"ChimneyBreast",
+		Vector3.new(inner - 0.6, (floor + 5 + breastTop) / 2, 0),
+		Vector3.new(1.2, breastTop - floor - 5, 3.4),
+		grey,
+		model,
+		stone
+	)
+
+	for i = 1, 3 do
+		local origin = CABIN
+			* CFrame.new(inner - 1.0, floor + 0.55, 0)
+			* turn(60 * i + 15)
+			* CFrame.new(0.3, 0, 0)
+			* CFrame.Angles(0, 0, math.rad(12))
+		log(origin, 0.34, CHARRED, CHARRED, model)
+	end
+	local flame = makePart({
+		Name = "Flame",
+		Size = Vector3.one,
+		CFrame = CABIN * CFrame.new(inner - 1.0, floor + 0.7, 0),
+		Transparency = 1,
+		CanCollide = false,
+		CanQuery = false,
+	}, model)
+
+	local fire = Instance.new("Fire")
+	fire.Size = 4
+	fire.Heat = 5
+	fire.Parent = flame
+
+	local light = Instance.new("PointLight")
+	light.Color = Config.Lighting.WarmLight
+	light.Brightness = 1.8
+	light.Range = 22
+	light.Shadows = true
+	light.Parent = flame
+end
+
+-- A plank porch right across the front, with a rail, its own shingled roof on four posts,
+-- and a step up from the ground.
+function builders.CabinPorch(model: Model)
+	local w = CABIN_HALF_WIDTH
+	local back = -CABIN_HALF_DEPTH - 0.55 -- where the porch meets the cabin
+	local boards = 5
+	local boardDepth = PORCH_DEPTH / boards
+	for i = 1, boards do
+		cabinBox(
+			"PorchBoard",
+			Vector3.new(0, CABIN_FLOOR - 0.15, back - (i - 0.5) * boardDepth),
+			Vector3.new(w * 2 + 0.6, 0.3, boardDepth - 0.04),
+			if i % 2 == 0 then CRATE else CRATE:Lerp(DARK_WOOD, 0.25),
+			model
+		)
+	end
+	cabinBox(
+		"PorchSkirt",
+		Vector3.new(0, (CABIN_FLOOR - 0.3) / 2, PORCH_FRONT + 0.15),
+		Vector3.new(w * 2 + 0.6, CABIN_FLOOR - 0.3, 0.3),
+		DARK_WOOD,
+		model
+	)
+	for _, side in { -1, 1 } do
+		cabinBox(
+			"PorchSkirt",
+			Vector3.new(side * (w + 0.15), (CABIN_FLOOR - 0.3) / 2, back - PORCH_DEPTH / 2),
+			Vector3.new(0.3, CABIN_FLOOR - 0.3, PORCH_DEPTH),
+			DARK_WOOD,
+			model
+		)
+	end
+	cabinBox(
+		"PorchStep",
+		Vector3.new(0, CABIN_FLOOR / 4, PORCH_FRONT - 0.75),
+		Vector3.new(5, CABIN_FLOOR / 2, 1.5),
+		CRATE,
+		model
+	)
+
+	-- Four posts along the front, leaving the middle open for the step.
+	local postHeight = 6.2
+	local postX = { -w + 0.2, -2.7, 2.7, w - 0.2 }
+	for _, x in postX do
+		post(
+			"PorchPost",
+			cabinPoint(x, CABIN_FLOOR, PORCH_POST_Z),
+			postHeight,
+			0.55,
+			DARK_LOG,
+			model
+		)
+	end
+	beam(
+		cabinPoint(-w - 0.6, CABIN_FLOOR + postHeight + 0.25, PORCH_POST_Z),
+		cabinPoint(w + 0.6, CABIN_FLOOR + postHeight + 0.25, PORCH_POST_Z),
+		0.6,
+		model,
+		DARK_LOG
+	)
+
+	-- Rails between the outer posts, and down each end of the porch.
+	for _, height in { 1.3, 2.6 } do
+		local y = CABIN_FLOOR + height
+		for _, side in { -1, 1 } do
+			pole(
+				cabinPoint(side * (w - 0.2), y, PORCH_POST_Z),
+				cabinPoint(side * 2.7, y, PORCH_POST_Z),
+				0.28,
+				model,
+				WOOD
+			).Name =
+				"PorchRail"
+			pole(
+				cabinPoint(side * (w - 0.2), y, PORCH_POST_Z),
+				cabinPoint(side * (w - 0.2), y, back),
+				0.28,
+				model,
+				WOOD
+			).Name =
+				"PorchRail"
+		end
+	end
+
+	-- The porch roof runs on down from under the cabin's own.
+	shingleSlope(
+		model,
+		Vector3.new(0, CABIN_EAVE_HEIGHT - 0.1, -CABIN_HALF_DEPTH - 0.6),
+		Vector3.new(0, CABIN_FLOOR + postHeight + 0.45, PORCH_FRONT - 0.7),
+		CABIN_ROOF_HALF_LENGTH - 0.4,
+		3,
+		47
+	)
+end
+
+-- A rocking chair on the porch, and a lantern hung beside the door.
+function builders.PorchChair(model: Model)
+	local chair = CABIN
+		* CFrame.new(-4.6, CABIN_FLOOR, -CABIN_HALF_DEPTH - 2.4)
+		* turn(12)
+		* CFrame.Angles(math.rad(6), 0, 0) -- rocked back a little
+	local function piece(name: string, at: CFrame, size: Vector3, color: Color3)
+		board(name, chair * at, size, color, model).CanCollide = false
+	end
+
+	for _, x in { -0.95, 0.95 } do
+		-- A rocker: a long runner with each end turned up.
+		piece("Rocker", CFrame.new(x, 0.12, 0), Vector3.new(0.22, 0.2, 2.6), DARK_WOOD)
+		for _, side in { -1, 1 } do
+			piece(
+				"Rocker",
+				CFrame.new(x, 0.26, side * 1.45) * CFrame.Angles(math.rad(side * 22), 0, 0),
+				Vector3.new(0.22, 0.2, 0.8),
+				DARK_WOOD
+			)
+		end
+		piece("ChairLeg", CFrame.new(x, 0.95, -0.8), Vector3.new(0.2, 1.7, 0.2), WOOD)
+		piece("ChairLeg", CFrame.new(x, 2.3, 0.85), Vector3.new(0.2, 4.4, 0.2), WOOD)
+		piece("ChairArm", CFrame.new(x, 2.55, 0), Vector3.new(0.3, 0.16, 2), WOOD)
+	end
+	piece("ChairSeat", CFrame.new(0, 1.6, 0), Vector3.new(2, 0.18, 1.9), CRATE)
+	for i = -2, 2 do
+		piece("ChairSlat", CFrame.new(i * 0.38, 3.2, 0.85), Vector3.new(0.26, 2.4, 0.12), CRATE)
+	end
+	piece("ChairTop", CFrame.new(0, 4.45, 0.85), Vector3.new(2.1, 0.3, 0.18), WOOD)
+	piece("Cushion", CFrame.new(0, 1.78, 0), Vector3.new(1.7, 0.2, 1.6), BLANKET)
+
+	-- The lantern, on an iron bracket out from the wall.
+	local bracket = cabinPoint(2.15, CABIN_FLOOR + 5.6, -CABIN_HALF_DEPTH - 0.5)
+	local lantern = cabinPoint(2.15, CABIN_FLOOR + 4.6, -CABIN_HALF_DEPTH - 1.5)
+	pole(bracket, cabinPoint(2.15, CABIN_FLOOR + 5.7, -CABIN_HALF_DEPTH - 1.5), 0.12, model, IRON).Name =
+		"LanternBracket"
+	for _, cap in { 0.52, -0.52 } do
+		makePart({
+			Name = "LanternCap",
+			Size = Vector3.new(0.8, 0.14, 0.8),
+			CFrame = CABIN.Rotation + (lantern + Vector3.new(0, cap, 0)),
+			Material = Enum.Material.Metal,
+			Color = IRON,
+			CanCollide = false,
+		}, model)
+	end
+	makePart({
+		Name = "LanternHook",
+		Size = Vector3.new(0.08, 0.5, 0.08),
+		CFrame = CFrame.new(lantern + Vector3.new(0, 0.82, 0)),
+		Material = Enum.Material.Metal,
+		Color = IRON,
+		CanCollide = false,
+	}, model)
+	local glass = makePart({
+		Name = "LanternGlass",
+		Size = Vector3.new(0.6, 0.9, 0.6),
+		CFrame = CABIN.Rotation + lantern,
+		Material = Enum.Material.Neon,
+		Color = LANTERN_GLOW,
+		CanCollide = false,
+	}, model)
+
+	local light = Instance.new("PointLight")
+	light.Color = Config.Lighting.WarmLight
+	light.Brightness = 1.4
+	light.Range = 24
+	light.Shadows = false
+	light.Parent = glass
+end
+
+-- A wooden bed in the back corner, with a pillow and a patchwork quilt.
+function builders.CabinBed(model: Model)
+	local inner = CABIN_HALF_WIDTH - CABIN_LOG / 2
+	local length, width = 6.2, 3.2
+	-- Head against the side wall, one long side against the back wall.
+	local bed = CABIN
+		* CFrame.new(
+			-inner + 0.2 + length / 2,
+			CABIN_FLOOR,
+			CABIN_HALF_DEPTH - CABIN_LOG / 2 - 0.15 - width / 2
+		)
+
+	for _, x in { -1, 1 } do
+		for _, z in { -1, 1 } do
+			local tall = if x < 0 then 3.4 else 2.2 -- the head end stands taller
+			board(
+				"BedPost",
+				bed * CFrame.new(x * (length / 2 - 0.2), tall / 2, z * (width / 2 - 0.2)),
+				Vector3.new(0.4, tall, 0.4),
+				DARK_WOOD,
+				model
+			)
+		end
+	end
+	board(
+		"BedFrame",
+		bed * CFrame.new(0, 1.15, 0),
+		Vector3.new(length - 0.4, 0.5, width),
+		WOOD,
+		model
+	)
+	board(
+		"Headboard",
+		bed * CFrame.new(-length / 2 + 0.2, 2.5, 0),
+		Vector3.new(0.25, 1.5, width - 0.6),
+		WOOD,
+		model
+	)
+	board(
+		"Footboard",
+		bed * CFrame.new(length / 2 - 0.2, 1.75, 0),
+		Vector3.new(0.25, 0.7, width - 0.6),
+		WOOD,
+		model
+	)
+	makePart({
+		Name = "Mattress",
+		Size = Vector3.new(length - 0.8, 0.5, width - 0.3),
+		CFrame = bed * CFrame.new(0, 1.65, 0),
+		Material = Enum.Material.Fabric,
+		Color = CLOTH,
+	}, model)
+	makePart({
+		Name = "Pillow",
+		Size = Vector3.new(1.1, 0.4, width - 1),
+		CFrame = bed * CFrame.new(-length / 2 + 1.15, 2.05, 0) * CFrame.Angles(0, 0, math.rad(-8)),
+		Material = Enum.Material.Fabric,
+		Color = SOCK,
+		CanCollide = false,
+	}, model)
+
+	-- The quilt: squares of different cloth, covering the bed from below the pillow down,
+	-- and hanging over the side that faces the room.
+	local rng = Random.new(53)
+	local columns, rows = 5, 3
+	local quiltFrom, quiltTo = -length / 2 + 1.9, length / 2 - 0.45
+	local squareX = (quiltTo - quiltFrom) / columns
+	local squareZ = (width - 0.2) / rows
+	for column = 1, columns do
+		local x = quiltFrom + (column - 0.5) * squareX
+		local color = QUILT[rng:NextInteger(1, #QUILT)]
+		for row = 1, rows do
+			local nextColor = QUILT[(column * 2 + row * 3) % #QUILT + 1]
+			makePart({
+				Name = "QuiltSquare",
+				Size = Vector3.new(squareX, 0.14, squareZ),
+				CFrame = bed * CFrame.new(x, 1.97, -width / 2 + 0.1 + (row - 0.5) * squareZ),
+				Material = Enum.Material.Fabric,
+				Color = nextColor,
+				CanCollide = false,
+			}, model)
+		end
+		makePart({
+			Name = "QuiltEdge",
+			Size = Vector3.new(squareX, 0.9, 0.12),
+			CFrame = bed * CFrame.new(x, 1.55, -width / 2 + 0.05),
+			Material = Enum.Material.Fabric,
+			Color = color,
+			CanCollide = false,
+		}, model)
+	end
+end
+
+-- A table and two stools in the middle of the room, and shelves of jars on the back wall.
+function builders.CabinTable(model: Model)
+	local floor = CABIN_FLOOR
+	local tableAt = CABIN * CFrame.new(0.9, floor, -0.1) * turn(4)
+	board("TableTop", tableAt * CFrame.new(0, 2.7, 0), Vector3.new(3.8, 0.26, 2.6), CRATE, model)
+	for _, x in { -1.6, 1.6 } do
+		for _, z in { -1, 1 } do
+			board(
+				"TableLeg",
+				tableAt * CFrame.new(x, 1.3, z),
+				Vector3.new(0.3, 2.6, 0.3),
+				DARK_WOOD,
+				model
+			)
+		end
+	end
+	for _, at in { CFrame.new(-2.8, 0, 0.1), CFrame.new(0.8, 0, 2.2) } do
+		local stool = tableAt * at
+		board("StoolSeat", stool * CFrame.new(0, 1.7, 0), Vector3.new(1.4, 0.22, 1.4), WOOD, model)
+		for _, x in { -0.5, 0.5 } do
+			for _, z in { -0.5, 0.5 } do
+				board(
+					"StoolLeg",
+					stool * CFrame.new(x, 0.8, z),
+					Vector3.new(0.2, 1.6, 0.2),
+					DARK_WOOD,
+					model
+				).CanCollide =
+					false
+			end
+		end
+	end
+	-- Supper laid out: a bowl, a mug and a candle.
+	local upright = CFrame.Angles(0, 0, math.rad(90))
+	makePart({
+		Name = "Bowl",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.3, 0.9, 0.9),
+		CFrame = tableAt * CFrame.new(-0.8, 2.98, -0.3) * upright,
+		Color = PALE_WOOD,
+		CanCollide = false,
+	}, model)
+	makePart({
+		Name = "Mug",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.5, 0.4, 0.4),
+		CFrame = tableAt * CFrame.new(0.1, 3.08, 0.5) * upright,
+		Material = Enum.Material.Metal,
+		Color = IRON,
+		CanCollide = false,
+	}, model)
+	makePart({
+		Name = "Candle",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.7, 0.22, 0.22),
+		CFrame = tableAt * CFrame.new(1.1, 3.18, -0.2) * upright,
+		Material = Enum.Material.SmoothPlastic,
+		Color = SOCK,
+		CanCollide = false,
+	}, model)
+	local wick = makePart({
+		Name = "CandleFlame",
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.one * 0.24,
+		CFrame = tableAt * CFrame.new(1.1, 3.65, -0.2),
+		Material = Enum.Material.Neon,
+		Color = LANTERN_GLOW,
+		CanCollide = false,
+	}, model)
+	local light = Instance.new("PointLight")
+	light.Color = Config.Lighting.WarmLight
+	light.Brightness = 0.8
+	light.Range = 12
+	light.Shadows = false
+	light.Parent = wick
+
+	-- Two shelves on the back wall, between the bed and the fireplace.
+	local wall = CABIN_HALF_DEPTH - CABIN_LOG / 2
+	local shelfX, shelfLength = 2.6, 4.2
+	local jarColors = { CLAY, MOSS, EMBER:Lerp(RUST, 0.6), FLANNEL_DARK, STEW }
+	local rng = Random.new(59)
+	for shelf, height in { 3.6, 5.3 } do
+		local y = floor + height
+		board(
+			"Shelf",
+			CABIN * CFrame.new(shelfX, y, wall - 0.5),
+			Vector3.new(shelfLength, 0.2, 1),
+			WOOD,
+			model
+		).CanCollide =
+			false
+		for _, side in { -1, 1 } do
+			board(
+				"ShelfBracket",
+				CABIN * CFrame.new(shelfX + side * (shelfLength / 2 - 0.4), y - 0.35, wall - 0.3),
+				Vector3.new(0.2, 0.5, 0.6),
+				DARK_WOOD,
+				model
+			).CanCollide =
+				false
+		end
+		for i = 1, 5 do
+			local x = shelfX - shelfLength / 2 + 0.5 + (i - 1) * 0.8 + rng:NextNumber(-0.1, 0.1)
+			local tall = rng:NextNumber(0.6, 0.95)
+			local jar = CABIN * CFrame.new(x, y + 0.1 + tall / 2, wall - 0.55)
+			makePart({
+				Name = "Jar",
+				Shape = Enum.PartType.Cylinder,
+				Size = Vector3.new(tall, 0.55, 0.55),
+				CFrame = jar * upright,
+				Material = Enum.Material.Glass,
+				Color = jarColors[(i + shelf) % #jarColors + 1],
+				Transparency = 0.25,
+				CanCollide = false,
+			}, model)
+			makePart({
+				Name = "JarLid",
+				Shape = Enum.PartType.Cylinder,
+				Size = Vector3.new(0.12, 0.6, 0.6),
+				CFrame = jar * CFrame.new(0, tall / 2 + 0.06, 0) * upright,
+				Material = Enum.Material.Metal,
+				Color = RUST,
+				CanCollide = false,
+			}, model)
+		end
+	end
+end
+
+-- Red shutters each side of every window, and a box of wildflowers under it.
+function builders.CabinShutters(model: Model)
+	local half = CABIN_WINDOW_SIZE / 2
+	local rng = Random.new(61)
+	for _, window in CABIN_WINDOWS do
+		-- The window's own -Z faces out of the cabin.
+		local out = -(CABIN_LOG / 2 + 0.12)
+		for _, side in { -1, 1 } do
+			local shutter = window * CFrame.new(side * (half + 0.75), 0, out)
+			board(
+				"Shutter",
+				shutter,
+				Vector3.new(1.1, CABIN_WINDOW_SIZE + 0.4, 0.16),
+				SHUTTER_RED,
+				model
+			).CanCollide =
+				false
+			for _, y in { -0.75, 0.75 } do
+				board(
+					"ShutterLedge",
+					shutter * CFrame.new(0, y, -0.1),
+					Vector3.new(1.1, 0.22, 0.08),
+					FLANNEL_DARK,
+					model
+				).CanCollide =
+					false
+			end
+		end
+
+		local box = window * CFrame.new(0, -half - 0.65, out - 0.3)
+		board("FlowerBox", box, Vector3.new(CABIN_WINDOW_SIZE + 0.8, 0.6, 0.8), DARK_WOOD, model).CanCollide =
+			false
+		makePart({
+			Name = "Soil",
+			Size = Vector3.new(CABIN_WINDOW_SIZE + 0.5, 0.1, 0.55),
+			CFrame = box * CFrame.new(0, 0.3, 0),
+			Material = Enum.Material.Slate,
+			Color = SOIL,
+			CanCollide = false,
+		}, model)
+		for i = 1, 6 do
+			local x = -half - 0.1 + (i - 0.5) * (CABIN_WINDOW_SIZE + 0.2) / 6
+			local foot = box:PointToWorldSpace(Vector3.new(x, 0.3, rng:NextNumber(-0.12, 0.12)))
+			local tall = rng:NextNumber(0.5, 0.95)
+			local head = foot + Vector3.new(rng:NextNumber(-0.1, 0.1), tall, 0.04)
+			pole(foot, head, 0.08, model, MOSS).CanCollide = false
+			makePart({
+				Name = "Flower",
+				Shape = Enum.PartType.Ball,
+				Size = Vector3.one * rng:NextNumber(0.3, 0.42),
+				Position = head,
+				Material = Enum.Material.SmoothPlastic,
+				Color = PETALS[(i + rng:NextInteger(0, 1)) % #PETALS + 1],
+				CanCollide = false,
+			}, model)
+		end
+	end
+end
+
 -- Where each build stands, for measuring the ground under it.
 local BUILD_SPOTS: { [string]: Vector3 } = {
 	FirePit = Vector3.new(0, 0, 0),
@@ -1528,6 +2707,17 @@ local BUILD_SPOTS: { [string]: Vector3 } = {
 	Workbench = Vector3.new(-14, 0, 0),
 	RainBarrel = Vector3.new(-14, 0, 0),
 	StonePath = Vector3.new(-7, 0, 0),
+	CabinFoundation = CABIN_CENTRE,
+	CabinWalls = CABIN_CENTRE,
+	CabinRoofBeams = CABIN_CENTRE,
+	CabinRoof = CABIN_CENTRE,
+	CabinDoorWindows = CABIN_CENTRE,
+	CabinChimney = CABIN_CENTRE,
+	CabinPorch = CABIN_CENTRE,
+	PorchChair = CABIN_CENTRE,
+	CabinBed = CABIN_CENTRE,
+	CabinTable = CABIN_CENTRE,
+	CabinShutters = CABIN_CENTRE,
 }
 local reportedGround: { [string]: boolean } = {}
 
@@ -1576,6 +2766,17 @@ function CampModels.build(id: string, parent: Instance, standing: { [string]: bo
 	return model
 end
 
+-- Where the build prompt for a build should hang, for the builds that need telling. The
+-- prompt otherwise hangs over the build's first piece, which on a roof is out of reach.
+-- Every piece of the cabin is built from the ground in front of its door.
+function CampModels.promptSpot(id: string): Vector3?
+	if BUILD_SPOTS[id] == CABIN_CENTRE then
+		local spot = cabinPoint(0, 0, PORCH_FRONT - 2.5)
+		return spot + Vector3.new(0, groundHeightAt(spot), 0)
+	end
+	return nil
+end
+
 -- Adds a glowing edge and tint in the shape of the model, visible in the dark.
 local function addGlow(model: Model, fillTransparency: number, seeThroughObstacles: boolean)
 	local highlight = Instance.new("Highlight")
@@ -1592,7 +2793,7 @@ end
 -- Turns a built model into a glowing outline showing where the next build will stand.
 function CampModels.makeGhost(model: Model)
 	for _, item in model:GetDescendants() do
-		if item:IsA("BasePart") then
+		if item:IsA("BasePart") and not item:GetAttribute("LiveOnly") then
 			if item.Transparency < 1 then
 				item.Transparency = Config.Camp.GhostTransparency
 			end
@@ -1601,7 +2802,12 @@ function CampModels.makeGhost(model: Model)
 			item.CanCollide = false
 			item.CanQuery = false
 			item.CastShadow = false
-		elseif item:IsA("Fire") or item:IsA("Light") or item:IsA("ParticleEmitter") then
+		elseif
+			item:IsA("Fire")
+			or item:IsA("Light")
+			or item:IsA("ParticleEmitter")
+			or item:GetAttribute("LiveOnly") -- a working piece, such as a button
+		then
 			item:Destroy()
 		end
 	end
@@ -1919,6 +3125,117 @@ function materialBuilders.Barrel(model: Model, at: Vector3)
 			CFrame = CFrame.new(at + Vector3.new(0, y, 0)) * upright,
 			Material = Enum.Material.Metal,
 			Color = IRON,
+		}, model)
+	end
+end
+
+-- The cabin's materials.
+
+-- Three mossy shingles, overlapping.
+function materialBuilders.Shingle(model: Model, at: Vector3)
+	for i = 1, 3 do
+		makePart({
+			Size = Vector3.new(0.9, 0.1, 1.3),
+			CFrame = CFrame.new(at + Vector3.new((i - 2) * 0.55, 0.08 + i * 0.07, 0)) * turn(
+				(i - 2) * 9
+			) * CFrame.Angles(0, 0, math.rad(6)),
+			Material = Enum.Material.Slate,
+			Color = SHINGLES[i],
+		}, model)
+	end
+end
+
+-- A pane of glass in a thin wooden frame, standing on edge.
+function materialBuilders.GlassPane(model: Model, at: Vector3)
+	local pane = CFrame.new(at + Vector3.new(0, 0.8, 0))
+	makePart({
+		Size = Vector3.new(1.2, 1.4, 0.06),
+		CFrame = pane,
+		Material = Enum.Material.Glass,
+		Color = Color3.fromRGB(176, 214, 226),
+		Transparency = 0.35,
+	}, model)
+	for _, side in { -1, 1 } do
+		makePart({
+			Size = Vector3.new(0.12, 1.6, 0.14),
+			CFrame = pane * CFrame.new(side * 0.66, 0, 0),
+			Color = PALE_WOOD,
+		}, model)
+		makePart({
+			Size = Vector3.new(1.44, 0.12, 0.14),
+			CFrame = pane * CFrame.new(0, side * 0.74, 0),
+			Color = PALE_WOOD,
+		}, model)
+	end
+end
+
+-- A lump of wet clay.
+function materialBuilders.Clay(model: Model, at: Vector3)
+	for _, lump in
+		{
+			{ Vector3.new(0, 0.4, 0), 0.95 },
+			{ Vector3.new(0.5, 0.3, 0.2), 0.65 },
+			{ Vector3.new(-0.35, 0.28, -0.3), 0.6 },
+		}
+	do
+		makePart({
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.one * lump[2],
+			Position = at + lump[1],
+			Material = Enum.Material.Sand,
+			Color = CLAY,
+		}, model)
+	end
+end
+
+-- A folded patchwork quilt.
+function materialBuilders.Quilt(model: Model, at: Vector3)
+	for i = 1, 3 do
+		for j = 1, 2 do
+			makePart({
+				Size = Vector3.new(0.7, 0.2, 1.1),
+				Position = at + Vector3.new((j - 1.5) * 0.7, 0.1 + (i - 1) * 0.2, 0),
+				Material = Enum.Material.Fabric,
+				Color = QUILT[(i * 2 + j) % #QUILT + 1],
+			}, model)
+		end
+	end
+end
+
+-- Two glass jars with tin lids.
+function materialBuilders.Jars(model: Model, at: Vector3)
+	local upright = CFrame.Angles(0, 0, math.rad(90))
+	for i, tall in { 0.9, 0.65 } do
+		local foot = at + Vector3.new((i - 1.5) * 0.75, 0, (i - 1.5) * 0.2)
+		makePart({
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(tall, 0.6, 0.6),
+			CFrame = CFrame.new(foot + Vector3.new(0, tall / 2, 0)) * upright,
+			Material = Enum.Material.Glass,
+			Color = Color3.fromRGB(176, 214, 226),
+			Transparency = 0.3,
+		}, model)
+		makePart({
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.12, 0.66, 0.66),
+			CFrame = CFrame.new(foot + Vector3.new(0, tall + 0.06, 0)) * upright,
+			Material = Enum.Material.Metal,
+			Color = RUST,
+		}, model)
+	end
+end
+
+-- A small bunch of wildflowers.
+function materialBuilders.Wildflowers(model: Model, at: Vector3)
+	for i = 1, 4 do
+		local lean = Vector3.new((i - 2.5) * 0.28, 1.1 + (i % 2) * 0.25, (i % 2 - 0.5) * 0.3)
+		pole(at, at + lean, 0.07, model, MOSS)
+		makePart({
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.one * 0.36,
+			Position = at + lean,
+			Material = Enum.Material.SmoothPlastic,
+			Color = PETALS[i],
 		}, model)
 	end
 end

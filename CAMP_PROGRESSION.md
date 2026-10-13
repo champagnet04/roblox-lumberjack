@@ -117,15 +117,26 @@ New materials: flat stone, axe head, bark sheet, hinge, old tools, barrel.
 
 A log cabin, clearly bigger than the hut, with a shingle roof, a stone chimney, glass windows and a covered front porch. The player can walk inside. The hut stays as the workshop.
 
-Decided by quiz on 2026-10-12. Not built yet; the bigger clearing it needs is.
+Decided by quiz on 2026-10-12. Built the same day, all eleven builds and the six new materials; not yet seen by the owner. The stamina perk and the room camera were added the same day; neither has been seen by the owner.
 
 | Subject | Decision |
 |---|---|
 | The hut | Stays as the workshop |
 | Place | The far side of the fire from where the player starts, on the new ground, porch facing the fire |
-| Inside | The player walks in. The roof stays solid and the camera moves in close |
-| Look | Dark brown round logs with pale chinking, mossy green shingles, a grey stone chimney, red shutters |
+| Inside | The player walks in and the roof stays solid. Changed by the owner on seeing it (2026-10-12): the close camera made the room hard to see, so inside the cabin the camera sits in a top corner and looks down across the whole room. A "Go inside" button at the door steps the player through; walking in works too |
+| Look | Dark brown round logs with pale chinking, dark mossy shingles, a dark grey stone chimney, red shutters. The first roof was too bright a green and the chimney too pale; both were darkened at the owner's request |
 | Perk | Stamina bar a tenth bigger (110 in place of 100) |
+
+As built (Claude's choices, to be judged in Studio):
+
+- The hut already stands straight across the fire from where the player starts, so the cabin is behind the fire and to one side of it: to the left of the hut as seen from the start, about 25 studs from the fire, turned to face it. The chimney is on the end nearer the start.
+- 15 studs wide and 11 deep, with a porch 4 deep across the whole front. The hut is 10 by 8.
+- Windows: two in the front wall and one in the end wall facing the hut. Glass has a warm tint.
+- The door stands open into the room. The fireplace has a fire that lights the room; the chimney smokes.
+- Inside: bed in the back corner, table and two stools in the middle, shelves of jars on the back wall.
+- The clothesline moves along, from (3.5, 16) to (13, 18), once the foundation is laid, because the porch reaches its first spot.
+- The build prompt for every cabin piece hangs in front of the porch step, so the roof and the furniture can be built from the ground outside.
+- All pieces are built in code from the same sculpted logs and rocks as the hut. No new sculpted models.
 
 | # | Build | Wood | Materials |
 |---|---|---|---|
